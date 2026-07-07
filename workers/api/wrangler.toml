@@ -1,0 +1,17 @@
+name = "con-sche-api"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# D1データベース（作成コマンド）:
+#   wrangler d1 create con-sche-api
+# 作成後、以下の database_id を実際のIDに差し替えること。
+# スキーマ適用:
+#   wrangler d1 execute con-sche-api --file=schema.sql --remote
+[[d1_databases]]
+binding = "DB"
+database_name = "con-sche-api"
+database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
+
+[vars]
+# CORSで許可するオリジン（本番ドメインに合わせる。"*" は開発用）
+ALLOWED_ORIGIN = "*"

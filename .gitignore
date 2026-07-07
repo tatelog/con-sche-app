@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Secrets / credentials
+*_token.json
+*_config.json
+*.keys.json
+credentials.json
+
+# Server build
+dist-server/
+
+# Drizzle meta
+drizzle/meta/
+
+# Misc
+*.local
+*.local.md
+
+# Cloudflare Workers (local dev state)
+.wrangler/
+
+# Playwright artifacts
+.playwright-mcp/
+.next/

@@ -1,0 +1,52 @@
+{
+  "name": "con-sche",
+  "version": "1.0.0",
+  "description": "建設業向けネットワーク工程表（ADM）Webアプリケーション",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "keywords": [
+    "construction",
+    "schedule",
+    "cpm",
+    "network-diagram"
+  ],
+  "author": "Tatelog Inc.",
+  "license": "SEE LICENSE IN LICENSE",
+  "dependencies": {
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.3",
+    "dexie": "^4.3.0",
+    "jspdf": "^4.1.0",
+    "jszip": "^3.10.1",
+    "konva": "^10.2.0",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-konva": "^19.2.2",
+    "react-router-dom": "^6.30.3",
+    "sonner": "^2.0.7",
+    "svg2pdf.js": "^2.7.0",
+    "typescript": "^5.9.3",
+    "uuid": "^13.0.0",
+    "vite": "^7.3.1",
+    "web-ifc": "^0.0.75",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^25.2.3",
+    "@types/uuid": "^10.0.0",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.0.18"
+  }
+}

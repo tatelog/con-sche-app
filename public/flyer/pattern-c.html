@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Con-sche フライヤー Pattern C - 建設現場のリアル感</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --yellow: #f59e0b;
+            --yellow-light: #fbbf24;
+            --black: #000000;
+            --gray-dark: #1f2937;
+            --blue: #1e3a8a;
+            --white: #ffffff;
+            --gray-light: #f3f4f6;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            line-height: 1.6;
+            color: var(--gray-dark);
+            background: white;
+        }
+
+        .page {
+            width: 210mm;
+            height: 297mm;
+            padding: 0;
+            margin: 0 auto;
+            background: white;
+            position: relative;
+            page-break-after: always;
+            overflow: hidden;
+        }
+
+        .page:last-child {
+            page-break-after: auto;
+        }
+
+        /* Caution stripe pattern */
+        .caution-stripe {
+            background: repeating-linear-gradient(
+                45deg,
+                var(--black),
+                var(--black) 10px,
+                var(--yellow) 10px,
+                var(--yellow) 20px
+            );
+        }
+
+        .caution-stripe-thin {
+            background: repeating-linear-gradient(
+                45deg,
+                var(--black),
+                var(--black) 5px,
+                var(--yellow) 5px,
+                var(--yellow) 10px
+            );
+        }
+
+        /* Front Page */
+        .front-page {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .caution-header {
+            background: var(--black);
+            color: var(--yellow);
+            padding: 8mm 10mm;
+            text-align: center;
+            border-top: 8px solid var(--yellow);
+            border-bottom: 8px solid var(--yellow);
+        }
+
+        .caution-text {
+            font-size: 20pt;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .caution-icon {
+            display: inline-block;
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 20px solid var(--yellow);
+            margin: 0 8px;
+            position: relative;
+            top: -2px;
+        }
+
+        .hero-section {
+            background: var(--yellow);
+            padding: 15mm 10mm;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--black);
+        }
+
+        .hero-section::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--black);
+        }
+
+        .main-headline {
+            font-size: 32pt;
+            font-weight: 900;
+            color: var(--black);
+            line-height: 1.3;
+            margin-bottom: 8mm;
+            text-shadow: 2px 2px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .sub-headline {
+            font-size: 16pt;
+            font-weight: 700;
+            color: var(--black);
+            margin-bottom: 3mm;
+        }
+
+        .product-name {
+            font-size: 28pt;
+            font-weight: 900;
+            color: var(--blue);
+            margin-bottom: 2mm;
+            letter-spacing: 3px;
+        }
+
+        .product-subtitle {
+            font-size: 14pt;
+            font-weight: 700;
+            color: var(--gray-dark);
+        }
+
+        .screenshot-section {
+            padding: 8mm 10mm;
+            background: var(--gray-light);
+            border-left: 15px solid var(--yellow);
+            border-right: 15px solid var(--yellow);
+        }
+
+        .screenshot {
+            width: 100%;
+            height: auto;
+            border: 5px solid var(--black);
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.2);
+        }
+
+        .features-section {
+            padding: 10mm;
+            background: white;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 5mm;
+        }
+
+        .feature-card {
+            border: 4px solid var(--black);
+            background: white;
+            padding: 5mm;
+            position: relative;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            height: 15px;
+            background: var(--yellow);
+        }
+
+        .feature-number {
+            display: inline-block;
+            background: var(--black);
+            color: var(--yellow);
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            text-align: center;
+            font-size: 24pt;
+            font-weight: 900;
+            margin-bottom: 3mm;
+            border: 3px solid var(--yellow);
+        }
+
+        .feature-title {
+            font-size: 18pt;
+            font-weight: 900;
+            color: var(--black);
+            margin-bottom: 2mm;
+        }
+
+        .feature-desc {
+            font-size: 11pt;
+            color: var(--gray-dark);
+            line-height: 1.5;
+        }
+
+        .stripe-border {
+            height: 15px;
+            background: repeating-linear-gradient(
+                45deg,
+                var(--black),
+                var(--black) 8px,
+                var(--yellow) 8px,
+                var(--yellow) 16px
+            );
+        }
+
+        /* Back Page */
+        .back-page {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .back-header {
+            background: var(--black);
+            color: var(--yellow);
+            padding: 6mm 10mm;
+            text-align: center;
+            border-bottom: 8px solid var(--yellow);
+        }
+
+        .back-header h1 {
+            font-size: 24pt;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .problem-solution {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5mm;
+            padding: 8mm 10mm;
+            background: var(--gray-light);
+        }
+
+        .problem-card, .solution-card {
+            border: 5px solid var(--black);
+            background: white;
+            padding: 5mm;
+            position: relative;
+        }
+
+        .problem-card::before {
+            content: '問題';
+            position: absolute;
+            top: -20px;
+            left: 10px;
+            background: var(--black);
+            color: var(--yellow);
+            padding: 5px 15px;
+            font-size: 14pt;
+            font-weight: 900;
+            border: 3px solid var(--yellow);
+        }
+
+        .solution-card::before {
+            content: '解決';
+            position: absolute;
+            top: -20px;
+            left: 10px;
+            background: var(--yellow);
+            color: var(--black);
+            padding: 5px 15px;
+            font-size: 14pt;
+            font-weight: 900;
+            border: 3px solid var(--black);
+        }
+
+        .card-content {
+            margin-top: 5mm;
+        }
+
+        .card-title {
+            font-size: 16pt;
+            font-weight: 900;
+            margin-bottom: 3mm;
+            color: var(--black);
+        }
+
+        .card-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .card-list li {
+            font-size: 11pt;
+            margin-bottom: 2mm;
+            padding-left: 5mm;
+            position: relative;
+        }
+
+        .card-list li::before {
+            content: '▶';
+            position: absolute;
+            left: 0;
+            font-weight: 900;
+        }
+
+        .problem-card .card-list li::before {
+            color: var(--black);
+        }
+
+        .solution-card .card-list li::before {
+            color: var(--yellow);
+        }
+
+        .pricing-section {
+            padding: 8mm 10mm;
+            background: white;
+        }
+
+        .pricing-title {
+            font-size: 20pt;
+            font-weight: 900;
+            color: var(--black);
+            text-align: center;
+            margin-bottom: 5mm;
+            padding: 3mm;
+            background: var(--yellow);
+            border: 4px solid var(--black);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 3mm;
+        }
+
+        .pricing-card {
+            border: 4px solid var(--black);
+            background: white;
+            padding: 4mm;
+            text-align: center;
+        }
+
+        .pricing-card.featured {
+            background: var(--yellow-light);
+            border: 5px solid var(--black);
+            transform: scale(1.02);
+        }
+
+        .plan-name {
+            font-size: 14pt;
+            font-weight: 900;
+            margin-bottom: 2mm;
+            color: var(--black);
+            text-transform: uppercase;
+        }
+
+        .plan-price {
+            font-size: 22pt;
+            font-weight: 900;
+            color: var(--black);
+            margin-bottom: 2mm;
+        }
+
+        .plan-period {
+            font-size: 9pt;
+            color: var(--gray-dark);
+            margin-bottom: 2mm;
+        }
+
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            font-size: 9pt;
+            text-align: left;
+        }
+
+        .plan-features li {
+            margin-bottom: 1mm;
+            padding-left: 3mm;
+            position: relative;
+        }
+
+        .plan-features li::before {
+            content: '●';
+            position: absolute;
+            left: 0;
+            color: var(--yellow);
+        }
+
+        .developer-quote {
+            padding: 6mm 10mm;
+            background: var(--gray-dark);
+            color: white;
+            border-top: 5px solid var(--yellow);
+            border-bottom: 5px solid var(--yellow);
+        }
+
+        .quote-text {
+            font-size: 12pt;
+            font-style: italic;
+            margin-bottom: 2mm;
+            line-height: 1.6;
+            font-family: 'Noto Serif JP', serif;
+        }
+
+        .quote-author {
+            font-size: 10pt;
+            text-align: right;
+            color: var(--yellow);
+            font-weight: 700;
+        }
+
+        .cta-section {
+            padding: 8mm 10mm;
+            background: var(--black);
+            color: var(--yellow);
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: repeating-linear-gradient(
+                90deg,
+                var(--yellow),
+                var(--yellow) 10px,
+                var(--black) 10px,
+                var(--black) 20px
+            );
+        }
+
+        .cta-main {
+            font-size: 26pt;
+            font-weight: 900;
+            margin-bottom: 5mm;
+            letter-spacing: 2px;
+        }
+
+        .cta-url {
+            font-size: 20pt;
+            font-weight: 900;
+            margin-bottom: 5mm;
+            color: var(--yellow-light);
+        }
+
+        .cta-search {
+            font-size: 14pt;
+            font-weight: 700;
+            margin-bottom: 5mm;
+        }
+
+        .qr-placeholder {
+            width: 100px;
+            height: 100px;
+            background: var(--yellow);
+            border: 5px solid var(--yellow-light);
+            margin: 0 auto 3mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10pt;
+            font-weight: 900;
+            color: var(--black);
+        }
+
+        .cta-tagline {
+            font-size: 16pt;
+            font-weight: 700;
+            color: var(--yellow-light);
+            margin-top: 3mm;
+        }
+
+        .screenshots-showcase {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3mm;
+            padding: 0 10mm 5mm 10mm;
+            background: var(--gray-light);
+        }
+
+        .showcase-item {
+            border: 4px solid var(--black);
+            background: white;
+            padding: 2mm;
+        }
+
+        .showcase-item img {
+            width: 100%;
+            height: auto;
+            display: block;
+            border: 2px solid var(--yellow);
+        }
+
+        .showcase-label {
+            text-align: center;
+            font-size: 10pt;
+            font-weight: 900;
+            color: var(--black);
+            margin-top: 2mm;
+            padding: 1mm;
+            background: var(--yellow);
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .page {
+                margin: 0;
+                border: none;
+                width: 210mm;
+                height: 297mm;
+                page-break-after: always;
+            }
+
+            .page:last-child {
+                page-break-after: auto;
+            }
+
+            @page {
+                size: A4;
+                margin: 0;
+            }
+        }
+
+        @media screen {
+            body {
+                background: #666;
+                padding: 20px;
+            }
+
+            .page {
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Front Page -->
+    <div class="page front-page">
+        <div class="caution-header">
+            <div class="caution-text">
+                <span class="caution-icon"></span>
+                CAUTION: あなたの工程表、根拠ありますか？
+                <span class="caution-icon"></span>
+            </div>
+        </div>
+
+        <div class="hero-section">
+            <h1 class="main-headline">
+                所長に「根拠は？」と<br>聞かれて、<br>答えられますか。
+            </h1>
+            <p class="sub-headline">根拠のある工期算出で、現場の信頼を勝ち取る</p>
+            <div class="product-name">Con-sche</div>
+            <p class="product-subtitle">ネットワーク工程表クラウドサービス</p>
+        </div>
+
+        <div class="screenshot-section">
+            <img src="../screenshots/editor-main.png"
+                 alt="Con-sche エディター画面"
+                 class="screenshot"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div style="display:none; width:100%; height:300px; background:#e5e7eb; border:5px solid var(--black); align-items:center; justify-content:center; font-size:14pt; color:#666; font-weight:700;">
+                スクリーンショット: エディター画面
+            </div>
+        </div>
+
+        <div class="features-section">
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-number">1</div>
+                    <h3 class="feature-title">歩掛×数量で工期算出</h3>
+                    <p class="feature-desc">
+                        「なんとなく」の工期設定はもう終わり。歩掛データと数量を入力すれば、客観的な根拠のある作業日数を自動計算。所長への説明も自信を持って。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-number">2</div>
+                    <h3 class="feature-title">クリティカルパス自動計算</h3>
+                    <p class="feature-desc">
+                        どの作業が工期を左右するのか、一目瞭然。遅れそうな作業を事前に把握し、手を打つ。経験だけに頼らず、データで現場をコントロール。
+                    </p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-number">3</div>
+                    <h3 class="feature-title">ブラウザだけで使える</h3>
+                    <p class="feature-desc">
+                        インストール不要、ログインするだけ。事務所でも現場でも、タブレットでもPC でも。いつでもどこでも最新の工程表にアクセス可能。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="stripe-border"></div>
+    </div>
+
+    <!-- Back Page -->
+    <div class="page back-page">
+        <div class="back-header">
+            <h1>なぜ Con-sche が必要なのか</h1>
+        </div>
+
+        <div class="problem-solution">
+            <div class="problem-card">
+                <div class="card-content">
+                    <h3 class="card-title">現場の悩み</h3>
+                    <ul class="card-list">
+                        <li>Excelの工程表は手入力ばかりで、計算ミスが怖い</li>
+                        <li>工期の根拠を聞かれても「経験則」としか言えない</li>
+                        <li>遅れが出ても、どこが致命的か分からない</li>
+                        <li>高額な専用ソフトは導入のハードルが高い</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="solution-card">
+                <div class="card-content">
+                    <h3 class="card-title">Con-sche の答え</h3>
+                    <ul class="card-list">
+                        <li>歩掛データによる自動計算で、ミスを削減</li>
+                        <li>数量×歩掛という明確な根拠を提示可能</li>
+                        <li>クリティカルパスで重要作業を可視化</li>
+                        <li>月額¥980〜の低価格で今日から使える</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="screenshots-showcase">
+            <div class="showcase-item">
+                <img src="../screenshots/critical-path.png"
+                     alt="クリティカルパス表示"
+                     onerror="this.style.display='none';">
+                <div class="showcase-label">クリティカルパス自動計算</div>
+            </div>
+            <div class="showcase-item">
+                <img src="../screenshots/bugakari.png"
+                     alt="歩掛計算機能"
+                     onerror="this.style.display='none';">
+                <div class="showcase-label">歩掛×数量で工期算出</div>
+            </div>
+        </div>
+
+        <div class="pricing-section">
+            <h2 class="pricing-title">料金プラン - 現場に合わせて選べる</h2>
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <div class="plan-name">Free</div>
+                    <div class="plan-price">¥0</div>
+                    <div class="plan-period">永久無料</div>
+                    <ul class="plan-features">
+                        <li>1プロジェクト</li>
+                        <li>基本機能</li>
+                        <li>お試し利用</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card featured">
+                    <div class="plan-name">Starter</div>
+                    <div class="plan-price">¥980</div>
+                    <div class="plan-period">月額（税込）</div>
+                    <ul class="plan-features">
+                        <li>5プロジェクト</li>
+                        <li>歩掛計算</li>
+                        <li>PDF出力</li>
+                        <li>個人事業主向け</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card">
+                    <div class="plan-name">Pro</div>
+                    <div class="plan-price">¥4,980</div>
+                    <div class="plan-period">月額（税込）</div>
+                    <ul class="plan-features">
+                        <li>無制限</li>
+                        <li>全機能利用可</li>
+                        <li>チーム共有</li>
+                        <li>中小企業向け</li>
+                    </ul>
+                </div>
+
+                <div class="pricing-card">
+                    <div class="plan-name">Enterprise</div>
+                    <div class="plan-price">個別</div>
+                    <div class="plan-period">お見積り</div>
+                    <ul class="plan-features">
+                        <li>専用サーバー</li>
+                        <li>カスタマイズ</li>
+                        <li>優先サポート</li>
+                        <li>大規模組織向け</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="developer-quote">
+            <p class="quote-text">
+                「自動計算はあくまで参考値。最終的には現場を見て、職人と対話して決めた日数が正解。」
+            </p>
+            <p class="quote-author">- Con-sche 開発者</p>
+        </div>
+
+        <div class="cta-section">
+            <div class="cta-main">まずは1件、工程表を作ってみてください。</div>
+            <div class="cta-url">con-sche.com</div>
+            <div class="cta-search">検索「コンスケ 工程表」</div>
+            <div class="qr-placeholder">QR CODE</div>
+            <div class="cta-tagline">根拠のある工程表で、現場を動かす。</div>
+        </div>
+    </div>
+</body>
+</html>

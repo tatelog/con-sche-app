@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Con-sche フライヤー</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&family=Noto+Serif+JP:wght@700;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #d4d4d4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      margin: 10mm auto;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    }
+
+    @media print {
+      body { background: white; }
+      .page { margin: 0; box-shadow: none; page-break-after: always; }
+      .page:last-child { page-break-after: auto; }
+    }
+
+    /* ============================================================
+       PAGE 1: 表面
+       「現場の人間が書いた問いかけ」→ 画面で興味 → 行動
+       ============================================================ */
+
+    #page1 {
+      background: #fff;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 上部：紺帯 + キャッチ */
+    .p1-top {
+      background: #1e3a8a;
+      color: white;
+      padding: 7mm 10mm 8mm;
+      position: relative;
+    }
+    .p1-top::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1.5mm;
+      background: #f97316;
+    }
+
+    .p1-top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6mm;
+    }
+    .p1-logo {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 14pt;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+    }
+    .p1-logo .con { color: #3b82f6; }
+    .p1-category {
+      font-size: 7pt;
+      color: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 1mm 3mm;
+      border-radius: 1mm;
+    }
+
+    .p1-catch {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 24pt;
+      font-weight: 900;
+      line-height: 1.45;
+      letter-spacing: 0.5px;
+    }
+    .p1-catch .em {
+      color: #fb923c;
+    }
+
+    .p1-sub-catch {
+      margin-top: 3mm;
+      font-size: 9pt;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.7;
+    }
+
+    /* 中部：製品画面 */
+    .p1-visual {
+      flex: 1;
+      padding: 6mm 8mm 4mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .p1-lead {
+      font-size: 8.5pt;
+      color: #5a5a5a;
+      line-height: 1.8;
+      margin-bottom: 4mm;
+    }
+    .p1-lead b {
+      color: #1e3a8a;
+      font-weight: 600;
+    }
+
+    .p1-screen-wrap {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 3mm;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 4mm;
+    }
+    .p1-screen-topbar {
+      background: #f5f5f5;
+      border-bottom: 1px solid #ddd;
+      padding: 1.5mm 3mm;
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+      font-size: 6.5pt;
+      color: #888;
+    }
+    .p1-screen-dots {
+      display: flex;
+      gap: 1.2mm;
+    }
+    .p1-screen-dots span {
+      width: 2mm; height: 2mm; border-radius: 50%;
+    }
+    .p1-screen-dots .r { background: #ff5f57; }
+    .p1-screen-dots .y { background: #febc2e; }
+    .p1-screen-dots .g { background: #28c840; }
+    .p1-screen-body {
+      flex: 1;
+      background: #fafafa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .p1-screen-body img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .p1-screen-ph {
+      color: #aaa;
+      font-size: 9pt;
+    }
+
+    /* 3つのポイント横並び */
+    .p1-points {
+      display: flex;
+      gap: 3mm;
+      margin-bottom: 4mm;
+    }
+    .p1-point {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      gap: 2.5mm;
+      padding: 3mm;
+      background: #f7f8fa;
+      border-radius: 2mm;
+      border-left: 2.5px solid #1e3a8a;
+    }
+    .p1-point-num {
+      font-size: 16pt;
+      font-weight: 900;
+      color: #1e3a8a;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .p1-point-text h4 {
+      font-size: 8pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      margin-bottom: 0.5mm;
+    }
+    .p1-point-text p {
+      font-size: 6.5pt;
+      color: #777;
+      line-height: 1.4;
+    }
+
+    /* 下部CTA帯 */
+    .p1-bottom {
+      background: #1e3a8a;
+      padding: 5mm 10mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+      position: relative;
+    }
+    .p1-bottom::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1.5mm;
+      background: #f97316;
+    }
+    .p1-bottom-left {
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+    }
+    .p1-bottom-left .free-tag {
+      display: inline-block;
+      background: #f97316;
+      color: white;
+      font-size: 7pt;
+      font-weight: 700;
+      padding: 1mm 3mm;
+      border-radius: 1mm;
+      width: fit-content;
+    }
+    .p1-bottom-left h3 {
+      font-size: 12pt;
+      font-weight: 700;
+    }
+    .p1-bottom-left p {
+      font-size: 7pt;
+      color: rgba(255,255,255,0.6);
+    }
+    .p1-bottom-right {
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+    }
+    .p1-bottom-url {
+      text-align: right;
+    }
+    .p1-bottom-url .url {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #3b82f6;
+    }
+    .p1-bottom-url .note {
+      font-size: 6pt;
+      color: rgba(255,255,255,0.4);
+    }
+    .p1-qr {
+      width: 15mm; height: 15mm;
+      background: white;
+      border-radius: 1.5mm;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 5pt; color: #aaa;
+    }
+
+    /* ============================================================
+       PAGE 2: 裏面
+       問題提起 → 解決策の具体 → 料金 → 行動
+       ============================================================ */
+
+    #page2 {
+      background: #fff;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ヘッダー */
+    .p2-head {
+      padding: 5mm 10mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .p2-logo {
+      font-size: 12pt;
+      font-weight: 900;
+    }
+    .p2-logo .con { color: #3b82f6; }
+    .p2-head-right {
+      font-size: 7pt;
+      color: #999;
+    }
+
+    /* メインコンテンツ */
+    .p2-body {
+      flex: 1;
+      padding: 5mm 10mm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 問いかけセクション */
+    .p2-question {
+      text-align: center;
+      margin-bottom: 4mm;
+    }
+    .p2-question h2 {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 14pt;
+      font-weight: 900;
+      color: #1e3a8a;
+      line-height: 1.5;
+    }
+    .p2-question p {
+      font-size: 7.5pt;
+      color: #888;
+      margin-top: 1mm;
+    }
+
+    /* 現場あるある → 解決 の対比カード */
+    .p2-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5mm;
+      margin-bottom: 5mm;
+    }
+    .p2-card {
+      padding: 3.5mm 4mm;
+      border-radius: 2mm;
+    }
+    .p2-card.problem {
+      background: #faf6f0;
+      border: 1px solid #e8dcc8;
+    }
+    .p2-card.solution {
+      background: #f0f4fa;
+      border: 1px solid #c8d8f0;
+    }
+    .p2-card-label {
+      font-size: 6pt;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 1.5mm;
+    }
+    .p2-card.problem .p2-card-label { color: #b8860b; }
+    .p2-card.solution .p2-card-label { color: #2563eb; }
+    .p2-card h4 {
+      font-size: 8.5pt;
+      font-weight: 700;
+      margin-bottom: 1mm;
+      line-height: 1.3;
+    }
+    .p2-card.problem h4 { color: #5a4a2a; }
+    .p2-card.solution h4 { color: #1e3a8a; }
+    .p2-card p {
+      font-size: 7pt;
+      line-height: 1.5;
+    }
+    .p2-card.problem p { color: #8a7a5a; }
+    .p2-card.solution p { color: #4a6a9a; }
+
+    /* スクリーンショット2枚 */
+    .p2-screens {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3mm;
+      margin-bottom: 4mm;
+    }
+    .p2-screen {
+      border: 1px solid #ddd;
+      border-radius: 2mm;
+      overflow: hidden;
+    }
+    .p2-screen img {
+      width: 100%;
+      display: block;
+    }
+    .p2-screen-ph {
+      height: 30mm;
+      background: #f8f8f8;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 7.5pt; color: #bbb;
+    }
+    .p2-screen-cap {
+      padding: 2mm 3mm;
+      background: #f8f8f8;
+      border-top: 1px solid #eee;
+    }
+    .p2-screen-cap h4 {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #333;
+    }
+    .p2-screen-cap p {
+      font-size: 6pt;
+      color: #999;
+    }
+
+    /* 料金プラン */
+    .p2-pricing-head {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      text-align: center;
+      margin-bottom: 3mm;
+    }
+    .p2-pricing {
+      display: flex;
+      gap: 2mm;
+      margin-bottom: 4mm;
+    }
+    .p2-plan {
+      flex: 1;
+      border: 1px solid #ddd;
+      border-radius: 2mm;
+      padding: 3mm;
+      position: relative;
+    }
+    .p2-plan.rec {
+      border: 2px solid #1e3a8a;
+    }
+    .p2-plan.rec::after {
+      content: 'おすすめ';
+      position: absolute;
+      top: -2.2mm; left: 50%; transform: translateX(-50%);
+      background: #1e3a8a;
+      color: white;
+      font-size: 5.5pt;
+      font-weight: 700;
+      padding: 0.5mm 2.5mm;
+      border-radius: 1mm;
+    }
+    .p2-plan-name {
+      font-size: 7.5pt;
+      font-weight: 700;
+      color: #333;
+    }
+    .p2-plan-price {
+      font-size: 12pt;
+      font-weight: 900;
+      color: #1e3a8a;
+    }
+    .p2-plan-price .unit {
+      font-size: 6pt;
+      font-weight: 400;
+      color: #999;
+    }
+    .p2-plan-desc {
+      font-size: 6pt;
+      color: #999;
+      line-height: 1.5;
+      margin-top: 1mm;
+    }
+
+    /* 開発者の声（信頼性） */
+    .p2-voice {
+      background: #f7f8fa;
+      border-radius: 2mm;
+      padding: 4mm 5mm;
+      margin-bottom: 4mm;
+      display: flex;
+      gap: 4mm;
+      align-items: flex-start;
+    }
+    .p2-voice-icon {
+      width: 10mm; height: 10mm;
+      background: #1e3a8a;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: white;
+      font-size: 12pt;
+    }
+    .p2-voice-text {
+      flex: 1;
+    }
+    .p2-voice-text .quote {
+      font-size: 8pt;
+      color: #444;
+      line-height: 1.7;
+      font-style: italic;
+    }
+    .p2-voice-text .name {
+      font-size: 6.5pt;
+      color: #999;
+      margin-top: 1.5mm;
+    }
+
+    /* 下部CTA */
+    .p2-foot {
+      background: #1e3a8a;
+      padding: 5mm 10mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: white;
+      position: relative;
+    }
+    .p2-foot::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1.5mm;
+      background: #f97316;
+    }
+    .p2-foot h3 {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 12pt;
+      font-weight: 900;
+      line-height: 1.5;
+    }
+    .p2-foot h3 .em { color: #fb923c; }
+    .p2-foot-sub {
+      font-size: 7pt;
+      color: rgba(255,255,255,0.5);
+      margin-top: 1mm;
+    }
+    .p2-foot-right {
+      display: flex;
+      align-items: center;
+      gap: 4mm;
+    }
+    .p2-foot-action {
+      text-align: right;
+    }
+    .p2-foot-action .url {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #3b82f6;
+    }
+    .p2-foot-action .sub {
+      font-size: 6pt;
+      color: rgba(255,255,255,0.4);
+    }
+    .p2-foot-qr {
+      width: 15mm; height: 15mm;
+      background: white;
+      border-radius: 1.5mm;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 5pt; color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== 表面 ==================== -->
+<div class="page" id="page1">
+
+  <div class="p1-top">
+    <div class="p1-top-header">
+      <div class="p1-logo"><span class="con">Con</span>-sche</div>
+      <div class="p1-category">ネットワーク工程表</div>
+    </div>
+    <div class="p1-catch">
+      所長に「<span class="em">根拠は？</span>」と聞かれて、<br>
+      答えられますか。
+    </div>
+    <p class="p1-sub-catch">
+      歩掛×数量で工期を自動算出。ネットワーク工程表で依存関係を見える化。<br>
+      ブラウザだけで使えるから、現場のタブレットでそのまま確認できます。
+    </p>
+  </div>
+
+  <div class="p1-visual">
+    <p class="p1-lead">
+      コンクリート100m³、歩掛も人工数もわかっている。なのに工程表には<b>「経験的に5日」</b>とだけ。<br>
+      Con-scheは、<b>造るものの量から工期を組み立てる</b>、施工管理経験者が作った工程表ツールです。
+    </p>
+
+    <div class="p1-screen-wrap">
+      <div class="p1-screen-topbar">
+        <div class="p1-screen-dots">
+          <span class="r"></span><span class="y"></span><span class="g"></span>
+        </div>
+        con-sche.com ─ ネットワーク工程表エディタ
+      </div>
+      <div class="p1-screen-body">
+        <img src="screenshots/editor-main.png" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
+        <div class="p1-screen-ph" style="display:none">ネットワーク工程表の操作画面</div>
+      </div>
+    </div>
+
+    <div class="p1-points">
+      <div class="p1-point">
+        <div class="p1-point-num">01</div>
+        <div class="p1-point-text">
+          <h4>歩掛×数量で工期算出</h4>
+          <p>数量を入れるだけ。「たぶん3ヶ月」が「67日」に変わる。</p>
+        </div>
+      </div>
+      <div class="p1-point">
+        <div class="p1-point-num">02</div>
+        <div class="p1-point-text">
+          <h4>クリティカルパス自動計算</h4>
+          <p>鉄骨が3日遅れた影響は？ネットワーク工程表なら即答できる。</p>
+        </div>
+      </div>
+      <div class="p1-point">
+        <div class="p1-point-num">03</div>
+        <div class="p1-point-text">
+          <h4>ブラウザだけ。インストール不要</h4>
+          <p>iPadで現場から確認。JIS準拠PDFでそのまま提出。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p1-bottom">
+    <div class="p1-bottom-left">
+      <div class="free-tag">無料プランあり</div>
+      <h3>まずは1件、工程表を作ってみてください。</h3>
+      <p>アカウント登録30秒。クレジットカード不要。</p>
+    </div>
+    <div class="p1-bottom-right">
+      <div class="p1-bottom-url">
+        <div class="url">con-sche.com</div>
+        <div class="note">検索「コンスケ 工程表」</div>
+      </div>
+      <div class="p1-qr">QR</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== 裏面 ==================== -->
+<div class="page" id="page2">
+
+  <div class="p2-head">
+    <div class="p2-logo"><span class="con">Con</span>-sche</div>
+    <div class="p2-head-right">建設工事のネットワーク工程表クラウドサービス</div>
+  </div>
+
+  <div class="p2-body">
+
+    <div class="p2-question">
+      <h2>現場で「よくある困りごと」、<br>こう解決します。</h2>
+      <p>施工管理の現場経験から生まれた機能を紹介します</p>
+    </div>
+
+    <!-- 困りごと → 解決 の対比 -->
+    <div class="p2-cards">
+      <div class="p2-card problem">
+        <div class="p2-card-label">PROBLEM</div>
+        <h4>「この仕上げ、なぜ5日なの？」<br>と聞かれて答えられない</h4>
+        <p>工程表の日数に根拠がない。前の現場の感覚で書いているだけ。</p>
+      </div>
+      <div class="p2-card solution">
+        <div class="p2-card-label">SOLUTION</div>
+        <h4>歩掛×数量で、日数を自動算出</h4>
+        <p>数量と歩掛を入力すれば所要日数を計算。「歩掛から算出: 67日」と答えられる。</p>
+      </div>
+
+      <div class="p2-card problem">
+        <div class="p2-card-label">PROBLEM</div>
+        <h4>「鉄骨が3日遅れたら<br>全体はどうなる？」がわからない</h4>
+        <p>バーチャートでは作業の依存関係が見えない。遅延の影響が読めない。</p>
+      </div>
+      <div class="p2-card solution">
+        <div class="p2-card-label">SOLUTION</div>
+        <h4>ネットワーク工程表で<br>クリティカルパスを自動計算</h4>
+        <p>依存関係を矢印で表現。遅延がどこまで響くか一目瞭然。</p>
+      </div>
+
+      <div class="p2-card problem">
+        <div class="p2-card-label">PROBLEM</div>
+        <h4>工程表が事務所のPCにしかない</h4>
+        <p>現場で確認したいのに、専用ソフトが入ったPCまで戻らないと見れない。</p>
+      </div>
+      <div class="p2-card solution">
+        <div class="p2-card-label">SOLUTION</div>
+        <h4>ブラウザで動く。<br>iPadで現場から確認</h4>
+        <p>インストール不要。JIS準拠のPDFもワンクリックで出力。そのまま提出可能。</p>
+      </div>
+    </div>
+
+    <!-- スクリーンショット -->
+    <div class="p2-screens">
+      <div class="p2-screen">
+        <img src="screenshots/critical-path.png" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
+        <div class="p2-screen-ph" style="display:none">クリティカルパス表示</div>
+        <div class="p2-screen-cap">
+          <h4>クリティカルパス自動計算</h4>
+          <p>全体工期を決めるルートを赤線でハイライト</p>
+        </div>
+      </div>
+      <div class="p2-screen">
+        <img src="screenshots/bugakari.png" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
+        <div class="p2-screen-ph" style="display:none">歩掛入力画面</div>
+        <div class="p2-screen-cap">
+          <h4>歩掛×数量で工期算出</h4>
+          <p>国交省の歩掛データベース内蔵</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 料金 -->
+    <div class="p2-pricing-head">料金プラン</div>
+    <div class="p2-pricing">
+      <div class="p2-plan">
+        <div class="p2-plan-name">フリー</div>
+        <div class="p2-plan-price">¥0</div>
+        <div class="p2-plan-desc">1ユーザー / 工程表1件<br>全基本機能が使えます</div>
+      </div>
+      <div class="p2-plan rec">
+        <div class="p2-plan-name">スターター</div>
+        <div class="p2-plan-price">¥980<span class="unit"> /月</span></div>
+        <div class="p2-plan-desc">5ユーザー / 10件<br>クラウド保存・マスタ共有</div>
+      </div>
+      <div class="p2-plan">
+        <div class="p2-plan-name">プロ</div>
+        <div class="p2-plan-price">¥4,980<span class="unit"> /月</span></div>
+        <div class="p2-plan-desc">20ユーザー / 200件<br>クラウド保存・マスタ共有</div>
+      </div>
+      <div class="p2-plan">
+        <div class="p2-plan-name">エンタープライズ</div>
+        <div class="p2-plan-price" style="font-size:8pt">個別見積り</div>
+        <div class="p2-plan-desc">IFC連携・API・SSO<br>請求払い・専任支援</div>
+      </div>
+    </div>
+
+    <!-- 開発者の声 -->
+    <div class="p2-voice">
+      <div class="p2-voice-icon">🏗</div>
+      <div class="p2-voice-text">
+        <div class="quote">
+          「自動計算はあくまで参考値。最終的には現場を見て、職人と対話して決めた日数が正解。」<br>
+          Con-scheは、ツールが人に従わせるのではなく、<b>人の判断をツールが支える</b>設計にしています。
+        </div>
+        <div class="name">── Con-sche 開発者（施工管理経験者）</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="p2-foot">
+    <div>
+      <h3>「<span class="em">絵に描いた餅</span>」を、<br>本物の工程表に。</h3>
+      <div class="p2-foot-sub">無料プランで、まず1件作ってみてください。</div>
+    </div>
+    <div class="p2-foot-right">
+      <div class="p2-foot-action">
+        <div class="url">con-sche.com</div>
+        <div class="sub">検索「コンスケ 工程表」</div>
+      </div>
+      <div class="p2-foot-qr">QR</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

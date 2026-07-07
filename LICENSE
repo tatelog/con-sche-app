@@ -1,0 +1,116 @@
+Con-Sche License 1.0
+
+Copyright (c) 2026 建ログ株式会社 (Tatelog Inc.)
+
+本ライセンスは Elastic License 2.0 の構成を参考にした、ソースアベイラブル
+ライセンスです。日本語版と英語版に齟齬がある場合、日本語版を正とします。
+
+---
+
+## 日本語版
+
+### 1. 許可されること（無償）
+
+著作権者は、以下の条件に従うことを前提に、本ソフトウェアの使用、複製、
+改変、派生物の作成、再配布を無償で許可します。
+
+- **業務利用を含むあらゆる利用**: 個人・法人を問わず、建設業務・コンサル
+  ティング業務等の商業活動における利用を含みます。
+- **AIツール経由の利用**: 人の利用を補助するAIエージェント・AIツールを
+  介した本ソフトウェアの操作・解析・改変を含みます。
+- **組み込み・再配布（OEM）**: 自社製品・サービスへの組み込みおよび
+  再配布は、第3条のクレジット表記を条件に許可されます。
+
+### 2. 制限されること
+
+以下の行為には、建ログ株式会社との個別の商用ライセンス契約が必要です。
+
+a. **マネージドサービスの提供**: 本ソフトウェアまたはその派生物を、
+   第三者向けのホスティングサービス・マネージドサービスとして提供する
+   こと。
+
+b. **連携API・自動処理基盤としての利用**: 本ソフトウェアまたはその
+   派生物を、外部システムとのプログラマティックな連携（API提供、
+   システム間の自動データ連携、ヘッドレス実行基盤等）の目的で提供
+   または利用すること。人の操作を補助するAIツール経由の利用（第1条）
+   はこの制限に含まれません。
+
+c. **ライセンス表示・クレジットの削除**: 本ソフトウェアに含まれる
+   著作権表示、ライセンス表示、クレジット表記を削除または改変する
+   こと。
+
+### 3. クレジット表記
+
+本ソフトウェアまたはその派生物を再配布または自社製品に組み込む場合、
+利用者から視認可能な箇所（アプリケーション内の表示、ドキュメント等）に
+以下のクレジットを表記してください。
+
+    Powered by Con-Sche (建ログ株式会社) — https://con-sche.tatelog.biz
+
+### 4. 無保証
+
+本ソフトウェアは「現状のまま」提供され、明示・黙示を問わずいかなる保証
+もありません。著作権者は、本ソフトウェアの利用に起因するいかなる損害に
+ついても責任を負いません。
+
+### 5. 終了
+
+本ライセンスの条件に違反した場合、本ライセンスに基づく権利は自動的に
+終了します。違反を是正し、著作権者から書面による許諾を得た場合、権利は
+回復します。
+
+---
+
+## English Version
+
+### 1. Grant of Rights (Free of Charge)
+
+The copyright holder grants you a royalty-free right to use, copy, modify,
+create derivative works of, and redistribute this software, subject to the
+conditions below.
+
+- **Any use including commercial operations**: including use by individuals
+  or companies in construction or consulting business activities.
+- **Use via AI tools**: including operating, analyzing, or modifying this
+  software through AI agents or AI tools that assist human use.
+- **Embedding and redistribution (OEM)**: embedding into your own products
+  or services and redistribution are permitted subject to the attribution
+  requirement in Section 3.
+
+### 2. Limitations
+
+The following require a separate commercial license agreement with
+Tatelog Inc.:
+
+a. **Providing a managed service**: providing this software or derivative
+   works to third parties as a hosted or managed service.
+
+b. **Use as an integration API or automated processing platform**:
+   providing or using this software or derivative works for programmatic
+   integration with external systems (offering APIs, automated
+   system-to-system data exchange, headless execution platforms, etc.).
+   Use via AI tools assisting human operation (Section 1) is not subject
+   to this limitation.
+
+c. **Removing license or credit notices**: removing or altering copyright
+   notices, license notices, or attribution included in this software.
+
+### 3. Attribution
+
+When redistributing this software or derivative works, or embedding them
+into your own products, display the following credit in a location visible
+to users (in-app display, documentation, etc.):
+
+    Powered by Con-Sche (Tatelog Inc.) — https://con-sche.tatelog.biz
+
+### 4. Disclaimer
+
+This software is provided "AS IS", without warranty of any kind, express
+or implied. The copyright holder shall not be liable for any damages
+arising from the use of this software.
+
+### 5. Termination
+
+Your rights under this license terminate automatically if you violate its
+terms. Rights are reinstated if you cure the violation and receive written
+permission from the copyright holder.

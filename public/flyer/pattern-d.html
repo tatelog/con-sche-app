@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Con-sche Flyer - Pattern D: Magazine Editorial</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&family=Noto+Serif+JP:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-900: #1e3a8a;
+      --primary-500: #3b82f6;
+      --orange: #f97316;
+      --white: #ffffff;
+      --gray-100: #f3f4f6;
+      --gray-300: #d1d5db;
+      --gray-600: #4b5563;
+      --gray-900: #111827;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: #e8e8e8;
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      background: var(--white);
+      margin: 10mm auto;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 10mm rgba(0,0,0,0.1);
+    }
+
+    /* ========== FRONT PAGE (Page 1) ========== */
+
+    .front {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .special-label {
+      position: absolute;
+      top: 15mm;
+      left: 20mm;
+      background: var(--primary-900);
+      color: var(--white);
+      padding: 3mm 10mm;
+      font-size: 10pt;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      z-index: 10;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+
+    .hero-section {
+      position: relative;
+      height: 200mm;
+      overflow: hidden;
+      margin-top: 0;
+    }
+
+    .hero-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.92;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 55%;
+      background: linear-gradient(to top, rgba(0,0,0,0.75), rgba(0,0,0,0.3) 60%, transparent);
+    }
+
+    .hero-headline {
+      position: absolute;
+      bottom: 30mm;
+      left: 20mm;
+      right: 20mm;
+      z-index: 5;
+    }
+
+    .hero-headline h1 {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 40pt;
+      font-weight: 900;
+      color: var(--white);
+      line-height: 1.25;
+      text-shadow: 0 4px 30px rgba(0,0,0,0.9);
+      letter-spacing: 0.05em;
+      margin-bottom: 8mm;
+    }
+
+    .hero-subhead {
+      font-size: 12pt;
+      color: var(--white);
+      font-weight: 300;
+      letter-spacing: 0.08em;
+      text-shadow: 0 2px 15px rgba(0,0,0,0.8);
+      line-height: 1.8;
+    }
+
+    .sidebar-stats {
+      position: absolute;
+      top: 70mm;
+      right: 20mm;
+      background: var(--white);
+      padding: 10mm;
+      width: 70mm;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.2);
+      z-index: 10;
+    }
+
+    .stat-item {
+      margin-bottom: 8mm;
+      padding-bottom: 7mm;
+      border-bottom: 1px solid var(--gray-300);
+    }
+
+    .stat-item:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .stat-number {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 36pt;
+      font-weight: 700;
+      color: var(--primary-900);
+      line-height: 1;
+    }
+
+    .stat-unit {
+      font-size: 16pt;
+      font-weight: 400;
+      color: var(--primary-500);
+      margin-left: 2mm;
+    }
+
+    .stat-label {
+      font-size: 9pt;
+      color: var(--gray-600);
+      margin-top: 3mm;
+      line-height: 1.5;
+      font-weight: 400;
+    }
+
+    .front-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 75mm;
+      background: var(--white);
+      padding: 15mm 20mm;
+    }
+
+    .product-intro {
+      font-size: 10pt;
+      line-height: 1.9;
+      color: var(--gray-900);
+      max-width: 145mm;
+      margin-bottom: 8mm;
+    }
+
+    .product-intro strong {
+      font-weight: 700;
+      color: var(--primary-900);
+    }
+
+    .key-features {
+      display: flex;
+      gap: 6mm;
+      margin-bottom: 8mm;
+    }
+
+    .feature-tag {
+      background: var(--gray-100);
+      border-left: 4px solid var(--orange);
+      padding: 4mm 6mm;
+      font-size: 8.5pt;
+      font-weight: 500;
+      flex: 1;
+      line-height: 1.6;
+    }
+
+    .front-cta {
+      position: absolute;
+      bottom: 15mm;
+      right: 20mm;
+      text-align: right;
+    }
+
+    .front-cta .url {
+      font-size: 15pt;
+      font-weight: 700;
+      color: var(--primary-500);
+      letter-spacing: 0.03em;
+      margin-bottom: 2mm;
+    }
+
+    .front-cta .search-hint {
+      font-size: 8pt;
+      color: var(--gray-600);
+    }
+
+    /* ========== BACK PAGE (Page 2) ========== */
+
+    .back {
+      padding: 20mm;
+    }
+
+    .article-header {
+      margin-bottom: 12mm;
+    }
+
+    .article-kicker {
+      font-size: 9pt;
+      font-weight: 700;
+      color: var(--orange);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 5mm;
+    }
+
+    .article-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 26pt;
+      font-weight: 700;
+      color: var(--primary-900);
+      line-height: 1.4;
+      margin-bottom: 6mm;
+    }
+
+    .article-deck {
+      font-size: 10pt;
+      color: var(--gray-600);
+      line-height: 1.8;
+      padding-left: 6mm;
+      border-left: 4px solid var(--primary-500);
+    }
+
+    .article-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10mm;
+      margin-bottom: 12mm;
+    }
+
+    .article-column p {
+      font-size: 9pt;
+      line-height: 1.9;
+      margin-bottom: 5mm;
+      text-align: justify;
+      color: var(--gray-900);
+    }
+
+    .article-column p:first-of-type::first-letter {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 38pt;
+      font-weight: 700;
+      color: var(--primary-900);
+      float: left;
+      line-height: 0.85;
+      margin-right: 3mm;
+      margin-top: 2mm;
+    }
+
+    .pullquote {
+      background: var(--gray-100);
+      padding: 8mm;
+      margin: 8mm 0;
+      position: relative;
+      border-left: 5px solid var(--orange);
+    }
+
+    .pullquote::before {
+      content: '"';
+      font-family: 'Noto Serif JP', serif;
+      font-size: 60pt;
+      color: var(--gray-300);
+      position: absolute;
+      top: 3mm;
+      left: 5mm;
+      line-height: 1;
+    }
+
+    .pullquote-text {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 11pt;
+      font-weight: 600;
+      color: var(--primary-900);
+      line-height: 1.7;
+      padding-left: 12mm;
+      font-style: italic;
+    }
+
+    .screenshot-inline {
+      width: 100%;
+      margin: 6mm 0;
+      border: 1px solid var(--gray-300);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .screenshot-caption {
+      font-size: 7pt;
+      color: var(--gray-600);
+      text-align: center;
+      margin-top: 2mm;
+      font-style: italic;
+    }
+
+    .pricing-section {
+      background: var(--gray-100);
+      padding: 10mm;
+      margin: 10mm 0;
+      border-radius: 3mm;
+    }
+
+    .pricing-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 16pt;
+      font-weight: 700;
+      color: var(--primary-900);
+      margin-bottom: 7mm;
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5mm;
+    }
+
+    .price-card {
+      background: var(--white);
+      padding: 6mm;
+      text-align: center;
+      border: 1px solid var(--gray-300);
+      border-radius: 2mm;
+      transition: all 0.3s;
+    }
+
+    .price-card.featured {
+      border: 2px solid var(--orange);
+      position: relative;
+      transform: scale(1.02);
+      box-shadow: 0 4px 15px rgba(249, 115, 22, 0.2);
+    }
+
+    .price-card.featured::after {
+      content: '人気';
+      position: absolute;
+      top: -4mm;
+      right: -4mm;
+      background: var(--orange);
+      color: var(--white);
+      font-size: 7pt;
+      font-weight: 700;
+      padding: 2mm 5mm;
+      border-radius: 10mm;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .price-name {
+      font-size: 10pt;
+      font-weight: 700;
+      color: var(--primary-900);
+      margin-bottom: 4mm;
+    }
+
+    .price-amount {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 20pt;
+      font-weight: 700;
+      color: var(--primary-500);
+      margin-bottom: 3mm;
+    }
+
+    .price-amount .yen {
+      font-size: 13pt;
+    }
+
+    .price-amount .period {
+      font-size: 10pt;
+      font-weight: 400;
+      color: var(--gray-600);
+    }
+
+    .price-features {
+      font-size: 7pt;
+      color: var(--gray-600);
+      line-height: 1.7;
+      text-align: left;
+    }
+
+    .author-bio {
+      display: flex;
+      gap: 6mm;
+      padding: 8mm;
+      background: var(--white);
+      border: 1px solid var(--gray-300);
+      margin-bottom: 10mm;
+      border-radius: 2mm;
+    }
+
+    .author-avatar {
+      width: 18mm;
+      height: 18mm;
+      background: var(--primary-500);
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11pt;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .author-content {
+      flex: 1;
+    }
+
+    .author-label {
+      font-size: 7pt;
+      color: var(--orange);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 2mm;
+    }
+
+    .author-quote {
+      font-size: 9pt;
+      line-height: 1.7;
+      color: var(--gray-900);
+      font-style: italic;
+    }
+
+    .back-cta {
+      text-align: center;
+      padding: 10mm;
+      background: var(--primary-900);
+      color: var(--white);
+      border-radius: 3mm;
+    }
+
+    .back-cta-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 18pt;
+      font-weight: 700;
+      margin-bottom: 6mm;
+      letter-spacing: 0.05em;
+    }
+
+    .back-cta-content {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8mm;
+    }
+
+    .qr-placeholder {
+      width: 28mm;
+      height: 28mm;
+      background: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8pt;
+      color: var(--gray-600);
+      border-radius: 2mm;
+    }
+
+    .back-cta-text {
+      text-align: left;
+    }
+
+    .back-cta-url {
+      font-size: 18pt;
+      font-weight: 700;
+      margin-bottom: 3mm;
+      letter-spacing: 0.03em;
+    }
+
+    .back-cta-search {
+      font-size: 10pt;
+      opacity: 0.85;
+      letter-spacing: 0.05em;
+    }
+
+    /* ========== PRINT STYLES ========== */
+
+    @media print {
+      body {
+        background: white;
+      }
+
+      .page {
+        width: 210mm;
+        height: 297mm;
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+      }
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== FRONT PAGE ========== -->
+  <div class="page front">
+    <div class="special-label">特集 SPECIAL FEATURE</div>
+
+    <div class="hero-section">
+      <img src="screenshots/editor-main.png"
+           alt="Con-sche エディタ画面"
+           class="hero-image"
+           onerror="this.style.display='none'">
+      <div class="hero-overlay"></div>
+
+      <div class="hero-headline">
+        <h1>工程表に、<br>根拠はあるか。</h1>
+        <p class="hero-subhead">クリティカルパスが見える、歩掛から工期が見える。<br>ネットワーク工程表の新常識。</p>
+      </div>
+    </div>
+
+    <div class="sidebar-stats">
+      <div class="stat-item">
+        <div><span class="stat-number">67</span><span class="stat-unit">日</span></div>
+        <div class="stat-label">歩掛から算出された<br>実施工期</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">12</div>
+        <div class="stat-label">自動で計算される<br>クリティカルパス</div>
+      </div>
+      <div class="stat-item">
+        <div><span class="stat-number">¥0</span></div>
+        <div class="stat-label">初期費用・<br>無料プランあり</div>
+      </div>
+    </div>
+
+    <div class="front-footer">
+      <p class="product-intro">
+        <strong>Con-sche（コンスケ）</strong>は、ネットワーク工程表をブラウザで作成できるクラウドサービスです。
+        歩掛と数量を入力すれば工期を自動計算、クリティカルパスも一目でわかる。
+        現場監督と設計者のための、新しい工程表管理ツール。
+      </p>
+
+      <div class="key-features">
+        <div class="feature-tag">歩掛×数量で<br>工期算出</div>
+        <div class="feature-tag">クリティカルパス<br>自動計算</div>
+        <div class="feature-tag">ブラウザだけで<br>使える</div>
+      </div>
+
+      <div class="front-cta">
+        <div class="url">con-sche.com</div>
+        <div class="search-hint">検索「コンスケ 工程表」</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== BACK PAGE ========== -->
+  <div class="page back">
+    <div class="article-header">
+      <div class="article-kicker">Construction Management Tool</div>
+      <h2 class="article-title">根拠のある工程表を、<br>誰でも、簡単に。</h2>
+      <p class="article-deck">
+        工程表は作れる。でも、その日数に根拠はあるか？ クリティカルパスは把握できているか？
+        Con-scheは、歩掛ベースの工期算出とクリティカルパス可視化で、工程管理に「納得感」をもたらします。
+      </p>
+    </div>
+
+    <div class="article-body">
+      <div class="article-column">
+        <p>
+          工程表は、現場の約束であり、発注者への提案であり、職人との調整のための道具です。
+          しかし、多くの現場で工程表は「勘と経験」で作られ、その日数の根拠を説明できない場面が少なくありません。
+        </p>
+        <p>
+          Con-scheは、歩掛と数量を入力するだけで工期を自動算出。
+          「このコンクリート打設は、この歩掛なら3.5日かかる」という計算が、その場でできます。
+        </p>
+
+        <img src="screenshots/bugakari.png"
+             alt="歩掛入力画面"
+             class="screenshot-inline"
+             onerror="this.style.display='none'">
+        <p class="screenshot-caption">歩掛と数量で工期を自動計算</p>
+      </div>
+
+      <div class="article-column">
+        <p>
+          さらに、クリティカルパスを自動計算。
+          どの作業が工期に影響を与えるのか、どこを短縮すれば全体工期が縮むのか、一目でわかります。
+        </p>
+
+        <div class="pullquote">
+          <p class="pullquote-text">
+            自動計算はあくまで参考値。最終的には現場を見て、職人と対話して決めた日数が正解。
+          </p>
+        </div>
+
+        <img src="screenshots/critical-path.png"
+             alt="クリティカルパス表示"
+             class="screenshot-inline"
+             onerror="this.style.display='none'">
+        <p class="screenshot-caption">クリティカルパスを自動で可視化</p>
+
+        <p>
+          Con-scheは、インストール不要、ブラウザだけで使えます。
+          無料プランから始められ、個人利用から企業まで幅広く対応。
+        </p>
+      </div>
+    </div>
+
+    <div class="pricing-section">
+      <h3 class="pricing-title">料金プラン</h3>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <div class="price-name">Free</div>
+          <div class="price-amount"><span class="yen">¥</span>0</div>
+          <div class="price-features">
+            1プロジェクト<br>
+            基本機能<br>
+            PNG出力
+          </div>
+        </div>
+        <div class="price-card featured">
+          <div class="price-name">Starter</div>
+          <div class="price-amount"><span class="yen">¥</span>980<span class="period">/月</span></div>
+          <div class="price-features">
+            5プロジェクト<br>
+            PDF出力<br>
+            メール通知
+          </div>
+        </div>
+        <div class="price-card">
+          <div class="price-name">Pro</div>
+          <div class="price-amount"><span class="yen">¥</span>4,980<span class="period">/月</span></div>
+          <div class="price-features">
+            無制限<br>
+            チーム共有<br>
+            優先サポート
+          </div>
+        </div>
+        <div class="price-card">
+          <div class="price-name">Enterprise</div>
+          <div class="price-amount" style="font-size:14pt;">個別見積</div>
+          <div class="price-features">
+            専用環境<br>
+            カスタマイズ<br>
+            導入支援
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="author-bio">
+      <div class="author-avatar">開</div>
+      <div class="author-content">
+        <div class="author-label">Developer's Note</div>
+        <p class="author-quote">
+          「自動計算はあくまで参考値。最終的には現場を見て、職人と対話して決めた日数が正解。
+          Con-scheは、その判断を支える道具でありたいと思っています。」
+        </p>
+      </div>
+    </div>
+
+    <div class="back-cta">
+      <h3 class="back-cta-title">まずは1件、工程表を作ってみてください。</h3>
+      <div class="back-cta-content">
+        <div class="qr-placeholder">QR CODE</div>
+        <div class="back-cta-text">
+          <div class="back-cta-url">con-sche.com</div>
+          <div class="back-cta-search">検索「コンスケ 工程表」でアクセス</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
