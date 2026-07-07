@@ -36,6 +36,15 @@ interface UIState {
   showSCurve: boolean
   showProgressOffsetLabels: boolean
 
+  // 初回チュートリアルオーバーレイ
+  showTutorial: boolean
+  openTutorial: () => void
+  closeTutorial: () => void
+
+  // カーソル近傍ヒント（ドラッグ中に「なぜ操作できないか」を表示。null = 非表示）
+  cursorHint: string | null
+  setCursorHint: (hint: string | null) => void
+
   // 棟セレクター
   selectedBuildingId: string | null
   setSelectedBuildingId: (id: string | null) => void
@@ -97,6 +106,19 @@ export const useUIStore = create<UIState>((set, get) => ({
   showProjectSettingsDialog: false,
   showSCurve: false,
   showProgressOffsetLabels: false,
+  showTutorial: false,
+  openTutorial: () => {
+    set({ showTutorial: true })
+  },
+  closeTutorial: () => {
+    set({ showTutorial: false })
+  },
+  cursorHint: null,
+  setCursorHint: (hint) => {
+    // 同じ文言の再セットは無視（ドラッグ中の高頻度呼び出し対策）
+    if (get().cursorHint === hint) return
+    set({ cursorHint: hint })
+  },
   selectedBuildingId: null,
   setSelectedBuildingId: (id) => {
     set({ selectedBuildingId: id })

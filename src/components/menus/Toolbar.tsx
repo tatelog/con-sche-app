@@ -13,6 +13,7 @@ import {
   ZoomOut,
   Undo2,
   Redo2,
+  HelpCircle,
   FolderOpen,
   Save,
   SaveAll,
@@ -172,6 +173,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
   const showPropertiesPanel = useUIStore((state) => state.showPropertiesPanel)
   const togglePropertiesPanel = useUIStore((state) => state.togglePropertiesPanel)
+  const openTutorial = useUIStore((state) => state.openTutorial)
 
   const handleZoomIn = () => {
     const newScale = Math.min(canvasScale * 1.2, 3)
@@ -411,6 +413,10 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           </button>
           <button onClick={handleZoomIn} className="p-1.5 rounded text-gray-600">
             <ZoomIn size={18} />
+          </button>
+
+          <button onClick={openTutorial} className="p-1.5 rounded text-gray-600" title="操作ガイド">
+            <HelpCircle size={18} />
           </button>
         </div>
 
@@ -715,6 +721,15 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           title="やり直し (Ctrl+Y)"
         >
           <Redo2 size={20} />
+        </button>
+
+        {/* チュートリアル再表示 */}
+        <button
+          onClick={openTutorial}
+          className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
+          title="操作ガイドを表示"
+        >
+          <HelpCircle size={20} />
         </button>
       </div>
 
