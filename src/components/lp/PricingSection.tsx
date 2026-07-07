@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { PRICING } from '../../data/lpContent';
+import { PRICING, APP_URL } from '../../data/lpContent';
 import SectionContainer from './shared/SectionContainer';
 
 export default function PricingSection() {
@@ -14,7 +14,7 @@ export default function PricingSection() {
         <div className="relative bg-white rounded-2xl shadow-lg ring-2 ring-primary-600 p-8 flex flex-col">
           <div className="mb-6 text-center">
             <div className="text-4xl font-black text-slate-800">{free.name}</div>
-            <p className="text-sm text-slate-500 mt-3 leading-relaxed">{free.desc}</p>
+            <p className="text-sm text-slate-500 mt-3 leading-relaxed whitespace-pre-line">{free.desc}</p>
           </div>
           <ul className="space-y-3 mb-6 grid sm:grid-cols-2 gap-x-6">
             {free.features.map((f) => (
@@ -27,21 +27,33 @@ export default function PricingSection() {
           <div className="bg-slate-50 rounded-xl p-4 mb-6">
             <p className="text-xs text-slate-500 leading-relaxed">{free.note}</p>
           </div>
-          <Link
-            to={free.ctaLink}
-            className="block text-center rounded-xl px-4 py-3 text-base font-bold bg-primary-600 text-white hover:bg-primary-700 shadow-lg transition-all duration-300"
-          >
-            {free.cta}
-          </Link>
+          <div className="flex gap-3">
+            <Link
+              to={free.ctaLink}
+              className="flex-1 text-center rounded-xl px-4 py-3 text-base font-bold bg-primary-600 text-white hover:bg-primary-700 shadow-lg transition-all duration-300"
+            >
+              {free.cta}
+            </Link>
+            <a
+              href={APP_URL.docs}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-center rounded-xl px-6 py-3 text-base font-bold border-2 border-primary-600 text-primary-600 hover:bg-primary-50 transition-colors"
+            >
+              操作説明
+            </a>
+          </div>
         </div>
 
         {/* システム連携（有償） */}
         <div className="mt-8 bg-white rounded-2xl border border-slate-200 p-6 text-center">
           <h3 className="text-lg font-bold text-slate-800 mb-2">{paid.title}</h3>
-          <p className="text-sm text-slate-500 mb-4 leading-relaxed">{paid.desc}</p>
+          <p className="text-sm text-slate-500 mb-4 leading-relaxed whitespace-pre-line">{paid.desc}</p>
           <div className="flex items-center justify-center gap-4">
             <a
               href={paid.ctaLink}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-block rounded-xl px-6 py-2.5 text-sm font-bold border-2 border-primary-600 text-primary-600 hover:bg-primary-50 transition-colors"
             >
               {paid.cta}

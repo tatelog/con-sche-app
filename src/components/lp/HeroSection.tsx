@@ -17,6 +17,7 @@ export default function HeroSection() {
           </div>
           <div className="flex flex-wrap gap-4">
             <CTAButton text={HERO.cta1} href={APP_URL.app} />
+            <CTAButton text="操作説明" href={APP_URL.docs} variant="secondary" />
           </div>
         </div>
 
