@@ -20,7 +20,7 @@ sidebar_position: 100
 
 ### APIコードを紛失しました
 
-APIコードは再発行できません。エディタの利用には影響ありませんが、API連携を利用したい場合は[お問い合わせ](https://con-sche.tatelog.biz/#contact)ください。
+APIコードは再発行できません。エディタの利用には影響ありませんが、API連携を利用したい場合は[お問い合わせ](https://tatelog.biz/contact/)ください。
 
 ## 工程表データについて
 

@@ -9,7 +9,6 @@ import WorkflowSection from '../components/lp/WorkflowSection';
 import PricingSection from '../components/lp/PricingSection';
 import FAQSection from '../components/lp/FAQSection';
 import CTASection from '../components/lp/CTASection';
-import ContactSection from '../components/lp/ContactSection';
 import LPFooter from '../components/lp/LPFooter';
 import StickyBottomCTA from '../components/lp/StickyBottomCTA';
 
@@ -27,7 +26,6 @@ export default function LPPage() {
       <PricingSection />
       <FAQSection />
       <CTASection />
-      <ContactSection />
       <LPFooter />
       <StickyBottomCTA />
     </div>

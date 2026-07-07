@@ -1,17 +1,22 @@
 // LP全テキストコンテンツ定数
-export const APP_URL = { app: '/app' };
+export const APP_URL = {
+  app: '/app',
+  docs: 'https://con-sche-docs.pages.dev',
+  github: 'https://github.com/tatelog/con-sche-app',
+  contact: 'https://tatelog.biz/contact/',
+};
 
 export const CONTACT = {
   email: 'con-sche@tatelog.biz',
-  formUrl: '#contact',
-  meetingUrl: '#contact',
+  formUrl: 'https://tatelog.biz/contact/',
+  meetingUrl: 'https://tatelog.biz/contact/',
 };
 
 export const NAV_LINKS = [
   { label: '機能', href: '#features' },
   { label: '料金', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
-  { label: 'お問い合わせ', href: '#contact' },
+  { label: 'お問い合わせ', href: 'https://tatelog.biz/contact/' },
 ];
 
 export const HERO = {
@@ -197,7 +202,8 @@ export const PRICING = {
   subtitle: 'Con-Scheは無料でご利用いただけます。',
   free: {
     name: '無料',
-    desc: '全機能を無料でお使いいただけます。データはお使いの端末（ブラウザ内・ローカルファイル）に保存され、サーバーには送信されません。',
+    // \n は文の切れ目での改行指定（中途半端な位置での折返しを防ぐ）。whitespace-pre-line で描画
+    desc: '全機能を無料でお使いいただけます。\nデータはお使いの端末（ブラウザ内・ローカルファイル）に保存され、\nサーバーには送信されません。',
     features: [
       'ネットワーク工程表（ADM）の作成・編集',
       'クリティカルパス自動計算',
@@ -212,9 +218,9 @@ export const PRICING = {
   },
   paid: {
     title: 'システム連携をご検討の企業様へ',
-    desc: '連携API（CPM計算・工程ファイル変換）を無料枠つきで提供しています（利用登録時に発行されるAPIコードですぐ試せます）。無料枠を超える本格的なシステム連携や、組み込み利用（OEM）のご相談は個別契約にて承ります。',
+    desc: '連携API（CPM計算・工程ファイル変換）は、\n利用登録時に発行されるAPIコードで、月間無料枠の範囲ですぐお試しいただけます。\n無料枠を超える本格的なシステム連携をご希望の場合は、個別契約にて承ります。',
     cta: 'お問い合わせ',
-    ctaLink: '#contact',
+    ctaLink: 'https://tatelog.biz/contact/',
   },
 };
 
@@ -227,7 +233,12 @@ export const FAQ = {
     { q: 'BIM/IFCファイルがなくても使えますか？', a: 'はい、まったく問題ありません。基本的な工程表作成にBIMデータは不要です。なお、IFCファイルからの数量取り込みは現在準備中で、近日対応予定です。' },
     { q: 'タブレットやスマホで使えますか？', a: 'はい。PWA対応なのでブラウザからアクセスでき、ホーム画面に追加すればアプリのように使えます。Chrome・Edge・Safari対応で、オフラインでも動作します。' },
     { q: 'データはどこに保存されますか？', a: 'お使いの端末のブラウザ内（IndexedDB）に自動保存されます。また、工程表をファイル（.csa形式）として書き出し、別の端末で読み込むこともできます。工程表データがサーバーに送信されることはありません。' },
-    { q: '本当に無料ですか？', a: 'はい。エディタの全機能を無料でご利用いただけます。ご利用開始時に氏名・会社名・メールアドレスの登録をお願いしています。連携API（CPM計算・ファイル変換）も月間の無料枠内で無料でお試しいただけます。無料枠を超える本格的なシステム連携・組み込み利用は個別契約にて承ります。' },
+    { q: '本当に無料ですか？', a: 'はい。エディタの全機能を無料でご利用いただけます。ご利用開始時に氏名・会社名・メールアドレスの登録をお願いしています。連携API（CPM計算・ファイル変換）も月間の無料枠内で無料でお試しいただけます。無料枠を超える本格的なシステム連携は個別契約にて承ります。' },
+    {
+      q: '自社製品への組み込み（OEM）はできますか？',
+      a: 'はい。ソースコードはGitHubで公開しており、ライセンス（Con-Sche License 1.0）の範囲で、クレジット表記を条件に自社製品への組み込み・再配布が可能です。第三者向けのマネージドサービス提供や連携API基盤としての利用には個別契約が必要です。詳しくはリポジトリのLICENSEをご確認ください。',
+      link: { label: 'GitHubリポジトリを見る', href: 'https://github.com/tatelog/con-sche-app' },
+    },
     { q: '施工管理の経験者が開発していますか？', a: 'はい。現場経験を持つメンバーが企画・開発しています。「現場で本当に使える工程表」を目指し、現場の判断を尊重する設計を大切にしています。' },
   ],
 };
@@ -245,5 +256,6 @@ export const FOOTER = {
     { label: 'プライバシーポリシー', href: '/privacy' },
     { label: 'APIドキュメント', href: '/api-docs' },
     { label: '使い方マニュアル', href: 'https://con-sche-docs.pages.dev' },
+    { label: 'GitHub', href: 'https://github.com/tatelog/con-sche-app' },
   ],
 };

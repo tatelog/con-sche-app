@@ -39,7 +39,7 @@ export default function ApiDocsPage() {
             <Code>{`Authorization: Bearer cs_live_xxxxxxxx...`}</Code>
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mt-3 text-xs text-amber-800 leading-relaxed">
               <span className="font-bold">APIコードは登録完了画面に1回だけ表示され、再発行できません。</span>
-              紛失した場合は<a href="/#contact" className="underline">お問い合わせ</a>ください。
+              紛失した場合は<a href="https://tatelog.biz/contact/" target="_blank" rel="noopener noreferrer" className="underline">お問い合わせ</a>ください。
             </div>
           </section>
 
@@ -55,7 +55,7 @@ export default function ApiDocsPage() {
               リクエストが成功した場合のみ消費されます。超過すると429が返ります。
               現在の消費量はレスポンスヘッダー <code className="bg-slate-100 px-1 rounded">X-ConSche-Usage</code> と
               利用量照会APIで確認できます。無料枠を超える利用は個別契約にて承ります（
-              <a href="/#contact" className="underline text-primary-600">お問い合わせ</a>）。
+              <a href="https://tatelog.biz/contact/" target="_blank" rel="noopener noreferrer" className="underline text-primary-600">お問い合わせ</a>）。
             </p>
           </section>
 
