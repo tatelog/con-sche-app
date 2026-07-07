@@ -48,11 +48,6 @@ const sections = [
     link: '/docs/network-schedule/create-schedule',
   },
   {
-    title: '分析・表示',
-    description: '進捗線（雷線）、進捗曲線（Sカーブ）による進捗管理。',
-    link: '/docs/advanced/progress-curve',
-  },
-  {
     title: 'よくある質問',
     description: '登録、工程表データ、エクスポート、連携APIに関するFAQ。',
     link: '/docs/faq',

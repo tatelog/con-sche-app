@@ -25,13 +25,6 @@ const sidebars: SidebarsConfig = {
         'network-schedule/export',
       ],
     },
-    {
-      type: 'category',
-      label: '分析・表示',
-      items: [
-        'advanced/progress-curve',
-      ],
-    },
     'faq',
   ],
 };
