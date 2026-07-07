@@ -192,6 +192,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const [draggedRowIndex, setDraggedRowIndex] = useState<number | null>(null)
   const [dragOverRowIndex, setDragOverRowIndex] = useState<number | null>(null)
   const [newItemName, setNewItemName] = useState('')
+  const [addItemError, setAddItemError] = useState<string | null>(null)
 
   // ゴーストプレビュー用
   const [ghostPosition, setGhostPosition] = useState<{x: number, y: number} | null>(null)
@@ -222,6 +223,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const setCanvasPosition = useUIStore((state) => state.setCanvasPosition)
   const resetCanvasPosition = useUIStore((state) => state.resetCanvasPosition)
   const setCanvasMetrics = useUIStore((state) => state.setCanvasMetrics)
+  const setCursorHint = useUIStore((state) => state.setCursorHint)
+  const toggleProjectSettingsDialog = useUIStore((state) => state.toggleProjectSettingsDialog)
   const setCaptureCanvas = useUIStore((state) => state.setCaptureCanvas)
   const currentPage = useUIStore((state) => state.currentPage)
   const setCurrentPage = useUIStore((state) => state.setCurrentPage)
@@ -873,6 +876,14 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         const clampedDays = Math.max(-floatDragRef.current.maxLeftDays,
           Math.min(rawDays, floatDragRef.current.maxRightDays))
         setFloatDragDeltaDays(clampedDays)
+        // クランプに当たったら理由をカーソル近くに表示
+        if (rawDays > clampedDays) {
+          setCursorHint(`右へはここまでです（後続への余裕 ${floatDragRef.current.maxRightDays}日分）`)
+        } else if (rawDays < clampedDays) {
+          setCursorHint(`左へはここまでです（先行作業との間隔 ${floatDragRef.current.maxLeftDays}日分）`)
+        } else {
+          setCursorHint(null)
+        }
         return
       }
 
@@ -904,7 +915,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         setProgressHoverRow(rowIndex + pageStartRow)
       }
     },
-    [editMode, canvasScale, canvasPosition, viewStartDayOffset, ghostPosition]
+    [editMode, canvasScale, canvasPosition, viewStartDayOffset, ghostPosition, setCursorHint]
   )
 
   // キャンバスクリック（ノード追加など）
@@ -1042,7 +1053,12 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
       // 移動可能範囲を取得（左右両方）
       const range = getShiftRange(activityId)
-      if (range.maxLeft <= 0 && range.maxRight <= 0) return // 移動不可
+      if (range.maxLeft <= 0 && range.maxRight <= 0) {
+        // 無言で弾かず、動かせない理由をその場で表示（2秒で消す）
+        setCursorHint('この作業は動かせません（余裕日数0・前後に隙間なし）')
+        window.setTimeout(() => setCursorHint(null), 2200)
+        return
+      }
 
       // pathSelectモード: Ctrl+左クリック → チェーン全体選択
       const isChain = modifiers.ctrlKey
@@ -1066,7 +1082,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       }
       setFloatDragDeltaDays(0)
     },
-    [editMode, getActivity, getAffectedChain, getShiftRange, selectActivities, selectActivity]
+    [editMode, getActivity, getAffectedChain, getShiftRange, selectActivities, selectActivity, setCursorHint]
   )
 
   // Stage mouseUp → フロート移動ドラッグ完了（左右両方向対応）
@@ -1090,8 +1106,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       floatDragRef.current = null
       setChainHighlightIds([])
       setFloatDragDeltaDays(0)
+      setCursorHint(null)
     },
-    [canvasScale, shiftActivityWithFloat]
+    [canvasScale, shiftActivityWithFloat, setCursorHint]
   )
 
   // ノードクリック
@@ -1152,6 +1169,35 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   )
 
   // ノードドラッグ
+  // ドラッグ中のライブ制約判定: 接続作業の所要日数を侵す位置なら理由文言を返す
+  const getNodeDragHint = useCallback(
+    (nodeId: string, worldX: number): string | null => {
+      for (const activity of activities) {
+        if (activity.isDummy) continue
+        if (activity.fromNodeId === nodeId) {
+          const toNode = getNode(activity.toNodeId)
+          if (toNode) {
+            const calDays = getCalendarDaysForWorkdaysUtil(worldX, activity.duration, startDate, DAY_WIDTH, calendar)
+            if (worldX > toNode.position.x - calDays * DAY_WIDTH + 1) {
+              return `「${activity.name}」の所要${activity.duration}日分の間隔が必要です（離すと自動調整されます）`
+            }
+          }
+        }
+        if (activity.toNodeId === nodeId) {
+          const fromNode = getNode(activity.fromNodeId)
+          if (fromNode) {
+            const calDays = getCalendarDaysForWorkdaysUtil(fromNode.position.x, activity.duration, startDate, DAY_WIDTH, calendar)
+            if (worldX < fromNode.position.x + calDays * DAY_WIDTH - 1) {
+              return `「${activity.name}」の所要${activity.duration}日分の間隔が必要です（離すと自動調整されます）`
+            }
+          }
+        }
+      }
+      return null
+    },
+    [activities, getNode, startDate, calendar]
+  )
+
   const handleNodeDragEnd = useCallback(
     (nodeId: string, position: { x: number; y: number }) => {
       // 近くに別のノードがあるか確認（マージ判定）
@@ -1551,6 +1597,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     columnId?: string
   ) => {
     setEditingCell({ rowIndex, columnType, columnId, value: currentValue, cellRect })
+    setNewItemName('')
+    setAddItemError(null)
   }, [])
 
   // マスタから選択した値で更新（名前を直接渡す）
@@ -1613,19 +1661,30 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           break
         }
         case 'floor': {
-          const zoneId = prevRow?.zoneId || Array.from(zones.keys())[0]
-          if (zoneId) {
-            const roomId = addRoom(zoneId, selectedName)
-            addDetailCategory(roomId, '新規細目')
+          let zoneId = prevRow?.zoneId || Array.from(zones.keys())[0]
+          if (!zoneId) {
+            // 工区列が表示中 → 案内済み（cellBlockedReason）なのでここには来ない。
+            // 非表示 → ユーザーは工区を使わない運用なので、既定の工区を裏で自動生成する
+            if (visibleColumns.some((c) => c.type === 'zone')) break
+            zoneId = addZone('未分類')
           }
+          const roomId = addRoom(zoneId, selectedName)
+          addDetailCategory(roomId, '新規細目')
           break
         }
         case 'detail': {
           // 上の行の階を使用して新しい細目を作成
-          const roomId = prevRow?.roomId
-          if (roomId) {
-            addDetailCategory(roomId, selectedName)
+          let roomId = prevRow?.roomId
+          if (!roomId) {
+            // 親列（工区・階数）が表示中なら案内に任せる。全部非表示なら裏で自動生成
+            const zoneVisible = visibleColumns.some((c) => c.type === 'zone')
+            const floorVisible = visibleColumns.some((c) => c.type === 'floor')
+            if (zoneVisible || floorVisible) break
+            const zoneId = Array.from(zones.keys())[0] ?? addZone('未分類')
+            const existingRoom = Array.from(rooms.values()).find((r) => r.zoneId === zoneId)
+            roomId = existingRoom?.id ?? addRoom(zoneId, '未分類')
           }
+          addDetailCategory(roomId, selectedName)
           break
         }
         case 'custom':
@@ -1637,13 +1696,21 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     }
 
     setEditingCell(null)
-  }, [editingCell, hierarchyRows, zones, updateZone, updateRoom, updateDetailCategory, addZone, addRoom, addDetailCategory, setCustomColumnValue])
+  }, [editingCell, hierarchyRows, zones, rooms, visibleColumns, updateZone, updateRoom, updateDetailCategory, addZone, addRoom, addDetailCategory, setCustomColumnValue])
 
   // セルから新規マスタ項目追加
   const handleAddCellItem = useCallback(() => {
     if (!editingCell || !newItemName.trim()) return
 
     const name = newItemName.trim()
+
+    // 同名の項目が既にある場合はエラー表示して追加しない
+    const options = getOptionsForColumn(editingCell.columnType, editingCell.columnId)
+    if (options.some((o) => o.name === name)) {
+      setAddItemError(`「${name}」は既に登録されています`)
+      return
+    }
+    setAddItemError(null)
 
     switch (editingCell.columnType) {
       case 'zone':
@@ -1664,7 +1731,45 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
     setNewItemName('')
     // ドロップダウンは閉じない（続けて追加できるように）
-  }, [editingCell, newItemName, addMasterItem, addCustomMasterItem])
+  }, [editingCell, newItemName, addMasterItem, addCustomMasterItem, getOptionsForColumn])
+
+  // 入力値をセルに直接確定（Enter確定: マスタ登録 + セルへ反映 + 閉じる）
+  // 同名が既にある場合はエラーにせず「既存項目の選択」として扱う
+  const handleCommitNewItem = useCallback(() => {
+    if (!editingCell || !newItemName.trim()) return
+    const name = newItemName.trim()
+    const options = getOptionsForColumn(editingCell.columnType, editingCell.columnId)
+    if (!options.some((o) => o.name === name)) {
+      handleAddCellItem()
+    }
+    handleCellSelectChange(name) // セルに反映して閉じる
+    setNewItemName('')
+    setAddItemError(null)
+  }, [editingCell, newItemName, handleAddCellItem, handleCellSelectChange, getOptionsForColumn])
+
+  // 親階層が未設定でセルに値を入れられないときの理由（null = 入力可能）
+  // 親列が非表示の場合はブロックしない（保存時に既定の親階層を自動生成する）
+  const cellBlockedReason = useMemo((): string | null => {
+    if (!editingCell) return null
+    const { rowIndex, columnType } = editingCell
+    if (hierarchyRows[rowIndex]) return null // 既存行はいつでも編集可
+    const prevRow = rowIndex > 0 ? hierarchyRows[rowIndex - 1] : null
+    const zoneVisible = visibleColumns.some((c) => c.type === 'zone')
+    const floorVisible = visibleColumns.some((c) => c.type === 'floor')
+    if (columnType === 'floor' && !prevRow?.zoneId && zones.size === 0 && zoneVisible) {
+      return '先にこの行の「工区」を設定してください。階は工区の中に作られます。'
+    }
+    if (columnType === 'detail' && !prevRow?.roomId && (zoneVisible || floorVisible)) {
+      const parentLabel = floorVisible && !zoneVisible ? '階数' : '工区'
+      return `先にこの行の「${parentLabel}」を設定してください（上の階層から順に作られます）。`
+    }
+    return null
+  }, [editingCell, hierarchyRows, zones, visibleColumns])
+
+  // スクロール・ズーム・パンでセル編集ポップアップを閉じる（座標がずれて宙に浮くのを防ぐ）
+  useEffect(() => {
+    setEditingCell((prev) => (prev ? null : prev))
+  }, [canvasPosition.x, canvasPosition.y, canvasScale])
 
   // ハンドルクリックでアクションメニュー表示
   const handleRowHandleClick = useCallback((e: React.MouseEvent, rowIndex: number) => {
@@ -2316,62 +2421,99 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           </div>
         )}
 
-        {/* セル編集ドロップダウン（マスタ選択 + 追加） */}
-        {editingCell && editingCell.cellRect && (
-          <div
-            className="fixed z-50 bg-white border border-blue-500 rounded shadow-lg"
-            style={{
-              left: editingCell.cellRect.left,
-              top: editingCell.cellRect.top + editingCell.cellRect.height,
-              minWidth: Math.max(editingCell.cellRect.width, 150),
-              maxHeight: 280,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* マスタ一覧 */}
-            <div className="max-h-[180px] overflow-y-auto border-b border-gray-200">
-              {getOptionsForColumn(editingCell.columnType, editingCell.columnId).map((option) => (
-                <button
-                  key={option.id}
-                  className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 border-b border-gray-100 last:border-b-0 ${
-                    option.name === editingCell.value ? 'bg-blue-100 font-medium' : ''
-                  }`}
-                  onClick={() => handleCellSelectChange(option.name)}
-                >
-                  {option.name}
-                </button>
-              ))}
-              {getOptionsForColumn(editingCell.columnType, editingCell.columnId).length === 0 && (
-                <div className="px-3 py-2 text-sm text-gray-500">選択肢がありません</div>
+        {/* セル編集ドロップダウン（入力 + マスタ選択）。画面下部では上方向に開く */}
+        {editingCell && editingCell.cellRect && (() => {
+          const rect = editingCell.cellRect
+          const POPUP_MAX_H = 280
+          // 下に収まらなければセルの上方向に開く（bottom指定で上に伸ばす）
+          const flipUp = rect.top + rect.height + POPUP_MAX_H > window.innerHeight && rect.top > POPUP_MAX_H
+          const minWidth = Math.max(rect.width, 180)
+          const left = Math.max(4, Math.min(rect.left, window.innerWidth - minWidth - 8))
+          const posStyle: React.CSSProperties = flipUp
+            ? { left, bottom: window.innerHeight - rect.top, minWidth, maxHeight: POPUP_MAX_H }
+            : { left, top: rect.top + rect.height, minWidth, maxHeight: POPUP_MAX_H }
+          const options = getOptionsForColumn(editingCell.columnType, editingCell.columnId)
+          return (
+            <div
+              className="fixed z-50 bg-white border border-blue-500 rounded shadow-lg flex flex-col"
+              style={posStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {cellBlockedReason ? (
+                /* 親階層が未設定で入力できない場合は理由を明示 */
+                <div className="p-3 bg-amber-50 text-xs text-amber-800 leading-relaxed max-w-[240px]">
+                  {cellBlockedReason}
+                </div>
+              ) : (
+                <>
+                  {/* 入力ファースト: クリック→即タイプ→Enterでセルに確定 */}
+                  <div className="p-2 bg-gray-50 border-b border-gray-200">
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        autoFocus
+                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
+                        placeholder="入力してEnterで確定"
+                        value={newItemName}
+                        onChange={(e) => {
+                          setNewItemName(e.target.value)
+                          setAddItemError(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleCommitNewItem()
+                          if (e.key === 'Escape') setEditingCell(null)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button
+                        className="px-2 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600 disabled:bg-gray-300"
+                        onClick={handleAddCellItem}
+                        disabled={!newItemName.trim()}
+                        title="マスタ一覧に追加（セルには入れない）"
+                      >
+                        ＋
+                      </button>
+                    </div>
+                    {addItemError && (
+                      <p className="mt-1 text-xs text-red-500">{addItemError}</p>
+                    )}
+                  </div>
+                  {/* マスタ一覧（クリックでセルに反映） */}
+                  <div className="overflow-y-auto">
+                    {options.map((option) => (
+                      <button
+                        key={option.id}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 border-b border-gray-100 last:border-b-0 ${
+                          option.name === editingCell.value ? 'bg-blue-100 font-medium' : ''
+                        }`}
+                        onClick={() => handleCellSelectChange(option.name)}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                    {options.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-gray-400">登録済みの選択肢はありません</div>
+                    )}
+                  </div>
+                </>
               )}
-            </div>
-            {/* 新規追加フォーム */}
-            <div className="p-2 bg-gray-50">
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:border-blue-500 focus:outline-none"
-                  placeholder="新規追加..."
-                  value={newItemName}
-                  onChange={(e) => setNewItemName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleAddCellItem()
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
+              {/* 列そのものが不要な場合の逃げ道を常に示す */}
+              <div className="px-3 py-1.5 border-t border-gray-100 bg-white text-[10px] text-gray-400 leading-relaxed">
+                この列を使わない場合は
                 <button
-                  className="px-2 py-1 text-sm text-white bg-blue-500 rounded hover:bg-blue-600 disabled:bg-gray-300"
-                  onClick={handleAddCellItem}
-                  disabled={!newItemName.trim()}
+                  className="underline text-blue-500 hover:text-blue-600 mx-0.5"
+                  onClick={() => {
+                    setEditingCell(null)
+                    toggleProjectSettingsDialog()
+                  }}
                 >
-                  追加
+                  設定
                 </button>
+                の「ヘッダー列設定」で非表示にできます
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* 右側：キャンバス */}
         <div className="flex-1 overflow-hidden canvas-touch-none">
@@ -2817,9 +2959,14 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                           setActivityStartNode(null)
                         }
                       }}
-                      onDragMove={(pos) => setDraggedNodePos({ nodeId: node.id, x: pos.x, y: pos.y })}
+                      onDragMove={(pos) => {
+                        setDraggedNodePos({ nodeId: node.id, x: pos.x, y: pos.y })
+                        // 所要日数の制約に当たる位置なら理由をカーソル近くに表示
+                        setCursorHint(getNodeDragHint(node.id, pos.x + viewStartDayOffset * DAY_WIDTH))
+                      }}
                       onDragEnd={(pos) => {
                         setDraggedNodePos(null)
+                        setCursorHint(null)
                         handleNodeDragEnd(node.id, {
                           x: pos.x + viewStartDayOffset * DAY_WIDTH,
                           y: pos.y + pageStartRow * ROW_HEIGHT,

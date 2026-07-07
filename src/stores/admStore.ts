@@ -481,9 +481,14 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // ======================================
 
   addMasterItem: (type, name) => {
-    const id = uuidv4()
     const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : 'detailMaster'
     const master = get()[masterKey]
+
+    // 同名の項目が既にあれば追加せず既存IDを返す（重複登録防止）
+    const existing = Array.from(master.values()).find((m) => m.name === name)
+    if (existing) return existing.id
+
+    const id = uuidv4()
     const order = master.size
 
     set((state) => {
@@ -528,6 +533,13 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // ======================================
 
   addCustomMasterItem: (columnId, name) => {
+    // 同名の項目が既にあれば追加せず既存IDを返す（重複登録防止）
+    const existingCol = get().customMasters.get(columnId)
+    if (existingCol) {
+      const existing = Array.from(existingCol.values()).find((m) => m.name === name)
+      if (existing) return existing.id
+    }
+
     const id = uuidv4()
     set((state) => {
       const newCustomMasters = new Map(state.customMasters)

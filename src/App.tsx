@@ -8,6 +8,8 @@ import { PropertiesPanel } from '@/components/panels/PropertiesPanel'
 import { Toolbar } from '@/components/menus/Toolbar'
 import { ResizablePanel } from '@/components/common/ResizablePanel'
 import { ProjectSettingsDialog } from '@/components/dialogs/ProjectSettingsDialog'
+import { TutorialOverlay } from '@/components/TutorialOverlay'
+import { CursorHint } from '@/components/CursorHint'
 import { IfcImportDialog } from '@/components/dialogs/IfcImportDialog'
 import { IfcMappingPanel } from '@/components/panels/IfcMappingPanel'
 import { useADMStore } from '@/stores/admStore'
@@ -127,6 +129,12 @@ function App() {
         isOpen={showProjectSettingsDialog}
         onClose={toggleProjectSettingsDialog}
       />
+
+      {/* 初回チュートリアル（?ボタンで再表示可） */}
+      <TutorialOverlay />
+
+      {/* ドラッグ制約の理由表示（カーソル追従） */}
+      <CursorHint />
 
       {/* IFCインポートダイアログ */}
       <IfcImportDialog />
