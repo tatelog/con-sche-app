@@ -244,5 +244,6 @@ export const FOOTER = {
     { label: '利用規約', href: '/terms' },
     { label: 'プライバシーポリシー', href: '/privacy' },
     { label: 'APIドキュメント', href: '/api-docs' },
+    { label: '使い方マニュアル', href: 'https://con-sche-docs.pages.dev' },
   ],
 };

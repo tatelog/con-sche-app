@@ -23,7 +23,6 @@ import {
   FileType2,
   ArrowLeft,
   Waypoints,
-  ChartSpline,
   FileSpreadsheet,
   PanelRightClose,
   PanelRightOpen,
@@ -171,8 +170,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   // 進捗線は独立モード
   const isProgressMode = editMode === 'progress'
 
-  const showSCurve = useUIStore((state) => state.showSCurve)
-  const toggleSCurve = useUIStore((state) => state.toggleSCurve)
   const showPropertiesPanel = useUIStore((state) => state.showPropertiesPanel)
   const togglePropertiesPanel = useUIStore((state) => state.togglePropertiesPanel)
 
@@ -391,14 +388,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             className={`p-1.5 rounded transition-colors ${isProgressMode ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
           >
             <Waypoints size={18} />
-          </button>
-
-          {/* Sカーブ */}
-          <button
-            onClick={toggleSCurve}
-            className={`p-1.5 rounded transition-colors ${showSCurve ? 'bg-green-100 text-green-600' : 'text-gray-600'}`}
-          >
-            <ChartSpline size={18} />
           </button>
 
           <div className="w-px h-5 bg-gray-300 mx-0.5" />
@@ -699,17 +688,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           title="進捗線（雷線）"
         >
           <Waypoints size={20} />
-        </button>
-
-        {/* S字カーブトグル */}
-        <button
-          onClick={toggleSCurve}
-          className={`p-2 rounded hover:bg-gray-100 transition-colors ${
-            showSCurve ? 'bg-green-100 text-green-600' : 'text-gray-600'
-          }`}
-          title="S字カーブ表示/非表示"
-        >
-          <ChartSpline size={20} />
         </button>
 
         {/* 区切り線 */}

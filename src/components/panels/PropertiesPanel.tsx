@@ -41,8 +41,6 @@ export function PropertiesPanel() {
   const addProgressLine = useADMStore((state) => state.addProgressLine)
   const clearProgressLine = useADMStore((state) => state.clearProgressLine)
   const setActiveProgressLine = useADMStore((state) => state.setActiveProgressLine)
-  const showSCurve = useUIStore((state) => state.showSCurve)
-  const toggleSCurve = useUIStore((state) => state.toggleSCurve)
   const showProgressOffsetLabels = useUIStore((state) => state.showProgressOffsetLabels)
   const toggleProgressOffsetLabels = useUIStore((state) => state.toggleProgressOffsetLabels)
 
@@ -277,20 +275,6 @@ export function PropertiesPanel() {
             })()}
           </div>
         )}
-
-        {/* S字カーブ表示設定 */}
-        <div className="mt-4 p-3 bg-green-50 rounded text-sm">
-          <h3 className="font-medium mb-2 text-green-700">S字カーブ</h3>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showSCurve}
-              onChange={toggleSCurve}
-              className="rounded"
-            />
-            <span className="text-gray-700 text-xs">行内にオーバーレイ表示</span>
-          </label>
-        </div>
 
         <div className="mt-6 p-4 bg-blue-50 rounded text-sm">
           <h3 className="font-medium mb-2">操作ガイド</h3>
