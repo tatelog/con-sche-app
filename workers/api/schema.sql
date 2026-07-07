@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS usage_logs (
   created_at TEXT NOT NULL
 );
 
+-- 登録を受け付けないメールドメイン（運営が管理。サブドメインも一致する）
+-- 追加: INSERT INTO blocked_domains (domain, note, created_at) VALUES ('example.com', '理由メモ', datetime('now'));
+-- 削除: DELETE FROM blocked_domains WHERE domain = 'example.com';
+CREATE TABLE IF NOT EXISTS blocked_domains (
+  domain TEXT PRIMARY KEY,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
 -- LPのお問い合わせフォームの受け皿
 CREATE TABLE IF NOT EXISTS contacts (
   id TEXT PRIMARY KEY,

@@ -176,6 +176,16 @@ export default {
       });
     }
 
+    // 運営管理の登録不可ドメイン（D1の blocked_domains テーブル。サブドメインも一致する）
+    const blocked = await env.DB.prepare(
+      "SELECT domain FROM blocked_domains WHERE ?1 = domain OR ?1 LIKE '%.' || domain LIMIT 1"
+    ).bind(domain).first<{ domain: string }>();
+    if (blocked) {
+      return json(env, 400, {
+        error: '恐れ入りますが、このドメインからのご登録は現在受け付けておりません。ご不明な点はお問い合わせください。',
+      });
+    }
+
     const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
     const now = new Date().toISOString();
 
