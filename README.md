@@ -35,6 +35,9 @@ npm run build    # 本番ビルド（dist/）
 
 1. **フロントエンド**: `npm run build` の `dist/` を任意の静的ホスティングへ（Cloudflare Pages / Netlify 等）。
    SPAのため全パスを `index.html` にフォールバックさせてください（`public/_redirects` 同梱済み）。
+   > **注意**: `index.html` に当社の Google Analytics タグ（`G-7ZNYLDKQC1`）が入っています。
+   > セルフホストする場合は、このタグを削除するかご自身の測定IDに差し替えてください。
+   > そのままデプロイすると、貴社サイトのアクセスが当社のアナリティクスに送信されます。
 2. **登録・連携API**（任意）: [workers/api/README.md](workers/api/README.md) の手順で
    Cloudflare Workers + D1 をデプロイし、`.env.production` に `VITE_API_BASE=<WorkerのURL>` を
    設定してからビルドします。
