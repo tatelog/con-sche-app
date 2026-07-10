@@ -23,6 +23,22 @@ import { handleV1 } from './v1';
 export interface Env {
   DB: D1Database;
   ALLOWED_ORIGIN: string;
+  /** 任意: 登録・拒否イベントを通知する Slack Incoming Webhook（wrangler secret put SLACK_WEBHOOK_URL）。未設定なら通知しない */
+  SLACK_WEBHOOK_URL?: string;
+}
+
+/** Slack通知（fire-and-forget。未設定・失敗とも本処理に影響させない） */
+async function notifySlack(env: Env, text: string): Promise<void> {
+  if (!env.SLACK_WEBHOOK_URL) return;
+  try {
+    await fetch(env.SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  } catch {
+    // 通知失敗は無視
+  }
 }
 
 // src/config/blockedDomains.ts と同じリスト。変更時は両方更新すること。
@@ -128,7 +144,7 @@ async function handleContact(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
@@ -178,9 +194,12 @@ export default {
 
     // 運営管理の登録不可ドメイン（D1の blocked_domains テーブル。サブドメインも一致する）
     const blocked = await env.DB.prepare(
-      "SELECT domain FROM blocked_domains WHERE ?1 = domain OR ?1 LIKE '%.' || domain LIMIT 1"
-    ).bind(domain).first<{ domain: string }>();
+      "SELECT domain, note FROM blocked_domains WHERE ?1 = domain OR ?1 LIKE '%.' || domain LIMIT 1"
+    ).bind(domain).first<{ domain: string; note: string | null }>();
     if (blocked) {
+      ctx.waitUntil(notifySlack(env,
+        `:no_entry: *登録ブロック*\nリスト: ${blocked.note ?? blocked.domain}\nメール: ${email}\n会社: ${company} / 氏名: ${name}\nIP: ${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`
+      ));
       return json(env, 400, {
         error: '恐れ入りますが、このドメインからのご登録は現在受け付けておりません。ご不明な点はお問い合わせください。',
       });
@@ -229,6 +248,10 @@ export default {
       }
       return json(env, 500, { error: '登録処理に失敗しました。時間をおいて再度お試しください。' });
     }
+
+    ctx.waitUntil(notifySlack(env,
+      `:tada: *新規登録*\n会社: ${company}\n氏名: ${name}\nメール: ${email}`
+    ));
 
     return json(env, 201, { apiKey });
   },
