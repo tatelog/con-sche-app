@@ -45,6 +45,7 @@ export default function VerifyPage() {
         };
         if (res.ok && body.apiKey) {
           markRegistered();
+          window.gtag?.('event', 'sign_up_verified');
           setState({ status: 'success', apiKey: body.apiKey });
         } else if (res.status === 409 || body.alreadyRegistered) {
           markRegistered();

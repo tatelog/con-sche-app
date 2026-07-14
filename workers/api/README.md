@@ -82,9 +82,15 @@ npx wrangler d1 execute con-sche-api --remote --command "
   FROM usage_logs l JOIN api_keys k ON l.key_id=k.id JOIN customers c ON k.customer_id=c.id
   ORDER BY l.created_at DESC LIMIT 50"
 
-# 登録者一覧
+# 登録者一覧（論理削除済みを除く）
 npx wrangler d1 execute con-sche-api --remote --command "
-  SELECT company, name, email, created_at FROM customers ORDER BY created_at DESC"
+  SELECT company, name, email, created_at FROM customers WHERE deleted_at IS NULL ORDER BY created_at DESC"
+
+# 登録者の論理削除（APIキーも同時に停止する。2文セットで実行すること）
+npx wrangler d1 execute con-sche-api --remote --command "
+  UPDATE api_keys SET status='suspended' WHERE customer_id = (SELECT id FROM customers WHERE email='対象メール');
+  UPDATE customers SET deleted_at = datetime('now') WHERE email='対象メール'"
+# 注意: 論理削除してもemailのUNIQUE制約は残るため、同じメールでの再登録は409になる（意図的。復活はdeleted_atをNULLに戻す+キーをactiveに）
 
 # 未対応のお問い合わせ
 npx wrangler d1 execute con-sche-api --remote --command "
