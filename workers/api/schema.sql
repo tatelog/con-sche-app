@@ -50,6 +50,18 @@ CREATE TABLE IF NOT EXISTS blocked_domains (
   created_at TEXT NOT NULL
 );
 
+-- メール確認待ちの登録（RESEND_API_KEY設定時のみ使用。確認完了で customers へ移行）
+CREATE TABLE IF NOT EXISTS pending_registrations (
+  token TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  company TEXT NOT NULL,
+  email TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  ip TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pending_email ON pending_registrations(email);
+
 -- LPのお問い合わせフォームの受け皿
 CREATE TABLE IF NOT EXISTS contacts (
   id TEXT PRIMARY KEY,

@@ -8,7 +8,8 @@
 import { useState, type ReactNode } from 'react';
 import { isBlockedDomain } from '@/config/blockedDomains';
 
-const STORAGE_KEY = 'consche_registration';
+export const REGISTRATION_STORAGE_KEY = 'consche_registration';
+const STORAGE_KEY = REGISTRATION_STORAGE_KEY;
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
 
 interface RegistrationState {
@@ -31,9 +32,11 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
+  const [contactConsent, setContactConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issuedKey, setIssuedKey] = useState<string | null>(null);
+  const [pendingSent, setPendingSent] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const complete = () => {
@@ -61,6 +64,10 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
       setError('フリーメール・携帯キャリアのアドレスはご利用いただけません。会社のメールアドレスで登録してください。');
       return;
     }
+    if (!contactConsent) {
+      setError('ヒアリング等のご連絡についてご同意ください。');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -71,10 +78,16 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
       });
       const body = (await res.json().catch(() => ({}))) as {
         apiKey?: string;
+        pendingVerification?: boolean;
         alreadyRegistered?: boolean;
         error?: string;
       };
 
+      if (res.ok && body.pendingVerification) {
+        // メール確認方式: 確認リンクのクリックで登録完了（/verify ページでキー表示）
+        setPendingSent(true);
+        return;
+      }
       if (res.ok && body.apiKey) {
         setIssuedKey(body.apiKey);
         return;
@@ -109,7 +122,19 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
       {children}
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
-          {issuedKey ? (
+          {pendingSent ? (
+            <>
+              <h2 className="text-xl font-black text-slate-800 mb-2">確認メールを送信しました</h2>
+              <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                <span className="font-bold">{email.trim().toLowerCase()}</span> 宛に確認メールをお送りしました。
+                メール内のリンクをクリックすると登録が完了し、エディタをご利用いただけます（リンクの有効期限は24時間です）。
+              </p>
+              <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500 leading-relaxed">
+                メールが届かない場合は、迷惑メールフォルダをご確認ください。
+                アドレスの入力間違いの場合は、このページを再読み込みして再度ご登録ください。
+              </div>
+            </>
+          ) : issuedKey ? (
             <>
               <h2 className="text-xl font-black text-slate-800 mb-2">登録が完了しました</h2>
               <p className="text-sm text-slate-600 mb-3 leading-relaxed">
@@ -186,6 +211,17 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
                     フリーメール（Gmail・Yahoo等）・携帯キャリアのアドレスはご利用いただけません。
                   </p>
                 </div>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={contactConsent}
+                    onChange={(e) => setContactConsent(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
+                  />
+                  <span className="text-xs text-slate-600 leading-relaxed">
+                    サービス改善のため、ご登録のメールアドレス宛に利用状況のヒアリング等のご連絡をさせていただく場合があります。
+                  </span>
+                </label>
                 {error && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-600 leading-relaxed">
                     {error}
@@ -193,7 +229,7 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
                 )}
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !contactConsent}
                   className="w-full rounded-xl px-4 py-3 text-sm font-bold bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:opacity-50"
                 >
                   {submitting ? '登録中...' : '登録して無料で使う'}

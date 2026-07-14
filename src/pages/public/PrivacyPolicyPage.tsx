@@ -1,7 +1,7 @@
 import LPHeader from '@/components/lp/LPHeader';
 import LPFooter from '@/components/lp/LPFooter';
 
-const LAST_UPDATED = '2026年7月2日';
+const LAST_UPDATED = '2026年7月12日';
 
 const sections = [
   {
@@ -27,9 +27,10 @@ const sections = [
     body: `取得した情報は、以下の目的で利用します。
 1. 本サービスの利用状況の把握
 2. 本サービスに関する重要なお知らせの連絡
-3. APIコードの発行および将来の連携サービス提供時の本人確認
-4. 本サービスおよび当社サービスのご案内
-5. 不正利用の防止`,
+3. 本サービスの改善のための利用状況のヒアリング等のご連絡
+4. APIコードの発行および将来の連携サービス提供時の本人確認
+5. 本サービスおよび当社サービスのご案内
+6. 不正利用の防止`,
   },
   {
     title: '5. 第三者提供',
