@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS customers (
   email TEXT NOT NULL UNIQUE,
   stripe_customer_id TEXT,
   created_at TEXT NOT NULL,
-  ip TEXT
+  ip TEXT,
+  deleted_at TEXT  -- 論理削除（NULL=有効）。削除時はapi_keysもstatus='suspended'にすること
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (

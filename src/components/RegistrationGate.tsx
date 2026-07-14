@@ -85,10 +85,12 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
 
       if (res.ok && body.pendingVerification) {
         // メール確認方式: 確認リンクのクリックで登録完了（/verify ページでキー表示）
+        window.gtag?.('event', 'sign_up', { method: 'email_pending' });
         setPendingSent(true);
         return;
       }
       if (res.ok && body.apiKey) {
+        window.gtag?.('event', 'sign_up', { method: 'direct' });
         setIssuedKey(body.apiKey);
         return;
       }
