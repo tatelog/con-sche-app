@@ -25,6 +25,54 @@ export interface Env {
   ALLOWED_ORIGIN: string;
   /** 任意: 登録・拒否イベントを通知する Slack Incoming Webhook（wrangler secret put SLACK_WEBHOOK_URL）。未設定なら通知しない */
   SLACK_WEBHOOK_URL?: string;
+  /** 任意: 確認メール送信用の Resend APIキー（wrangler secret put RESEND_API_KEY）。
+   *  設定するとメール確認方式（登録→確認リンク→キー発行）になり、未設定なら従来どおり即時キー発行 */
+  RESEND_API_KEY?: string;
+  /** 任意: 確認メールの送信元。未設定時は MAIL_FROM_DEFAULT */
+  MAIL_FROM?: string;
+  /** 任意: 確認リンクのベースURL（フロントの /verify ページがあるオリジン）。未設定時は VERIFY_BASE_DEFAULT */
+  VERIFY_BASE_URL?: string;
+}
+
+const MAIL_FROM_DEFAULT = 'Con-Sche <noreply@tatelog.biz>';
+const VERIFY_BASE_DEFAULT = 'https://con-sche.tatelog.biz';
+const PENDING_TTL_HOURS = 24;
+
+/** 確認メールをResendで送信。成功でtrue（失敗時は呼び出し側でエラー応答にする） */
+async function sendVerificationEmail(env: Env, to: string, name: string, token: string): Promise<boolean> {
+  const verifyUrl = `${env.VERIFY_BASE_URL || VERIFY_BASE_DEFAULT}/verify?token=${token}`;
+  const text = [
+    `${name} 様`,
+    '',
+    'Con-Sche（ネットワーク工程表）へのご登録ありがとうございます。',
+    `以下のリンクをクリックすると登録が完了し、APIコードが発行されます（有効期限: ${PENDING_TTL_HOURS}時間）。`,
+    '',
+    verifyUrl,
+    '',
+    '心当たりがない場合は、このメールを無視してください（登録は完了しません）。',
+    '',
+    '株式会社建ログ / Con-Sche',
+    'https://con-sche.tatelog.biz',
+  ].join('\n');
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: env.MAIL_FROM || MAIL_FROM_DEFAULT,
+        to: [to],
+        subject: '【Con-Sche】メールアドレスの確認',
+        text,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Slack通知（fire-and-forget。未設定・失敗とも本処理に影響させない） */
@@ -78,6 +126,92 @@ function generateApiKey(): string {
   crypto.getRandomValues(bytes);
   const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
   return `cs_live_${hex}`;
+}
+
+/** メール確認リンク用トークン（32バイトhex） */
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * 顧客作成 + APIキー発行（ハッシュのみ保存）。
+ * 戻り値: 平文APIキー / 'duplicate'（メール重複） / null（その他失敗）
+ */
+async function issueCustomerKey(
+  env: Env,
+  name: string,
+  company: string,
+  email: string,
+  now: string,
+  ip: string
+): Promise<string | 'duplicate' | null> {
+  const customerId = crypto.randomUUID();
+  const keyId = crypto.randomUUID();
+  const apiKey = generateApiKey();
+  const keyHash = await sha256Hex(apiKey);
+
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO customers (id, name, company, email, created_at, ip) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
+      ).bind(customerId, name, company, email, now, ip),
+      env.DB.prepare(
+        "INSERT INTO api_keys (id, customer_id, key_hash, plan, status, created_at) VALUES (?1, ?2, ?3, 'free', 'active', ?4)"
+      ).bind(keyId, customerId, keyHash, now),
+    ]);
+  } catch (e) {
+    // UNIQUE制約競合（同時登録）は登録済み扱い
+    const message = e instanceof Error ? e.message : '';
+    if (message.includes('UNIQUE')) {
+      return 'duplicate';
+    }
+    return null;
+  }
+  return apiKey;
+}
+
+/** メール確認リンクの検証 → 本登録（キー発行） */
+async function handleVerify(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  let body: { token?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return json(env, 400, { error: 'リクエスト形式が不正です。' });
+  }
+  const token = (body.token ?? '').trim();
+  if (!/^[0-9a-f]{64}$/.test(token)) {
+    return json(env, 404, { error: '確認リンクが無効です。お手数ですが、もう一度登録してください。' });
+  }
+
+  const now = new Date().toISOString();
+  const pending = await env.DB.prepare(
+    'SELECT name, company, email, ip FROM pending_registrations WHERE token = ?1 AND expires_at >= ?2'
+  ).bind(token, now).first<{ name: string; company: string; email: string; ip: string | null }>();
+
+  if (!pending) {
+    return json(env, 404, { error: '確認リンクが無効か、有効期限が切れています。お手数ですが、もう一度登録してください。' });
+  }
+
+  const issued = await issueCustomerKey(env, pending.name, pending.company, pending.email, now, pending.ip ?? 'unknown');
+
+  // 同一メールのpendingは全て掃除（重複クリック・再登録分）
+  await env.DB.prepare('DELETE FROM pending_registrations WHERE email = ?1').bind(pending.email).run();
+
+  if (issued === 'duplicate') {
+    // 既に確認済み（二重クリック等）: ゲートは通す
+    return json(env, 409, { alreadyRegistered: true });
+  }
+  if (issued === null) {
+    return json(env, 500, { error: '登録処理に失敗しました。時間をおいて再度お試しください。' });
+  }
+
+  ctx.waitUntil(notifySlack(env,
+    `:tada: *新規登録（メール確認済み）*\n会社: ${pending.company}\n氏名: ${pending.name}\nメール: ${pending.email}`
+  ));
+
+  return json(env, 201, { apiKey: issued });
 }
 
 async function handleContact(request: Request, env: Env): Promise<Response> {
@@ -160,6 +294,10 @@ export default {
       return handleContact(request, env);
     }
 
+    if (url.pathname === '/api/verify' && request.method === 'POST') {
+      return handleVerify(request, env, ctx);
+    }
+
     if (url.pathname !== '/api/register' || request.method !== 'POST') {
       return json(env, 404, { error: 'Not found' });
     }
@@ -225,27 +363,31 @@ export default {
       return json(env, 409, { alreadyRegistered: true });
     }
 
-    // 顧客作成 + APIキー発行（ハッシュのみ保存）
-    const customerId = crypto.randomUUID();
-    const keyId = crypto.randomUUID();
-    const apiKey = generateApiKey();
-    const keyHash = await sha256Hex(apiKey);
+    // メール確認方式（RESEND_API_KEY設定時）: pendingに保存して確認メールを送る。
+    // キー発行は /api/verify で行う。未設定環境（セルフホスト等）は従来どおり即時発行。
+    if (env.RESEND_API_KEY) {
+      // 期限切れpendingの掃除（ついで実行）
+      await env.DB.prepare('DELETE FROM pending_registrations WHERE expires_at < ?1').bind(now).run();
 
-    try {
-      await env.DB.batch([
-        env.DB.prepare(
-          'INSERT INTO customers (id, name, company, email, created_at, ip) VALUES (?1, ?2, ?3, ?4, ?5, ?6)'
-        ).bind(customerId, name, company, email, now, ip),
-        env.DB.prepare(
-          "INSERT INTO api_keys (id, customer_id, key_hash, plan, status, created_at) VALUES (?1, ?2, ?3, 'free', 'active', ?4)"
-        ).bind(keyId, customerId, keyHash, now),
-      ]);
-    } catch (e) {
-      // UNIQUE制約競合（同時登録）は登録済み扱い
-      const message = e instanceof Error ? e.message : '';
-      if (message.includes('UNIQUE')) {
-        return json(env, 409, { alreadyRegistered: true });
+      const token = generateToken();
+      const expiresAt = new Date(Date.now() + PENDING_TTL_HOURS * 60 * 60 * 1000).toISOString();
+      await env.DB.prepare(
+        'INSERT INTO pending_registrations (token, name, company, email, created_at, expires_at, ip) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)'
+      ).bind(token, name, company, email, now, expiresAt, ip).run();
+
+      const sent = await sendVerificationEmail(env, email, name, token);
+      if (!sent) {
+        await env.DB.prepare('DELETE FROM pending_registrations WHERE token = ?1').bind(token).run();
+        return json(env, 500, { error: '確認メールを送信できませんでした。メールアドレスをご確認のうえ、時間をおいて再度お試しください。' });
       }
+      return json(env, 201, { pendingVerification: true });
+    }
+
+    const issued = await issueCustomerKey(env, name, company, email, now, ip);
+    if (issued === 'duplicate') {
+      return json(env, 409, { alreadyRegistered: true });
+    }
+    if (issued === null) {
       return json(env, 500, { error: '登録処理に失敗しました。時間をおいて再度お試しください。' });
     }
 
@@ -253,6 +395,6 @@ export default {
       `:tada: *新規登録*\n会社: ${company}\n氏名: ${name}\nメール: ${email}`
     ));
 
-    return json(env, 201, { apiKey });
+    return json(env, 201, { apiKey: issued });
   },
 };

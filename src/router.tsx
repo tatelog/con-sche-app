@@ -9,6 +9,7 @@ const TermsPage = lazy(() => import('@/pages/public/TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/public/PrivacyPolicyPage'));
 const ApiDocsPage = lazy(() => import('@/pages/public/ApiDocsPage'));
 const AppPage = lazy(() => import('@/pages/AppPage'));
+const VerifyPage = lazy(() => import('@/pages/VerifyPage'));
 
 function RouteError() {
   return (
@@ -41,5 +42,7 @@ export const router = createBrowserRouter([
   },
   // エディタ本体（データはローカル保存）
   { path: '/app', element: <AppPage /> },
+  // メール確認リンクの着地ページ
+  { path: '/verify', element: <VerifyPage /> },
   { path: '*', element: <RouteError /> },
 ]);
