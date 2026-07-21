@@ -10,6 +10,9 @@
  * POST /api/contact { companyName, name, email, ... }
  *   → 201 {} お問い合わせをD1に保存
  *
+ * GET /api/announcements
+ *   → 200 { announcements: [{ id, title, body, created_at }] } 公開中のお知らせ（新しい順・最大20件）
+ *
  * /api/v1/* → 連携API（要APIコード認証・従量カウント）。実装は v1.ts
  *
  * セキュリティ方針:
@@ -214,6 +217,14 @@ async function handleVerify(request: Request, env: Env, ctx: ExecutionContext): 
   return json(env, 201, { apiKey: issued });
 }
 
+async function handleAnnouncements(env: Env): Promise<Response> {
+  const rows = await env.DB.prepare(
+    'SELECT id, title, body, created_at FROM announcements WHERE published = 1 ORDER BY created_at DESC LIMIT 20'
+  ).all<{ id: string; title: string; body: string; created_at: string }>();
+  // キャッシュはしない: 既読判定（赤ドット）が古い応答に引きずられるのを避ける。アクセス規模的にも不要
+  return json(env, 200, { announcements: rows.results ?? [] });
+}
+
 async function handleContact(request: Request, env: Env): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -292,6 +303,10 @@ export default {
 
     if (url.pathname === '/api/contact' && request.method === 'POST') {
       return handleContact(request, env);
+    }
+
+    if (url.pathname === '/api/announcements' && request.method === 'GET') {
+      return handleAnnouncements(env);
     }
 
     if (url.pathname === '/api/verify' && request.method === 'POST') {

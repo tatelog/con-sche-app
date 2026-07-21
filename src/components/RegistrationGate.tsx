@@ -40,7 +40,13 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
   const [copied, setCopied] = useState(false);
 
   const complete = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ registeredAt: new Date().toISOString() }));
+    // 氏名・会社名・メールも保存しておく（アプリ内お問い合わせフォームの自動入力に使う。端末外には出ない）
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      registeredAt: new Date().toISOString(),
+      name: name.trim(),
+      company: company.trim(),
+      email: email.trim().toLowerCase(),
+    }));
     setRegistered(true);
   };
 

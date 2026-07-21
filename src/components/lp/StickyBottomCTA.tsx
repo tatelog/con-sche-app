@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { APP_URL } from '../../data/lpContent';
+import { REGISTRATION_STORAGE_KEY } from '@/components/RegistrationGate';
 
 export default function StickyBottomCTA() {
   const [visible, setVisible] = useState(false);
+  const [registered] = useState(() => {
+    try {
+      return localStorage.getItem(REGISTRATION_STORAGE_KEY) !== null;
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const onScroll = () => {
@@ -24,13 +32,13 @@ export default function StickyBottomCTA() {
       <div className="bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="text-white text-sm">
-            <span className="font-bold">Con-Scheは無料でご利用いただけます</span>
+            <span className="font-bold">{registered ? 'おかえりなさい。続きから作業できます' : 'Con-Scheは無料でご利用いただけます'}</span>
           </div>
           <Link
             to={APP_URL.app}
             className="shrink-0 px-6 py-2 bg-primary-600 text-white text-sm font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-lg"
           >
-            無料で使う
+            {registered ? 'アプリを開く' : '無料で使う'}
           </Link>
         </div>
       </div>
