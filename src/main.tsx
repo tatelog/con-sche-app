@@ -5,6 +5,8 @@ import { router } from './router'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Toaster } from '@/components/ui/Toaster'
 import './index.css'
+// beforeinstallpromptはページ読込直後に発火するため、エントリで確実に捕捉する（HeaderExtrasが後から参照）
+import '@/utils/installPrompt'
 
 // react-konva@19.2.2 + React@19.2.4 の既知の互換性警告を抑制
 // "Expected static flag was missing" は react-konva の内部レンダラー問題で動作に影響なし

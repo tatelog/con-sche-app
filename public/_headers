@@ -1,0 +1,5 @@
+# Service Workerは毎回再検証させる（デフォルトのmax-age=14400だとデプロイ後の更新が最大4時間遅延する）
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache

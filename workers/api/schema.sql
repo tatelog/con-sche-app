@@ -84,3 +84,13 @@ CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
 CREATE INDEX IF NOT EXISTS idx_api_keys_customer ON api_keys(customer_id);
 CREATE INDEX IF NOT EXISTS idx_contacts_created ON contacts(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_key ON usage_logs(key_id, created_at);
+
+-- アプリ内「お知らせ」の配信元（投稿はwrangler d1 executeのINSERTで行う）
+CREATE TABLE IF NOT EXISTS announcements (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  published INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at);

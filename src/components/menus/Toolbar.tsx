@@ -36,6 +36,7 @@ import { exportToCSV, downloadCSV } from '@/utils/csvExport'
 import { useUIStore } from '@/stores/uiStore'
 import { usePrintStore } from '@/stores/printStore'
 import { useAutoSave } from '@/hooks/useAutoSave'
+import { HeaderExtras } from '@/components/HeaderExtras'
 import { SaveAsDialog } from '@/components/dialogs/SaveAsDialog'
 import { PrintPreviewDialog } from '@/components/dialogs/PrintPreviewDialog'
 import { ProjectListDialog } from '@/components/dialogs/ProjectListDialog'
@@ -345,6 +346,9 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           >
             <Settings size={18} />
           </button>
+
+          {/* ホーム画面追加・お知らせ・お問い合わせ */}
+          <HeaderExtras compact />
         </div>
 
         {/* 2段目: 編集モード・undo/redo・ズーム */}
@@ -769,8 +773,10 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         {showPropertiesPanel ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
       </button>
 
-      {/* 表示行数 + 行高さ（デスクトップのみ） */}
-      <div className="hidden md:flex items-center gap-4 ml-auto text-sm text-gray-600">
+      {/* 右端クラスタ: 行数/行高（広い画面のみ）+ 常設3ボタン。あふれてボタンが画面外に出ないようshrink-0 */}
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+      {/* 表示行数 + 行高さ（広い画面のみ。狭い幅では常設ボタンを優先して隠す） */}
+      <div className="hidden xl:flex items-center gap-4 text-sm text-gray-600">
         <div className="flex items-center gap-1">
           <label className="text-xs text-gray-500">行数:</label>
           <input
@@ -806,6 +812,10 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             className="w-14 px-1 py-1 text-sm border rounded text-center"
           />
         </div>
+      </div>
+
+      {/* ホーム画面追加・お知らせ・お問い合わせ */}
+      <HeaderExtras />
       </div>
 
       {/* ダイアログ */}
