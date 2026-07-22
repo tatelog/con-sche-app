@@ -75,3 +75,5 @@ Allow: /
 Disallow: /api/
 Disallow: /manage/
 Disallow: /admin/
+
+Sitemap: https://con-sche.tatelog.biz/sitemap.xml
