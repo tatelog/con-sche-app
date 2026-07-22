@@ -22,6 +22,7 @@
  */
 
 import { handleV1 } from './v1';
+import { extractToken, safeEqual } from './adminAuth';
 
 export interface Env {
   DB: D1Database;
@@ -35,6 +36,12 @@ export interface Env {
   MAIL_FROM?: string;
   /** 任意: 確認リンクのベースURL（フロントの /verify ページがあるオリジン）。未設定時は VERIFY_BASE_DEFAULT */
   VERIFY_BASE_URL?: string;
+  /** 任意: 運営用の読み取り専用集計 GET /api/admin/stats を有効化するトークン
+   *  （wrangler secret put ADMIN_STATS_TOKEN）。未設定ならエンドポイント自体が404 */
+  ADMIN_STATS_TOKEN?: string;
+  /** 任意: お問い合わせ受信をメール通知する宛先（wrangler secret put CONTACT_NOTIFY_TO）。
+   *  RESEND_API_KEY とセットで設定すると有効。未設定なら通知しない（D1保存のみ） */
+  CONTACT_NOTIFY_TO?: string;
 }
 
 const MAIL_FROM_DEFAULT = 'Con-Sche <noreply@tatelog.biz>';
@@ -217,6 +224,73 @@ async function handleVerify(request: Request, env: Env, ctx: ExecutionContext): 
   return json(env, 201, { apiKey: issued });
 }
 
+/** お問い合わせ受信を運営宛にメール通知する（失敗しても問い合わせ保存自体は成功扱い） */
+async function notifyContactByEmail(
+  env: Env,
+  c: { company: string; name: string; email: string; topics: string; message: string },
+): Promise<void> {
+  if (!env.RESEND_API_KEY || !env.CONTACT_NOTIFY_TO) return;
+  const text = [
+    'Con-Sche にお問い合わせが届きました。',
+    '',
+    `会社名: ${c.company}`,
+    `氏名: ${c.name}`,
+    `メール: ${c.email}`,
+    `種別: ${c.topics || '-'}`,
+    '',
+    '--- 本文 ---',
+    c.message || '(本文なし)',
+    '',
+    'このメールに返信すると送信者に直接届きます（Reply-To設定済み）。',
+  ].join('\n');
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: env.MAIL_FROM || MAIL_FROM_DEFAULT,
+        to: [env.CONTACT_NOTIFY_TO],
+        reply_to: c.email,
+        subject: `【Con-Sche】お問い合わせ: ${c.company} ${c.name}様`,
+        text,
+      }),
+    });
+  } catch {
+    // 通知失敗は握りつぶす（問い合わせ本体はD1に保存済み・翌朝のNotion転記でも拾える）
+  }
+}
+
+/**
+ * 運営用の読み取り専用集計（Cowork等の定期レポートが叩く）
+ * - ADMIN_STATS_TOKEN 未設定なら404（OSSセルフホストでは存在しない扱い）
+ * - トークン不一致も404（エンドポイントの存在を隠す）
+ */
+async function handleAdminStats(request: Request, env: Env, url: URL): Promise<Response> {
+  const expected = env.ADMIN_STATS_TOKEN;
+  if (!expected) return json(env, 404, { error: 'Not found' });
+  if (!safeEqual(extractToken(request.headers.get('Authorization'), url), expected)) {
+    return json(env, 404, { error: 'Not found' });
+  }
+
+  const customers = await env.DB.prepare(
+    'SELECT company, name, email, created_at, deleted_at FROM customers ORDER BY created_at'
+  ).all();
+  const usage = await env.DB.prepare(
+    'SELECT c.email AS email, SUM(l.units) AS pts, COUNT(*) AS calls, MAX(l.created_at) AS last_use ' +
+    'FROM usage_logs l JOIN api_keys k ON l.key_id = k.id JOIN customers c ON k.customer_id = c.id GROUP BY c.email'
+  ).all();
+  const contacts = await env.DB.prepare(
+    'SELECT id, company, name, email, topics, message, created_at FROM contacts ORDER BY created_at DESC LIMIT 50'
+  ).all();
+
+  return json(env, 200, {
+    generated_at: new Date().toISOString(),
+    customers: customers.results ?? [],
+    usage: usage.results ?? [],
+    contacts: contacts.results ?? [],
+  });
+}
+
 async function handleAnnouncements(env: Env): Promise<Response> {
   const rows = await env.DB.prepare(
     'SELECT id, title, body, created_at FROM announcements WHERE published = 1 ORDER BY created_at DESC LIMIT 20'
@@ -225,7 +299,7 @@ async function handleAnnouncements(env: Env): Promise<Response> {
   return json(env, 200, { announcements: rows.results ?? [] });
 }
 
-async function handleContact(request: Request, env: Env): Promise<Response> {
+async function handleContact(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = await request.json();
@@ -285,6 +359,10 @@ async function handleContact(request: Request, env: Env): Promise<Response> {
     ip,
   ).run();
 
+  ctx.waitUntil(notifyContactByEmail(env, {
+    company, name, email, topics, message: str('message', 4000),
+  }));
+
   return json(env, 201, {});
 }
 
@@ -302,11 +380,15 @@ export default {
     }
 
     if (url.pathname === '/api/contact' && request.method === 'POST') {
-      return handleContact(request, env);
+      return handleContact(request, env, ctx);
     }
 
     if (url.pathname === '/api/announcements' && request.method === 'GET') {
       return handleAnnouncements(env);
+    }
+
+    if (url.pathname === '/api/admin/stats' && request.method === 'GET') {
+      return handleAdminStats(request, env, url);
     }
 
     if (url.pathname === '/api/verify' && request.method === 'POST') {
