@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
-import { lazy } from 'react';
+// チャンク取得失敗（旧SW×新デプロイの狭間）で白画面にせず自動リロードで自己回復させる
+import { lazyWithReload as lazy } from '@/utils/lazyWithReload';
 
 const PublicLayout = lazy(() => import('@/layouts/PublicLayout'));
 
