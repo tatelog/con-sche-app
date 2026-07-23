@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS customers (
   stripe_customer_id TEXT,
   created_at TEXT NOT NULL,
   ip TEXT,
-  deleted_at TEXT  -- 論理削除（NULL=有効）。削除時はapi_keysもstatus='suspended'にすること
+  deleted_at TEXT,  -- 論理削除（NULL=有効）。削除時はapi_keysもstatus='suspended'にすること
+  opt_out_at TEXT  -- 案内メール配信停止の申し出日時（NULL=配信可。宛先抽出時にWHERE除外）
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (

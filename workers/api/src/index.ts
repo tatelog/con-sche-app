@@ -23,6 +23,7 @@
 
 import { handleV1 } from './v1';
 import { extractToken, safeEqual } from './adminAuth';
+import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
 
 export interface Env {
   DB: D1Database;
@@ -42,6 +43,9 @@ export interface Env {
   /** 任意: お問い合わせ受信をメール通知する宛先（wrangler secret put CONTACT_NOTIFY_TO）。
    *  RESEND_API_KEY とセットで設定すると有効。未設定なら通知しない（D1保存のみ） */
   CONTACT_NOTIFY_TO?: string;
+  /** 任意: 配信停止リンクの署名鍵（wrangler secret put UNSUB_SECRET）。
+   *  未設定なら /api/unsubscribe と /api/admin/broadcast は404 */
+  UNSUB_SECRET?: string;
 }
 
 const MAIL_FROM_DEFAULT = 'Con-Sche <noreply@tatelog.biz>';
@@ -260,6 +264,108 @@ async function notifyContactByEmail(
   }
 }
 
+/** 配信停止ページのHTML（依存を持たない素の1枚） */
+function unsubHtml(title: string, message: string): Response {
+  return new Response(
+    `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${title} | Con-Sche</title></head>` +
+    `<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:90vh;margin:0;background:#f8fafc">` +
+    `<div style="text-align:center;padding:2rem;max-width:28rem"><h1 style="font-size:1.25rem;color:#1e293b">${title}</h1>` +
+    `<p style="color:#475569;font-size:.9rem;line-height:1.7">${message}</p>` +
+    `<p style="margin-top:2rem"><a href="https://con-sche.tatelog.biz/" style="color:#2563eb;font-size:.85rem">Con-Sche トップへ</a></p></div></body></html>`,
+    { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+  );
+}
+
+/**
+ * ワンクリック配信停止（GET=メール本文のリンク / POST=List-Unsubscribe-Postのワンクリック）
+ * 署名検証が通ったメールの opt_out_at を記録する
+ */
+async function handleUnsubscribe(request: Request, env: Env, url: URL): Promise<Response> {
+  if (!env.UNSUB_SECRET) return json(env, 404, { error: 'Not found' });
+  const email = (url.searchParams.get('e') ?? '').toLowerCase();
+  const sig = url.searchParams.get('sig') ?? '';
+  if (!email || !(await verifyUnsubSignature(email, sig, env.UNSUB_SECRET))) {
+    return unsubHtml('リンクが無効です', 'お手数ですが、お受け取りになったメールへの返信で配信停止の旨をお知らせください。');
+  }
+  await env.DB.prepare(
+    "UPDATE customers SET opt_out_at = ?1 WHERE email = ?2 AND opt_out_at IS NULL"
+  ).bind(new Date().toISOString(), email).run();
+  if (request.method === 'POST') return new Response(null, { status: 200 });
+  return unsubHtml('配信を停止しました', `${email} 宛の案内メールを今後お送りしません。アプリは引き続きご利用いただけます。`);
+}
+
+/**
+ * 案内メールの一括配信（運営用・要ADMIN_STATS_TOKEN）
+ * body: { subject, text, testTo? }
+ * - testTo指定時はそのアドレス1件のみに送る（本番配信前の見た目確認用）
+ * - 宛先: 有効・配信停止していない・自社以外の全登録者
+ * - 各メールに本人専用の配信停止リンク（本文末尾+List-Unsubscribeヘッダー）を付与
+ */
+async function handleAdminBroadcast(request: Request, env: Env, url: URL): Promise<Response> {
+  const expected = env.ADMIN_STATS_TOKEN;
+  if (!expected || !safeEqual(extractToken(request.headers.get('Authorization'), url), expected)) {
+    return json(env, 404, { error: 'Not found' });
+  }
+  if (!env.RESEND_API_KEY || !env.UNSUB_SECRET) {
+    return json(env, 500, { error: 'RESEND_API_KEY / UNSUB_SECRET が未設定です。' });
+  }
+
+  let body: { subject?: string; text?: string; testTo?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return json(env, 400, { error: 'リクエスト形式が不正です。' });
+  }
+  const subject = (body.subject ?? '').trim();
+  const text = (body.text ?? '').trim();
+  if (!subject || !text) return json(env, 400, { error: 'subject と text は必須です。' });
+
+  let recipients: string[];
+  if (body.testTo) {
+    recipients = [body.testTo.toLowerCase()];
+  } else {
+    const rows = await env.DB.prepare(
+      "SELECT email FROM customers WHERE deleted_at IS NULL AND opt_out_at IS NULL AND email NOT LIKE '%@tatelog.biz' ORDER BY created_at"
+    ).all<{ email: string }>();
+    recipients = (rows.results ?? []).map((r) => r.email);
+  }
+  if (recipients.length === 0) return json(env, 200, { sent: 0 });
+
+  const apiBase = `${url.protocol}//${url.host}`;
+  const emails = await Promise.all(recipients.map(async (to) => {
+    const unsubUrl = buildUnsubUrl(apiBase, to, await unsubSignature(to, env.UNSUB_SECRET!));
+    return {
+      from: env.MAIL_FROM || MAIL_FROM_DEFAULT,
+      to: [to],
+      reply_to: env.CONTACT_NOTIFY_TO,
+      subject,
+      text: `${text}\n\n―――\n配信停止をご希望の方はこちら（ワンクリックで停止できます）:\n${unsubUrl}\n`,
+      headers: {
+        'List-Unsubscribe': `<${unsubUrl}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    };
+  }));
+
+  // Resendのバッチは1回100件まで
+  let sent = 0;
+  const errors: string[] = [];
+  for (let i = 0; i < emails.length; i += 100) {
+    const chunk = emails.slice(i, i + 100);
+    const res = await fetch('https://api.resend.com/emails/batch', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(chunk),
+    });
+    if (res.ok) {
+      sent += chunk.length;
+    } else {
+      errors.push(`batch ${i / 100 + 1}: ${res.status} ${(await res.text()).slice(0, 300)}`);
+    }
+  }
+  return json(env, errors.length ? 502 : 200, { sent, total: emails.length, errors });
+}
+
 /**
  * 運営用の読み取り専用集計（Cowork等の定期レポートが叩く）
  * - ADMIN_STATS_TOKEN 未設定なら404（OSSセルフホストでは存在しない扱い）
@@ -389,6 +495,14 @@ export default {
 
     if (url.pathname === '/api/admin/stats' && request.method === 'GET') {
       return handleAdminStats(request, env, url);
+    }
+
+    if (url.pathname === '/api/unsubscribe' && (request.method === 'GET' || request.method === 'POST')) {
+      return handleUnsubscribe(request, env, url);
+    }
+
+    if (url.pathname === '/api/admin/broadcast' && request.method === 'POST') {
+      return handleAdminBroadcast(request, env, url);
     }
 
     if (url.pathname === '/api/verify' && request.method === 'POST') {
