@@ -277,8 +277,9 @@ function unsubHtml(title: string, message: string): Response {
 }
 
 /**
- * ワンクリック配信停止（GET=メール本文のリンク / POST=List-Unsubscribe-Postのワンクリック）
- * 署名検証が通ったメールの opt_out_at を記録する
+ * 配信停止（誤クリック対策で2段階）
+ * - GET  = メール本文のリンク → 確認画面を表示するだけ（この時点では停止しない）
+ * - POST = 確認画面のボタン / メールクライアントの登録解除（List-Unsubscribe-Post, RFC 8058）→ 停止を実行
  */
 async function handleUnsubscribe(request: Request, env: Env, url: URL): Promise<Response> {
   if (!env.UNSUB_SECRET) return json(env, 404, { error: 'Not found' });
@@ -287,10 +288,20 @@ async function handleUnsubscribe(request: Request, env: Env, url: URL): Promise<
   if (!email || !(await verifyUnsubSignature(email, sig, env.UNSUB_SECRET))) {
     return unsubHtml('リンクが無効です', 'お手数ですが、お受け取りになったメールへの返信で配信停止の旨をお知らせください。');
   }
+
+  if (request.method === 'GET') {
+    const action = `/api/unsubscribe?e=${encodeURIComponent(email)}&sig=${sig}`;
+    return unsubHtml(
+      '配信停止の確認',
+      `${email} 宛の案内メールの配信を停止しますか？<br>間違えてリンクを開いた場合は、このままページを閉じてください。` +
+      `<form method="POST" action="${action}" style="margin-top:1.5rem">` +
+      `<button type="submit" style="background:#dc2626;color:#fff;border:none;border-radius:.5rem;padding:.7rem 1.6rem;font-size:.9rem;font-weight:bold;cursor:pointer">配信を停止する</button></form>`,
+    );
+  }
+
   await env.DB.prepare(
     "UPDATE customers SET opt_out_at = ?1 WHERE email = ?2 AND opt_out_at IS NULL"
   ).bind(new Date().toISOString(), email).run();
-  if (request.method === 'POST') return new Response(null, { status: 200 });
   return unsubHtml('配信を停止しました', `${email} 宛の案内メールを今後お送りしません。アプリは引き続きご利用いただけます。`);
 }
 
