@@ -28,7 +28,7 @@ import {
   Hexagon,
   FileUp,
   Download,
-  MoreHorizontal,
+  Menu,
 } from 'lucide-react'
 import { useADMStore } from '@/stores/admStore'
 import { exportToCSV, downloadCSV } from '@/utils/csvExport'
@@ -312,6 +312,71 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
     return (
       <>
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-2 gap-1">
+          {/* ハンバーガーメニュー（左端） */}
+          <div ref={mobileMoreRef} className="relative shrink-0">
+            <button
+              onClick={() => { closeAllMenus(); setMobileMoreOpen(!mobileMoreOpen) }}
+              className={`p-1.5 rounded ${mobileMoreOpen ? 'bg-gray-100 text-blue-600' : 'text-gray-600'}`}
+              title="メニュー"
+            >
+              <Menu size={18} />
+            </button>
+            {mobileMoreOpen && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-52 py-1 text-sm">
+                {projectMenuItems.map((item, i) => (
+                  <button
+                    key={i}
+                    disabled={item.disabled}
+                    title={item.title}
+                    onClick={() => { if (!item.disabled) { item.onClick(); setMobileMoreOpen(false) } }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left ${item.disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    {item.icon}<span>{item.label}</span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  onClick={() => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true); setMobileMoreOpen(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                >
+                  <Printer size={14} /><span>印刷 / PDF出力...</span>
+                </button>
+                <button
+                  onClick={() => {
+                    closeAllMenus()
+                    const data = exportFullData()
+                    const csv = exportToCSV(data)
+                    const filename = `${data.projectSettings.name || '工程表'}.csv`
+                    downloadCSV(csv, filename)
+                    setMobileMoreOpen(false)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                >
+                  <FileSpreadsheet size={14} /><span>CSV出力</span>
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  onClick={() => { closeAllMenus(); toggleProjectSettingsDialog(); setMobileMoreOpen(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                >
+                  <Settings size={14} /><span>設定</span>
+                </button>
+                {openTutorial && (
+                  <button
+                    onClick={() => { openTutorial(); setMobileMoreOpen(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                  >
+                    <HelpCircle size={14} /><span>操作ガイド</span>
+                  </button>
+                )}
+                <div className="border-t border-gray-100 my-1" />
+                <div className="px-2 py-1 flex items-center">
+                  <HeaderExtras compact />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* ロゴ + プロジェクト名 */}
           <div className="font-bold text-base text-gray-800 flex items-center gap-1 shrink-0">
             <span className="flex flex-col leading-none w-9">
@@ -381,75 +446,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
           <div className="w-px h-5 bg-gray-300 mx-0.5 shrink-0" />
 
-          {/* 右端: … メニュー + 行数/行高 */}
+          {/* 右端: 行数/行高 */}
           <div className="ml-auto flex items-center gap-0.5 shrink-0">
-            <div ref={mobileMoreRef} className="relative">
-              <button
-                onClick={() => { closeAllMenus(); setMobileMoreOpen(!mobileMoreOpen) }}
-                className={`p-1.5 rounded ${mobileMoreOpen ? 'bg-gray-100 text-blue-600' : 'text-gray-600'}`}
-                title="その他"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-              {mobileMoreOpen && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-52 py-1 text-sm">
-                  {projectMenuItems.map((item, i) => (
-                    <button
-                      key={i}
-                      disabled={item.disabled}
-                      title={item.title}
-                      onClick={() => { if (!item.disabled) { item.onClick(); setMobileMoreOpen(false) } }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left ${item.disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      {item.icon}<span>{item.label}</span>
-                    </button>
-                  ))}
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={() => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true); setMobileMoreOpen(false) }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
-                  >
-                    <Printer size={14} /><span>印刷 / PDF出力...</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      closeAllMenus()
-                      const data = exportFullData()
-                      const csv = exportToCSV(data)
-                      const filename = `${data.projectSettings.name || '工程表'}.csv`
-                      downloadCSV(csv, filename)
-                      setMobileMoreOpen(false)
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
-                  >
-                    <FileSpreadsheet size={14} /><span>CSV出力</span>
-                  </button>
-                  <div className="border-t border-gray-100 my-1" />
-                  <button
-                    onClick={() => { closeAllMenus(); toggleProjectSettingsDialog(); setMobileMoreOpen(false) }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
-                  >
-                    <Settings size={14} /><span>設定</span>
-                  </button>
-                  {openTutorial && (
-                    <button
-                      onClick={() => { openTutorial(); setMobileMoreOpen(false) }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
-                    >
-                      <HelpCircle size={14} /><span>操作ガイド</span>
-                    </button>
-                  )}
-                  <div className="border-t border-gray-100 my-1" />
-                  <div className="px-2 py-1 flex items-center">
-                    <HeaderExtras compact />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="w-px h-5 bg-gray-300 mx-0.5" />
-
-            {/* 行数/行高 */}
             <input
               type="number" min="5" max="100"
               value={projectSettings.displayRows}
@@ -517,52 +515,14 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   return (
     <div ref={toolbarRef} className="h-12 bg-white border-b border-gray-200 flex items-center px-4" style={{ gap: tb.sectionGap }}>
       {/* ロゴ + プロジェクト名（クリックで編集） */}
-      <div className="font-bold text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
-        <span className="flex flex-col leading-none w-9">
-          <span className="text-sm">Con-Sche</span>
-          <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
-        </span>
-        {editingName ? (
-          <input
-            ref={nameInputRef}
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            onBlur={() => {
-              const trimmed = nameInput.trim()
-              if (trimmed) updateProjectSettings({ workplaceName: trimmed })
-              setEditingName(false)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { (e.target as HTMLInputElement).blur() }
-              if (e.key === 'Escape') { setEditingName(false) }
-            }}
-            className="text-sm font-normal text-gray-700 border-b border-blue-400 bg-transparent outline-none max-w-[200px] px-0.5"
-          />
-        ) : (
-          <span
-            className="text-sm font-normal text-gray-500 truncate max-w-[200px] cursor-pointer hover:text-gray-700 hover:underline"
-            onClick={() => { setNameInput(currentProjectName); setEditingName(true) }}
-            title="クリックして編集"
-          >
-            - {currentProjectName}{isDirty ? ' *' : ''}
-          </span>
-        )}
-        {/* Auto-save status */}
-        {!editingName && (
-          <span className="text-[10px] text-slate-400 ml-1">
-            {autoSaving ? '保存中...' : lastSaveTime ? `自動保存済 ${lastSaveTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : ''}
-          </span>
-        )}
-      </div>
-
-      {/* プロジェクト・印刷・設定・ガイド・★🔔✉ を「...」に収める */}
+      {/* ハンバーガーメニュー（左端） */}
       <div ref={desktopMoreRef} className="relative border-r border-gray-200 pr-2">
         <button
           onClick={() => { closeAllMenus(); setDesktopMoreOpen(!desktopMoreOpen) }}
           className={`p-2 rounded hover:bg-gray-100 transition-colors ${desktopMoreOpen ? 'bg-gray-100 text-blue-600' : 'text-gray-600'}`}
-          title="その他"
+          title="メニュー"
         >
-          <MoreHorizontal size={tb.icon} />
+          <Menu size={tb.icon} />
         </button>
         {desktopMoreOpen && (
           <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-52 py-1 text-sm">
@@ -614,6 +574,44 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               <HeaderExtras compact />
             </div>
           </div>
+        )}
+      </div>
+
+      {/* ロゴ + プロジェクト名（クリックで編集） */}
+      <div className="font-bold text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
+        <span className="flex flex-col leading-none w-9">
+          <span className="text-sm">Con-Sche</span>
+          <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
+        </span>
+        {editingName ? (
+          <input
+            ref={nameInputRef}
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onBlur={() => {
+              const trimmed = nameInput.trim()
+              if (trimmed) updateProjectSettings({ workplaceName: trimmed })
+              setEditingName(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { (e.target as HTMLInputElement).blur() }
+              if (e.key === 'Escape') { setEditingName(false) }
+            }}
+            className="text-sm font-normal text-gray-700 border-b border-blue-400 bg-transparent outline-none max-w-[200px] px-0.5"
+          />
+        ) : (
+          <span
+            className="text-sm font-normal text-gray-500 truncate max-w-[200px] cursor-pointer hover:text-gray-700 hover:underline"
+            onClick={() => { setNameInput(currentProjectName); setEditingName(true) }}
+            title="クリックして編集"
+          >
+            - {currentProjectName}{isDirty ? ' *' : ''}
+          </span>
+        )}
+        {!editingName && (
+          <span className="text-[10px] text-slate-400 ml-1">
+            {autoSaving ? '保存中...' : lastSaveTime ? `自動保存済 ${lastSaveTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : ''}
+          </span>
         )}
       </div>
 
