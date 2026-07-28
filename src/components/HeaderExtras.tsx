@@ -403,6 +403,15 @@ export function HeaderExtras({ compact = false, openTutorial }: { compact?: bool
   if (compact) {
     return (
       <div className="flex items-center">
+        {openTutorial && (
+          <button
+            onClick={openTutorial}
+            className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
+            title="操作ガイド"
+          >
+            <HelpCircle size={iconSize} />
+          </button>
+        )}
         <InstallStar iconSize={iconSize} />
         <AnnouncementsBell iconSize={iconSize} />
         <ContactButton iconSize={iconSize} />

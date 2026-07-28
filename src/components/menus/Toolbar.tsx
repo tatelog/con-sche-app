@@ -414,13 +414,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               <Settings size={16} />
             </button>
 
-            {/* 操作ガイド */}
-            <button onClick={openTutorial} className="p-1.5 rounded text-gray-600" title="操作ガイド">
-              <HelpCircle size={16} />
-            </button>
-
-            {/* ホーム画面追加・お知らせ・お問い合わせ */}
-            <HeaderExtras compact />
+            {/* 操作ガイド・ホーム画面追加・お知らせ・お問い合わせ */}
+            <HeaderExtras compact openTutorial={openTutorial} />
 
             <div className="w-px h-5 bg-gray-300 mx-0.5" />
 

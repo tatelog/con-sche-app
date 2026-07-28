@@ -126,8 +126,7 @@ function App() {
     [updateProjectSettings]
   )
 
-  // ツールバー高さ: モバイル=88px (48+40), デスクトップ=48px
-  const toolbarHeight = isMobile ? 88 : 48
+  const toolbarHeight = 48
 
   useEffect(() => {
     const updateDimensions = () => {
