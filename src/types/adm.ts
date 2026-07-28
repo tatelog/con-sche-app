@@ -284,6 +284,8 @@ export const PAPER_ROW_DEFAULTS: Record<LayoutPaperSize, Record<PrintPaperOrient
   custom: { portrait: 20, landscape: 20 },
 }
 
+export type CalendarHeaderRowType = 'fiscalYear' | 'year' | 'month' | 'day' | 'weekday' | 'holiday'
+
 export interface ProjectSettings {
   id: string
   name: string
@@ -324,6 +326,10 @@ export interface ProjectSettings {
 
   // 棟セレクター表示
   showBuildingSelector?: boolean
+
+  // カレンダーヘッダー行設定
+  calendarHeaderRows?: CalendarHeaderRowType[] // 表示する行（上から順）
+  monthlyWeeklyLabel?: boolean // 月次モード時に週次ラベル（7日おき）表示
 }
 
 export function createProjectSettings(
@@ -363,6 +369,8 @@ export function createProjectSettings(
       leaderLineStyle: 'line',
       edgeCornerRadius: 5,
     },
+    calendarHeaderRows: ['day', 'weekday'],
+    monthlyWeeklyLabel: false,
     ...partial,
   }
 }

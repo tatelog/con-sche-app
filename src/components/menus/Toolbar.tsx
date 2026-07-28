@@ -313,6 +313,15 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
     },
   ]
 
+  // 共通3行ロゴ（全レイアウトで使い回す）
+  const logoSpan = (
+    <span className="flex flex-col leading-none shrink-0">
+      <span className="text-[10px] font-bold text-gray-800">Con-</span>
+      <span className="text-[10px] font-bold text-gray-800">Sche</span>
+      <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
+    </span>
+  )
+
   // モバイル: 1段ツールバー（ズームUIはピンチ操作で代替）
   if (isMobile) {
     return (
@@ -385,10 +394,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
           {/* ロゴ + プロジェクト名 */}
           <div className="font-bold text-base text-gray-800 flex items-center gap-1 shrink-0">
-            <span className="flex flex-col leading-none w-9">
-              <span className="text-sm">Con-Sche</span>
-              <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
-            </span>
+            {logoSpan}
             <span
               className="text-xs font-normal text-gray-500 truncate max-w-[60px] cursor-pointer"
               onClick={() => { setNameInput(currentProjectName); setEditingName(true) }}
@@ -521,10 +527,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   // ロゴブロック（フルレイアウト・ハンバーガー共用）
   const logoBlock = (
     <div className="font-bold text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
-      <span className="flex flex-col leading-none">
-        <span className="text-[13px] leading-tight">Con-Sche</span>
-        <span className="text-[8px] font-semibold tracking-widest text-gray-400">コンスケ</span>
-      </span>
+      {logoSpan}
       {editingName ? (
         <input
           ref={nameInputRef}
@@ -637,13 +640,9 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               </div>
             )}
           </div>
-          {/* ハンバーガーレイアウトは3行ロゴ */}
+          {/* ハンバーガーレイアウトは3行ロゴ（共通logoSpan） */}
           <div className="font-bold text-gray-800 border-r border-gray-200 pr-3 flex items-center shrink-0">
-            <span className="flex flex-col leading-none">
-              <span className="text-[10px]">Con-</span>
-              <span className="text-[10px]">Sche</span>
-              <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
-            </span>
+            {logoSpan}
           </div>
         </>
       )}
