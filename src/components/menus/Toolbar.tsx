@@ -136,6 +136,27 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   const [projectListOpen, setProjectListOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // ツールバー幅に応じてアイコンサイズ・ギャップを動的に変更
+  const toolbarRef = useRef<HTMLDivElement>(null)
+  const [tb, setTb] = useState({ icon: 20, chevron: 14, subChevron: 12, sectionGap: 16, innerGap: 4 })
+  useEffect(() => {
+    const el = toolbarRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width
+      const t = Math.max(0, Math.min(1, (w - 900) / (1280 - 900)))
+      setTb({
+        icon: Math.round(15 + t * 5),
+        chevron: Math.round(10 + t * 4),
+        subChevron: Math.round(8 + t * 4),
+        sectionGap: Math.round(4 + t * 12),
+        innerGap: Math.round(1 + t * 3),
+      })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   const importFullData = useADMStore((state) => state.importFullData)
   const importLiteData = useADMStore((state) => state.importLiteData)
   const downloadFullPackage = useADMStore((state) => state.downloadFullPackage)
@@ -468,7 +489,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
   // デスクトップ: 従来の1段ツールバー
   return (
-    <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-4">
+    <div ref={toolbarRef} className="h-12 bg-white border-b border-gray-200 flex items-center px-4" style={{ gap: tb.sectionGap }}>
       {/* ロゴ + プロジェクト名（クリックで編集） */}
       <div className="font-bold text-lg text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
         <span className="flex flex-col leading-none">
@@ -509,7 +530,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
       </div>
 
       {/* プロジェクト・印刷・設定 */}
-      <div className="flex items-center gap-1 border-r border-gray-200 pr-4">
+      <div className="flex items-center border-r border-gray-200 pr-4" style={{ gap: tb.innerGap }}>
         {/* プロジェクト */}
         <DropdownMenu
           isOpen={projectMenuOpen}
@@ -527,8 +548,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               }`}
               title="工程表メニュー"
             >
-              <FolderOpen size={20} />
-              <ChevronDown size={14} />
+              <FolderOpen size={tb.icon} />
+              <ChevronDown size={tb.chevron} />
             </button>
           }
           items={projectMenuItems}
@@ -551,8 +572,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               }`}
               title="印刷・出力"
             >
-              <Printer size={20} />
-              <ChevronDown size={14} />
+              <Printer size={tb.icon} />
+              <ChevronDown size={tb.chevron} />
             </button>
           }
           items={[
@@ -597,12 +618,12 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
           title="工程表設定"
         >
-          <Settings size={20} />
+          <Settings size={tb.icon} />
         </button>
       </div>
 
       {/* 編集モード切替 + 元に戻す/やり直し */}
-      <div className="flex items-center gap-1 border-r border-gray-200 pr-4">
+      <div className="flex items-center border-r border-gray-200 pr-4" style={{ gap: tb.innerGap }}>
         {/* 選択モードメニュー */}
         <DropdownMenu
           isOpen={selectMenuOpen}
@@ -620,8 +641,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               }`}
               title={selectLabel}
             >
-              <SelectIcon size={20} />
-              <ChevronDown size={12} />
+              <SelectIcon size={tb.icon} />
+              <ChevronDown size={tb.subChevron} />
             </button>
           }
           items={[
@@ -655,8 +676,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               }`}
               title={drawLabel}
             >
-              <DrawIcon size={20} />
-              <ChevronDown size={12} />
+              <DrawIcon size={tb.icon} />
+              <ChevronDown size={tb.subChevron} />
             </button>
           }
           items={[
@@ -686,7 +707,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           }`}
           title="進捗線（雷線）"
         >
-          <Waypoints size={20} />
+          <Waypoints size={tb.icon} />
         </button>
 
         {/* 元に戻す */}
@@ -698,7 +719,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           }`}
           title="元に戻す (Ctrl+Z)"
         >
-          <Undo2 size={20} />
+          <Undo2 size={tb.icon} />
         </button>
 
         {/* やり直し */}
@@ -710,19 +731,19 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           }`}
           title="やり直し (Ctrl+Y)"
         >
-          <Redo2 size={20} />
+          <Redo2 size={tb.icon} />
         </button>
 
       </div>
 
       {/* ズーム */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center" style={{ gap: tb.innerGap }}>
         <button
           onClick={handleZoomOut}
           className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
           title="縮小"
         >
-          <ZoomOut size={20} />
+          <ZoomOut size={tb.icon} />
         </button>
         <button
           onClick={handleResetView}
@@ -736,7 +757,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
           title="拡大"
         >
-          <ZoomIn size={20} />
+          <ZoomIn size={tb.icon} />
         </button>
       </div>
 
@@ -748,7 +769,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         }`}
         title={showPropertiesPanel ? 'プロパティパネルを非表示' : 'プロパティパネルを表示'}
       >
-        {showPropertiesPanel ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
+        {showPropertiesPanel ? <PanelRightClose size={tb.icon} /> : <PanelRightOpen size={tb.icon} />}
       </button>
 
       {/* 右端クラスタ: 行数/行高 + 常設アイコン */}
