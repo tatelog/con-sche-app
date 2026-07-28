@@ -1397,16 +1397,6 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     [activities, getNode]
   )
 
-  // 日付フォーマット
-  const formatDate = (date: Date) => {
-    return `${date.getMonth() + 1}/${date.getDate()}`
-  }
-
-  const formatDayOfWeek = (date: Date) => {
-    const days = ['日', '月', '火', '水', '木', '金', '土']
-    return days[date.getDay()]
-  }
-
   const isWeekend = isWeekendUtil
 
   // 非稼働日かどうかを判定（workDays + 祝日ベース）
@@ -2617,90 +2607,115 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
             {/* カレンダーヘッダー（固定） */}
             <Layer>
               <Rect x={0} y={0} width={canvasWidth} height={HEADER_HEIGHT} fill={HEADER_BG} />
-              {dates.map((date, i) => {
-                const x = i * DAY_WIDTH * canvasScale - canvasPosition.x * canvasScale
-                if (x < -DAY_WIDTH || x > canvasWidth) return null
+              {(() => {
+                const headerRows = projectSettings.calendarHeaderRows ?? ['day', 'weekday']
+                const rowCount = headerRows.length
+                const rowH = HEADER_HEIGHT / rowCount
+                const showWeeklyLabel = (projectSettings.monthlyWeeklyLabel ?? false) && displayMode === 'monthly'
+                const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
 
-                const weekend = isWeekend(date)
-                const holidayObj = getHolidayObj(date)
-                const isHolidayDay = holidayObj != null && holidayObj.status !== 'workday'
-                const isWorkdayHoliday = holidayObj != null && holidayObj.status === 'workday'
-                const holidayName = holidayObj?.name ?? null
+                return dates.map((date, i) => {
+                  const x = i * DAY_WIDTH * canvasScale - canvasPosition.x * canvasScale
+                  if (x < -DAY_WIDTH || x > canvasWidth) return null
 
-                // 背景色: 祝日（全休/稼働日とも）=青, 週末=赤, 通常=灰
-                let headerBg = HEADER_BG
-                if (isHolidayDay || isWorkdayHoliday) {
-                  headerBg = '#DBEAFE' // blue-100 祝日（全休/稼働日とも青）
-                } else if (weekend) {
-                  headerBg = '#FEE2E2' // red-50 週末
-                }
+                  const weekend = isWeekend(date)
+                  const holidayObj = getHolidayObj(date)
+                  const isHolidayDay = holidayObj != null && holidayObj.status !== 'workday'
+                  const isWorkdayHoliday = holidayObj != null && holidayObj.status === 'workday'
+                  const holidayName = holidayObj?.name ?? null
 
-                // テキスト色
-                let textColor = '#374151'
-                let subTextColor = '#6B7280'
-                if (isHolidayDay || isWorkdayHoliday) {
-                  textColor = '#1D4ED8'
-                  subTextColor = '#1D4ED8'
-                } else if (weekend) {
-                  textColor = '#DC2626'
-                  subTextColor = '#DC2626'
-                }
+                  let headerBg = HEADER_BG
+                  if (isHolidayDay || isWorkdayHoliday) {
+                    headerBg = '#DBEAFE'
+                  } else if (weekend) {
+                    headerBg = '#FEE2E2'
+                  }
 
-                return (
-                  <Group
-                    key={i}
-                    x={x}
-                    y={0}
-                    onClick={(e) => { if (e.evt.button === 0) toggleHoliday(date) }}
-                    onTap={() => toggleHoliday(date)}
-                    onContextMenu={(e) => {
-                      e.evt.preventDefault()
-                      if (holidayObj) {
-                        const newName = prompt('祝日名を入力', holidayObj.name)
-                        if (newName != null && newName !== '') {
-                          updateHoliday(holidayObj.date, { name: newName })
-                          markDirty()
+                  const baseTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#374151'
+                  const subTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#6B7280'
+
+                  return (
+                    <Group
+                      key={i}
+                      x={x}
+                      y={0}
+                      onClick={(e) => { if (e.evt.button === 0) toggleHoliday(date) }}
+                      onTap={() => toggleHoliday(date)}
+                      onContextMenu={(e) => {
+                        e.evt.preventDefault()
+                        if (holidayObj) {
+                          const newName = prompt('祝日名を入力', holidayObj.name)
+                          if (newName != null && newName !== '') {
+                            updateHoliday(holidayObj.date, { name: newName })
+                            markDirty()
+                          }
                         }
-                      }
-                    }}
-                  >
-                    <Rect
-                      width={DAY_WIDTH * canvasScale}
-                      height={HEADER_HEIGHT}
-                      fill={headerBg}
-                      stroke={GRID_COLOR}
-                      strokeWidth={0.5}
-                    />
-                    <Text
-                      text={formatDate(date)}
-                      fontSize={9 * canvasScale}
-                      fill={textColor}
-                      align="center"
-                      width={DAY_WIDTH * canvasScale}
-                      y={8}
-                    />
-                    <Text
-                      text={holidayObj ? (holidayName?.slice(0, 2) ?? '休') : formatDayOfWeek(date)}
-                      fontSize={8 * canvasScale}
-                      fill={subTextColor}
-                      align="center"
-                      width={DAY_WIDTH * canvasScale}
-                      y={24}
-                    />
-                    {/* 祝日マーク（全休/稼働日とも青） */}
-                    {holidayObj && !weekend && (
-                      <Text
-                        text={isWorkdayHoliday ? '◯' : '●'}
-                        fontSize={6 * canvasScale}
-                        fill="#1D4ED8"
-                        align="center"
+                      }}
+                    >
+                      <Rect
                         width={DAY_WIDTH * canvasScale}
-                        y={38}
+                        height={HEADER_HEIGHT}
+                        fill={headerBg}
+                        stroke={GRID_COLOR}
+                        strokeWidth={0.5}
                       />
-                    )}
-                  </Group>
-                )
-              })}
+                      {headerRows.map((rowType, rowIdx) => {
+                        const textY = rowIdx * rowH + Math.max(2, rowH / 2 - 5)
+                        const fs = Math.min(9, rowH * 0.55)
+                        const isWeeklyHidden = showWeeklyLabel && (rowType === 'day' || rowType === 'weekday') && i % 7 !== 0
+
+                        let text = ''
+                        let color = baseTextColor
+
+                        switch (rowType) {
+                          case 'year': {
+                            const isBound = i === 0 || (date.getMonth() === 0 && date.getDate() === 1)
+                            text = isBound ? `${date.getFullYear()}` : ''
+                            break
+                          }
+                          case 'fiscalYear': {
+                            const isBound = i === 0 || (date.getMonth() === 3 && date.getDate() === 1)
+                            if (isBound) {
+                              const fy = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1
+                              text = `${fy}年度`
+                            }
+                            break
+                          }
+                          case 'month': {
+                            const isBound = i === 0 || date.getDate() === 1
+                            text = isBound ? `${date.getMonth() + 1}月` : ''
+                            break
+                          }
+                          case 'day':
+                            text = isWeeklyHidden ? '' : `${date.getDate()}`
+                            break
+                          case 'weekday':
+                            text = isWeeklyHidden ? '' : DAY_NAMES[date.getDay()]
+                            color = subTextColor
+                            break
+                          case 'holiday':
+                            text = holidayObj ? (holidayName?.slice(0, 2) ?? '休') : ''
+                            color = '#1D4ED8'
+                            break
+                        }
+
+                        if (!text) return null
+                        return (
+                          <Text
+                            key={rowIdx}
+                            text={text}
+                            fontSize={fs * canvasScale}
+                            fill={color}
+                            align="center"
+                            width={DAY_WIDTH * canvasScale}
+                            y={textY}
+                          />
+                        )
+                      })}
+                    </Group>
+                  )
+                })
+              })()}
               <Line points={[0, HEADER_HEIGHT, canvasWidth, HEADER_HEIGHT]} stroke="#9CA3AF" strokeWidth={1} />
             </Layer>
 

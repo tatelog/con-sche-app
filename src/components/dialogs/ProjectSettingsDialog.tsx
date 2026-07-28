@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useADMStore } from '@/stores/admStore'
 import { PAPER_ROW_DEFAULTS } from '@/types/adm'
-import type { LayoutPaperSize, HeaderColumnType } from '@/types/adm'
+import type { LayoutPaperSize, HeaderColumnType, CalendarHeaderRowType } from '@/types/adm'
 
 interface ProjectSettingsDialogProps {
   isOpen: boolean
@@ -325,6 +325,113 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                 <span className="text-sm font-mono w-10 text-right">{projectSettings.rowHeight || 40}</span>
               </div>
             </div>
+
+            {/* カレンダーヘッダー行設定 */}
+            {(() => {
+              const currentRows = projectSettings.calendarHeaderRows ?? ['day', 'weekday']
+              const weeklyLabel = projectSettings.monthlyWeeklyLabel ?? false
+              const ALL_ROW_TYPES: CalendarHeaderRowType[] = ['fiscalYear', 'year', 'month', 'day', 'weekday', 'holiday']
+              const ROW_LABELS: Record<CalendarHeaderRowType, string> = {
+                fiscalYear: '年度', year: '年', month: '月', day: '日', weekday: '曜日', holiday: '祝日名',
+              }
+              const moveRow = (idx: number, dir: number) => {
+                const newRows = [...currentRows]
+                const [removed] = newRows.splice(idx, 1)
+                newRows.splice(idx + dir, 0, removed)
+                updateProjectSettings({ calendarHeaderRows: newRows })
+              }
+              const removeRow = (idx: number) => {
+                updateProjectSettings({ calendarHeaderRows: currentRows.filter((_, i) => i !== idx) })
+              }
+              const addRow = (type: CalendarHeaderRowType) => {
+                updateProjectSettings({ calendarHeaderRows: [...currentRows, type] })
+              }
+
+              const DAY_W = 16
+              const PREV_H = 50
+              const rowCount = Math.max(1, currentRows.length)
+              const rowH = PREV_H / rowCount
+              const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
+              const samples = Array.from({ length: 7 }, (_, k) => new Date(2026, 6, 14 + k))
+
+              return (
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-600 mb-2">カレンダーヘッダー行</label>
+                  <div className="flex gap-4 items-start">
+                    <div className="flex-1">
+                      {currentRows.length === 0 && (
+                        <p className="text-xs text-gray-400 mb-1">行が選択されていません</p>
+                      )}
+                      {currentRows.map((rowType, idx) => (
+                        <div key={idx} className="flex items-center gap-1 mb-1">
+                          <span className="text-xs bg-blue-50 border border-blue-200 text-blue-800 px-2 py-0.5 rounded flex-1">{ROW_LABELS[rowType]}</span>
+                          <button onClick={() => moveRow(idx, -1)} disabled={idx === 0} className="p-0.5 text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30">▲</button>
+                          <button onClick={() => moveRow(idx, 1)} disabled={idx === currentRows.length - 1} className="p-0.5 text-xs text-gray-400 hover:text-gray-700 disabled:opacity-30">▼</button>
+                          <button onClick={() => removeRow(idx)} className="p-0.5 text-xs text-red-400 hover:text-red-600">×</button>
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {ALL_ROW_TYPES.filter(t => !currentRows.includes(t)).map(rowType => (
+                          <button key={rowType} onClick={() => addRow(rowType)} className="text-xs px-2 py-0.5 border border-gray-300 rounded text-gray-600 hover:bg-gray-100">
+                            +{ROW_LABELS[rowType]}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer mt-3">
+                        <input
+                          type="checkbox"
+                          checked={weeklyLabel}
+                          onChange={(e) => updateProjectSettings({ monthlyWeeklyLabel: e.target.checked })}
+                        />
+                        月次表示時：日付・曜日を7日おきで表示
+                      </label>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1">プレビュー</div>
+                      <div style={{ border: '1px solid #e5e7eb', display: 'inline-block', overflow: 'hidden', borderRadius: 4 }}>
+                        <svg width={DAY_W * 7} height={PREV_H}>
+                          {samples.map((d, si) => {
+                            const isWE = d.getDay() === 0 || d.getDay() === 6
+                            return (
+                              <g key={si} transform={`translate(${si * DAY_W}, 0)`}>
+                                <rect width={DAY_W} height={PREV_H} fill={isWE ? '#FEE2E2' : '#F3F4F6'} stroke="#e5e7eb" strokeWidth={0.5} />
+                                {currentRows.map((rowType, ri) => {
+                                  const ty = ri * rowH + rowH * 0.65
+                                  const hidden = weeklyLabel && (rowType === 'day' || rowType === 'weekday') && si % 7 !== 0
+                                  let label = ''
+                                  if (!hidden) {
+                                    switch (rowType) {
+                                      case 'year':
+                                        label = (si === 0 || (d.getMonth() === 0 && d.getDate() === 1)) ? `${d.getFullYear()}` : ''
+                                        break
+                                      case 'fiscalYear': {
+                                        const isBound = si === 0 || (d.getMonth() === 3 && d.getDate() === 1)
+                                        if (isBound) { const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; label = `${fy}年度` }
+                                        break
+                                      }
+                                      case 'month':
+                                        label = (si === 0 || d.getDate() === 1) ? `${d.getMonth() + 1}月` : ''
+                                        break
+                                      case 'day': label = `${d.getDate()}`; break
+                                      case 'weekday': label = DAY_NAMES[d.getDay()]; break
+                                      case 'holiday': label = ''; break
+                                    }
+                                  }
+                                  if (!label) return null
+                                  const fill = rowType === 'holiday' ? '#1D4ED8' : (rowType === 'weekday' ? (isWE ? '#DC2626' : '#6B7280') : (isWE ? '#DC2626' : '#374151'))
+                                  const fs = Math.min(6, rowH * 0.55)
+                                  return <text key={ri} x={DAY_W / 2} y={ty} fontSize={fs} textAnchor="middle" fill={fill}>{label}</text>
+                                })}
+                              </g>
+                            )
+                          })}
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </section>
 
           {/* レイアウト設定 */}
