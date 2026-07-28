@@ -351,8 +351,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             <Waypoints size={16} />
           </button>
 
-          <div className="w-px h-5 bg-gray-300 mx-0.5 shrink-0" />
-
           {/* Undo/Redo */}
           <button onClick={undo} disabled={!canUndo} className={`p-1.5 rounded ${canUndo ? 'text-gray-600' : 'text-gray-300'}`}>
             <Undo2 size={16} />
@@ -360,6 +358,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           <button onClick={redo} disabled={!canRedo} className={`p-1.5 rounded ${canRedo ? 'text-gray-600' : 'text-gray-300'}`}>
             <Redo2 size={16} />
           </button>
+
+          <div className="w-px h-5 bg-gray-300 mx-0.5 shrink-0" />
 
           {/* 右端: プロジェクト操作・設定・行数行高 */}
           <div className="ml-auto flex items-center gap-0.5 shrink-0">
