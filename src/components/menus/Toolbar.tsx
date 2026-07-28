@@ -442,6 +442,27 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           <button onClick={openTutorial} className="p-1.5 rounded text-gray-600" title="操作ガイド">
             <HelpCircle size={18} />
           </button>
+
+          {/* 行数/行高（モバイル版右端） */}
+          <div className="ml-auto flex items-center gap-1">
+            <input
+              type="number" min="5" max="100"
+              value={projectSettings.displayRows}
+              onChange={(e) => {
+                const rows = parseInt(e.target.value) || 20
+                updateProjectSettings({ displayRows: rows, paperSize: 'custom' as const })
+              }}
+              className="w-10 px-1 py-0.5 text-xs border rounded text-center"
+              title="表示行数"
+            />
+            <input
+              type="number" min="20" max="80" step="2"
+              value={projectSettings.rowHeight || 40}
+              onChange={(e) => updateProjectSettings({ rowHeight: Number(e.target.value) || 40 })}
+              className="w-10 px-1 py-0.5 text-xs border rounded text-center"
+              title="行高"
+            />
+          </div>
         </div>
 
         {/* プロジェクト名編集モーダル（モバイル） */}
