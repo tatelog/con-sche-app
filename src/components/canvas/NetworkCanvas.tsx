@@ -9,7 +9,6 @@
 import { useRef, useCallback, useMemo, useEffect, useState } from 'react'
 import { Stage, Layer, Line, Rect, Text, Group, Circle } from 'react-konva'
 import type Konva from 'konva'
-import { CalendarDays } from 'lucide-react'
 import { useADMStore } from '@/stores/admStore'
 import { useUIStore } from '@/stores/uiStore'
 import type { Building } from '@/types/adm'
@@ -440,12 +439,6 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     return result
   }, [viewStartDate, effectiveTotalDays])
 
-  // 表示期間の終了日
-  const viewEndDate = useMemo(() => {
-    if (dates.length === 0) return viewStartDate
-    return dates[dates.length - 1]
-  }, [dates, viewStartDate])
-
   // ナビゲーション関数（表示モードに応じた移動量）
   const navigatePrev = useCallback(() => {
     let offset: number
@@ -496,28 +489,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     updateProjectSettings({ viewStartOffset: maxOffset })
   }, [projectSettings.totalProjectDays, effectiveTotalDays, updateProjectSettings])
 
-  const navigateToToday = useCallback(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const projStart = new Date(projectSettings.startDate)
-    projStart.setHours(0, 0, 0, 0)
-    const diffDays = Math.floor((today.getTime() - projStart.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (displayMode === 'weekly2') {
-      // 2週モード: 今日が初週に入る offset
-      updateProjectSettings({ viewStartOffset: diffDays })
-    } else if (displayMode === 'weekly3') {
-      // 3週モード: 今日が中央週に入る offset
-      updateProjectSettings({ viewStartOffset: diffDays - 7 })
-    } else if (displayMode === 'monthly') {
-      // 月次モード: 今日の月の1日
-      const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-      const monthOffset = Math.floor((firstOfMonth.getTime() - projStart.getTime()) / (1000 * 60 * 60 * 24))
-      updateProjectSettings({ viewStartOffset: monthOffset })
-    } else {
-      updateProjectSettings({ viewStartOffset: diffDays })
-    }
-  }, [projectSettings.startDate, displayMode, updateProjectSettings])
 
   // キーボードショートカット
   useEffect(() => {
@@ -1404,10 +1376,6 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     return `${date.getMonth() + 1}/${date.getDate()}`
   }
 
-  const formatDateFull = (date: Date) => {
-    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
-  }
-
   const formatDayOfWeek = (date: Date) => {
     const days = ['日', '月', '火', '水', '木', '金', '土']
     return days[date.getDay()]
@@ -2235,44 +2203,6 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           )}
         </div>
 
-      {/* ナビゲーションバー */}
-      <div
-        className="flex flex-1 items-center justify-between px-4"
-      >
-        <div className="flex items-center gap-1">
-          <button
-            onClick={navigatePrev}
-            className="px-2 py-1 text-xs bg-white rounded hover:bg-gray-50"
-            title="前の週へ移動"
-          >
-            ◀
-          </button>
-          <button
-            onClick={navigateToToday}
-            className="px-2 py-1 text-xs bg-white rounded hover:bg-gray-50"
-            title="今日の日付へ移動"
-          >
-            <CalendarDays size={14} />
-          </button>
-          <button
-            onClick={navigateNext}
-            className="px-2 py-1 text-xs bg-white rounded hover:bg-gray-50"
-            title="次の週へ移動"
-          >
-            ▶
-          </button>
-        </div>
-
-        <div className="text-sm font-medium text-gray-700">
-          {formatDateFull(viewStartDate)} 〜 {formatDateFull(viewEndDate)}
-          <span className="ml-2 text-gray-500">（{effectiveTotalDays}日間）</span>
-          {viewStartOffset < 0 && (
-            <span className="ml-2 text-orange-500 text-xs">※過去期間</span>
-          )}
-        </div>
-
-        <div style={{ width: 1 }} />
-      </div>
       </div>
 
       {/* メインコンテンツ */}
