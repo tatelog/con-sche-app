@@ -295,8 +295,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           {/* ロゴ + プロジェクト名 */}
           <div className="font-bold text-base text-gray-800 flex items-center gap-1 shrink-0">
             <span className="flex flex-col leading-none">
-              <span className="text-sm">Con-Sche</span>
-              <span className="text-[6px] font-semibold tracking-widest text-gray-400">コンスケ</span>
+              <span className="text-sm whitespace-nowrap">Con-Sche</span>
+              <span className="text-[7px] font-semibold tracking-widest text-gray-400 whitespace-nowrap">コンスケ</span>
             </span>
             <span
               className="text-xs font-normal text-gray-500 truncate max-w-[60px] cursor-pointer"
