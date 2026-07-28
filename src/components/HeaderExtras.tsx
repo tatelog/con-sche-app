@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Star, Bell, Mail, Share, SquarePlus, MonitorDown, Bookmark } from 'lucide-react';
+import { Star, Bell, Mail, Share, SquarePlus, MonitorDown, Bookmark, HelpCircle, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchAnnouncements,
@@ -352,15 +352,85 @@ function ContactButton({ iconSize }: { iconSize: number }) {
   );
 }
 
+/* ---------- まとめメニュー（狭い画面用） ---------- */
+
+function MoreMenu({ openTutorial, iconSize }: { openTutorial?: () => void; iconSize: number }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`p-2 rounded hover:bg-gray-100 transition-colors ${open ? 'text-blue-600 bg-gray-100' : 'text-gray-600'}`}
+        title="その他"
+      >
+        <MoreHorizontal size={iconSize} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-2 px-2 z-50 flex items-center gap-1">
+          {openTutorial && (
+            <button
+              onClick={() => { setOpen(false); openTutorial(); }}
+              className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
+              title="操作ガイド"
+            >
+              <HelpCircle size={iconSize} />
+            </button>
+          )}
+          <InstallStar iconSize={iconSize} />
+          <AnnouncementsBell iconSize={iconSize} />
+          <ContactButton iconSize={iconSize} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- まとめ ---------- */
 
-export function HeaderExtras({ compact = false }: { compact?: boolean }) {
+export function HeaderExtras({ compact = false, openTutorial }: { compact?: boolean; openTutorial?: () => void }) {
   const iconSize = compact ? 18 : 20;
+
+  if (compact) {
+    return (
+      <div className="flex items-center">
+        <InstallStar iconSize={iconSize} />
+        <AnnouncementsBell iconSize={iconSize} />
+        <ContactButton iconSize={iconSize} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center">
-      <InstallStar iconSize={iconSize} />
-      <AnnouncementsBell iconSize={iconSize} />
-      <ContactButton iconSize={iconSize} />
+      {/* 広い画面（xl以上）: 4アイコンを展開 */}
+      <div className="hidden xl:flex items-center">
+        {openTutorial && (
+          <button
+            onClick={openTutorial}
+            className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
+            title="操作ガイド"
+          >
+            <HelpCircle size={iconSize} />
+          </button>
+        )}
+        <InstallStar iconSize={iconSize} />
+        <AnnouncementsBell iconSize={iconSize} />
+        <ContactButton iconSize={iconSize} />
+      </div>
+      {/* 狭い画面（xl未満）: MoreMenuにまとめ */}
+      <div className="xl:hidden">
+        <MoreMenu openTutorial={openTutorial} iconSize={iconSize} />
+      </div>
     </div>
   );
 }

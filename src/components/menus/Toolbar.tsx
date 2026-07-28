@@ -689,9 +689,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           <Waypoints size={20} />
         </button>
 
-        {/* 区切り線 */}
-        <div className="w-px h-6 bg-gray-300 mx-1" />
-
         {/* 元に戻す */}
         <button
           onClick={undo}
@@ -716,14 +713,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           <Redo2 size={20} />
         </button>
 
-        {/* チュートリアル再表示 */}
-        <button
-          onClick={openTutorial}
-          className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors"
-          title="操作ガイドを表示"
-        >
-          <HelpCircle size={20} />
-        </button>
       </div>
 
       {/* ズーム */}
@@ -764,8 +753,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
       {/* 右端クラスタ: 行数/行高（広い画面のみ）+ 常設3ボタン。あふれてボタンが画面外に出ないようshrink-0 */}
       <div className="ml-auto flex items-center gap-2 shrink-0">
-      {/* 表示行数 + 行高さ（広い画面のみ。狭い幅では常設ボタンを優先して隠す） */}
-      <div className="hidden xl:flex items-center gap-4 text-sm text-gray-600">
+      {/* 表示行数 + 行高さ（lg以上で表示。xl未満はスライダー省略） */}
+      <div className="hidden lg:flex items-center gap-4 text-sm text-gray-600">
         <div className="flex items-center gap-1">
           <label className="text-xs text-gray-500">行数:</label>
           <input
@@ -789,7 +778,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             step="2"
             value={projectSettings.rowHeight || 40}
             onChange={(e) => updateProjectSettings({ rowHeight: Number(e.target.value) })}
-            className="w-16 h-4"
+            className="hidden xl:block w-16 h-4"
           />
           <input
             type="number"
@@ -803,8 +792,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         </div>
       </div>
 
-      {/* ホーム画面追加・お知らせ・お問い合わせ */}
-      <HeaderExtras />
+      {/* 操作ガイド・ホーム画面追加・お知らせ・お問い合わせ */}
+      <HeaderExtras openTutorial={openTutorial} />
       </div>
 
       {/* ダイアログ */}
