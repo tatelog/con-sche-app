@@ -29,6 +29,7 @@ import {
   Hexagon,
   FileUp,
   Download,
+  MoreHorizontal,
 } from 'lucide-react'
 import { useADMStore } from '@/stores/admStore'
 import { exportToCSV, downloadCSV } from '@/utils/csvExport'
@@ -135,6 +136,17 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   const { isSaving: autoSaving, lastSaveTime } = useAutoSave()
   const [projectListOpen, setProjectListOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false)
+  const mobileMoreRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!mobileMoreOpen) return
+    const handle = (e: MouseEvent) => {
+      if (mobileMoreRef.current && !mobileMoreRef.current.contains(e.target as Node)) setMobileMoreOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [mobileMoreOpen])
 
   // ツールバー幅に応じてアイコンサイズ・ギャップを動的に変更
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -361,61 +373,71 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
           <div className="w-px h-5 bg-gray-300 mx-0.5 shrink-0" />
 
-          {/* 右端: プロジェクト操作・設定・行数行高 */}
+          {/* 右端: … メニュー + 行数/行高 */}
           <div className="ml-auto flex items-center gap-0.5 shrink-0">
-            {/* プロジェクトメニュー */}
-            <DropdownMenu
-              isOpen={projectMenuOpen}
-              onToggle={() => { setProjectMenuOpen(!projectMenuOpen); setPrintMenuOpen(false) }}
-              onClose={() => setProjectMenuOpen(false)}
-              trigger={
-                <button className={`p-1.5 rounded hover:bg-gray-100 text-gray-600 ${projectMenuOpen ? 'bg-gray-100' : ''}`}>
-                  <FolderOpen size={16} />
-                </button>
-              }
-              items={projectMenuItems}
-            />
-
-            {/* 印刷 */}
-            <DropdownMenu
-              isOpen={printMenuOpen}
-              onToggle={() => { setPrintMenuOpen(!printMenuOpen); setProjectMenuOpen(false) }}
-              onClose={() => setPrintMenuOpen(false)}
-              trigger={
-                <button className={`p-1.5 rounded hover:bg-gray-100 text-gray-600 ${printMenuOpen ? 'bg-gray-100' : ''}`}>
-                  <Printer size={16} />
-                </button>
-              }
-              items={[
-                {
-                  icon: <Printer size={16} />,
-                  label: '印刷 / PDF出力...',
-                  onClick: () => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true) },
-                },
-                {
-                  icon: <FileSpreadsheet size={16} />,
-                  label: 'CSV出力',
-                  onClick: () => {
-                    closeAllMenus()
-                    const data = exportFullData()
-                    const csv = exportToCSV(data)
-                    const filename = `${data.projectSettings.name || '工程表'}.csv`
-                    downloadCSV(csv, filename)
-                  },
-                },
-              ]}
-            />
-
-            {/* 設定 */}
-            <button
-              onClick={() => { closeAllMenus(); toggleProjectSettingsDialog() }}
-              className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
-            >
-              <Settings size={16} />
-            </button>
-
-            {/* 操作ガイド・ホーム画面追加・お知らせ・お問い合わせ */}
-            <HeaderExtras compact openTutorial={openTutorial} />
+            <div ref={mobileMoreRef} className="relative">
+              <button
+                onClick={() => { closeAllMenus(); setMobileMoreOpen(!mobileMoreOpen) }}
+                className={`p-1.5 rounded ${mobileMoreOpen ? 'bg-gray-100 text-blue-600' : 'text-gray-600'}`}
+                title="その他"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              {mobileMoreOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-52 py-1 text-sm">
+                  {projectMenuItems.map((item, i) => (
+                    <button
+                      key={i}
+                      disabled={item.disabled}
+                      title={item.title}
+                      onClick={() => { if (!item.disabled) { item.onClick(); setMobileMoreOpen(false) } }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left ${item.disabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      {item.icon}<span>{item.label}</span>
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={() => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true); setMobileMoreOpen(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                  >
+                    <Printer size={14} /><span>印刷 / PDF出力...</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      closeAllMenus()
+                      const data = exportFullData()
+                      const csv = exportToCSV(data)
+                      const filename = `${data.projectSettings.name || '工程表'}.csv`
+                      downloadCSV(csv, filename)
+                      setMobileMoreOpen(false)
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                  >
+                    <FileSpreadsheet size={14} /><span>CSV出力</span>
+                  </button>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={() => { closeAllMenus(); toggleProjectSettingsDialog(); setMobileMoreOpen(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                  >
+                    <Settings size={14} /><span>設定</span>
+                  </button>
+                  {openTutorial && (
+                    <button
+                      onClick={() => { openTutorial(); setMobileMoreOpen(false) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left text-gray-700 hover:bg-gray-50"
+                    >
+                      <HelpCircle size={14} /><span>操作ガイド</span>
+                    </button>
+                  )}
+                  <div className="border-t border-gray-100 my-1" />
+                  <div className="px-2 py-1 flex items-center">
+                    <HeaderExtras compact />
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="w-px h-5 bg-gray-300 mx-0.5" />
 
