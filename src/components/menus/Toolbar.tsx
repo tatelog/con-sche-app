@@ -293,16 +293,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
       <>
         {/* 1段目: ナビゲーション・プロジェクト */}
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-2 gap-2">
-          {/* 工程表一覧 */}
-          <button
-            onClick={() => setProjectListOpen(true)}
-            className="p-2 text-slate-500 hover:text-primary-600 transition-colors shrink-0"
-            title="工程表一覧"
-          >
-            <FolderOpen size={18} />
-          </button>
-
-          {/* ロゴ + プロジェクト名 */}
+            {/* ロゴ + プロジェクト名 */}
           <div className="font-bold text-base text-gray-800 flex items-center gap-1 min-w-0 flex-1">
             <span className="flex flex-col leading-none shrink-0">
               <span className="text-sm">Con-Sche</span>
