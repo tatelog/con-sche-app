@@ -456,6 +456,17 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             )}
           </div>
 
+          {/* カレンダーナビ（ハンバーガー直後） */}
+          <button onClick={navigatePrev} className="p-1.5 rounded text-gray-600 hover:bg-gray-100 shrink-0" title="前へ">
+            <ChevronLeft size={16} />
+          </button>
+          <button onClick={navigateToToday} className="p-1.5 rounded text-gray-600 hover:bg-gray-100 shrink-0" title="今日へ">
+            <CalendarDays size={16} />
+          </button>
+          <button onClick={navigateNext} className="p-1.5 rounded text-gray-600 hover:bg-gray-100 shrink-0" title="次へ">
+            <ChevronRight size={16} />
+          </button>
+
           {/* ロゴ + プロジェクト名 */}
           <div className="font-bold text-base text-gray-800 flex items-center gap-1 shrink-0">
             <span className="flex flex-col leading-none w-9">
@@ -730,8 +741,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               </div>
             )}
           </div>
-          {logoBlock}
           {navBlock}
+          {logoBlock}
         </>
       )}
 
