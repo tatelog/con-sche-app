@@ -828,7 +828,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         </div>
         {tb.isFullLayout && (
           <div className="shrink-0">
-            <HeaderExtras openTutorial={openTutorial} />
+            <HeaderExtras openTutorial={openTutorial} compact />
           </div>
         )}
       </div>
