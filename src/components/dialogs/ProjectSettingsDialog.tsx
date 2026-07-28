@@ -400,7 +400,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                       checked={monthlyWeeklyLabel}
                       onChange={(e) => updateProjectSettings({ monthlyWeeklyLabel: e.target.checked })}
                     />
-                    月次表示時：日付・曜日を7日おきで表示
+                    月次・マスター表示時：日付・曜日を7日おきで表示
                   </label>
                 </div>
                 {/* プレビュー */}

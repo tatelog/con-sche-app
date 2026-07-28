@@ -2611,7 +2611,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                 const headerRows = projectSettings.calendarHeaderRows ?? ['day', 'weekday']
                 const rowCount = headerRows.length
                 const rowH = HEADER_HEIGHT / rowCount
-                const showWeeklyLabel = (projectSettings.monthlyWeeklyLabel ?? false) && displayMode === 'monthly'
+                const showWeeklyLabel = (projectSettings.monthlyWeeklyLabel ?? false) && (displayMode === 'monthly' || displayMode === 'master')
                 const DAY_NAMES = ['日', '月', '火', '水', '木', '金', '土']
 
                 return dates.map((date, i) => {
