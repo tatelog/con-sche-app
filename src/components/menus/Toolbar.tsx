@@ -18,6 +18,7 @@ import {
   Save,
   SaveAll,
   Printer,
+  LayoutTemplate,
   ChevronDown,
   Settings,
   FileType2,
@@ -97,6 +98,8 @@ function DropdownMenu({ trigger, items, isOpen, onToggle, onClose }: DropdownMen
 }
 
 export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false)
+  const [printMenuOpen, setPrintMenuOpen] = useState(false)
   const [selectMenuOpen, setSelectMenuOpen] = useState(false)
   const [drawMenuOpen, setDrawMenuOpen] = useState(false)
   const [saveAsOpen, setSaveAsOpen] = useState(false)
@@ -158,7 +161,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
   // ツールバー幅に応じてアイコンサイズ・ギャップを動的に変更
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const [tb, setTb] = useState({ icon: 20, chevron: 14, subChevron: 12, sectionGap: 16, innerGap: 4 })
+  const [tb, setTb] = useState({ icon: 20, chevron: 14, subChevron: 12, sectionGap: 16, innerGap: 4, isFullLayout: typeof window !== 'undefined' && window.innerWidth >= 1200 })
   useEffect(() => {
     const el = toolbarRef.current
     if (!el) return
@@ -171,6 +174,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         subChevron: Math.round(8 + t * 4),
         sectionGap: Math.round(4 + t * 12),
         innerGap: Math.round(1 + t * 3),
+        isFullLayout: w >= 1200,
       })
     })
     observer.observe(el)
@@ -232,6 +236,8 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   }
 
   const closeAllMenus = () => {
+    setProjectMenuOpen(false)
+    setPrintMenuOpen(false)
     setSelectMenuOpen(false)
     setDrawMenuOpen(false)
     setDesktopMoreOpen(false)
@@ -512,108 +518,128 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   }
 
   // デスクトップ: 従来の1段ツールバー
+  // ロゴブロック（フルレイアウト・ハンバーガー共用）
+  const logoBlock = (
+    <div className="font-bold text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
+      <span className="flex flex-col leading-none w-9">
+        <span className="text-sm">Con-Sche</span>
+        <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
+      </span>
+      {editingName ? (
+        <input
+          ref={nameInputRef}
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          onBlur={() => {
+            const trimmed = nameInput.trim()
+            if (trimmed) updateProjectSettings({ workplaceName: trimmed })
+            setEditingName(false)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { (e.target as HTMLInputElement).blur() }
+            if (e.key === 'Escape') { setEditingName(false) }
+          }}
+          className="text-sm font-normal text-gray-700 border-b border-blue-400 bg-transparent outline-none max-w-[200px] px-0.5"
+        />
+      ) : (
+        <span
+          className="text-sm font-normal text-gray-500 truncate max-w-[200px] cursor-pointer hover:text-gray-700 hover:underline"
+          onClick={() => { setNameInput(currentProjectName); setEditingName(true) }}
+          title="クリックして編集"
+        >
+          - {currentProjectName}{isDirty ? ' *' : ''}
+        </span>
+      )}
+      {!editingName && (
+        <span className="text-[10px] text-slate-400 ml-1">
+          {autoSaving ? '保存中...' : lastSaveTime ? `自動保存済 ${lastSaveTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : ''}
+        </span>
+      )}
+    </div>
+  )
+
   return (
     <div ref={toolbarRef} className="h-12 bg-white border-b border-gray-200 flex items-center px-4" style={{ gap: tb.sectionGap }}>
-      {/* ロゴ + プロジェクト名（クリックで編集） */}
-      {/* ハンバーガーメニュー（左端） */}
-      <div ref={desktopMoreRef} className="relative border-r border-gray-200 pr-2">
-        <button
-          onClick={() => { closeAllMenus(); setDesktopMoreOpen(!desktopMoreOpen) }}
-          className={`p-2 rounded hover:bg-gray-100 transition-colors ${desktopMoreOpen ? 'bg-gray-100 text-blue-600' : 'text-gray-600'}`}
-          title="メニュー"
-        >
-          <Menu size={tb.icon} />
-        </button>
-        {desktopMoreOpen && (
-          <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-52 py-1 text-sm">
-            {projectMenuItems.map((item, i) => (
-              <button
-                key={i}
-                onClick={() => { item.onClick(); setDesktopMoreOpen(false) }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700"
-              >
-                {item.icon}<span>{item.label}</span>
-              </button>
-            ))}
-            <div className="border-t border-gray-100 my-1" />
-            <button
-              onClick={() => { captureForPrint(); setPrintPreviewOpen(true); setDesktopMoreOpen(false) }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700"
-            >
-              <Printer size={14} /><span>印刷 / PDF出力...</span>
-            </button>
-            <button
-              onClick={() => {
-                const data = exportFullData()
-                const csv = exportToCSV(data)
-                const filename = `${data.projectSettings.name || '工程表'}.csv`
-                downloadCSV(csv, filename)
-                setDesktopMoreOpen(false)
-              }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700"
-            >
-              <FileSpreadsheet size={14} /><span>CSV出力</span>
-            </button>
-            <div className="border-t border-gray-100 my-1" />
-            <button
-              onClick={() => { toggleProjectSettingsDialog(); setDesktopMoreOpen(false) }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700"
-            >
-              <Settings size={14} /><span>設定</span>
-            </button>
-            {openTutorial && (
-              <button
-                onClick={() => { openTutorial(); setDesktopMoreOpen(false) }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700"
-              >
-                <HelpCircle size={14} /><span>操作ガイド</span>
-              </button>
-            )}
-            <div className="border-t border-gray-100 my-1" />
-            <div className="px-2 py-1 flex items-center">
-              <HeaderExtras compact />
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* ロゴ + プロジェクト名（クリックで編集） */}
-      <div className="font-bold text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
-        <span className="flex flex-col leading-none w-9">
-          <span className="text-sm">Con-Sche</span>
-          <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
-        </span>
-        {editingName ? (
-          <input
-            ref={nameInputRef}
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-            onBlur={() => {
-              const trimmed = nameInput.trim()
-              if (trimmed) updateProjectSettings({ workplaceName: trimmed })
-              setEditingName(false)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { (e.target as HTMLInputElement).blur() }
-              if (e.key === 'Escape') { setEditingName(false) }
-            }}
-            className="text-sm font-normal text-gray-700 border-b border-blue-400 bg-transparent outline-none max-w-[200px] px-0.5"
-          />
-        ) : (
-          <span
-            className="text-sm font-normal text-gray-500 truncate max-w-[200px] cursor-pointer hover:text-gray-700 hover:underline"
-            onClick={() => { setNameInput(currentProjectName); setEditingName(true) }}
-            title="クリックして編集"
-          >
-            - {currentProjectName}{isDirty ? ' *' : ''}
-          </span>
-        )}
-        {!editingName && (
-          <span className="text-[10px] text-slate-400 ml-1">
-            {autoSaving ? '保存中...' : lastSaveTime ? `自動保存済 ${lastSaveTime.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}` : ''}
-          </span>
-        )}
-      </div>
+      {tb.isFullLayout ? (
+        /* ===== 1200px以上: フルレイアウト ===== */
+        <>
+          {logoBlock}
+          {/* プロジェクト・印刷・設定 */}
+          <div className="flex items-center border-r border-gray-200 pr-4" style={{ gap: tb.innerGap }}>
+            <DropdownMenu
+              isOpen={projectMenuOpen}
+              onToggle={() => { setProjectMenuOpen(!projectMenuOpen); setPrintMenuOpen(false); setSelectMenuOpen(false); setDrawMenuOpen(false) }}
+              onClose={() => setProjectMenuOpen(false)}
+              trigger={
+                <button className={`p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors flex items-center gap-1 ${projectMenuOpen ? 'bg-gray-100' : ''}`} title="工程表メニュー">
+                  <FolderOpen size={tb.icon} /><ChevronDown size={tb.chevron} />
+                </button>
+              }
+              items={projectMenuItems}
+            />
+            <DropdownMenu
+              isOpen={printMenuOpen}
+              onToggle={() => { setPrintMenuOpen(!printMenuOpen); setProjectMenuOpen(false); setSelectMenuOpen(false); setDrawMenuOpen(false) }}
+              onClose={() => setPrintMenuOpen(false)}
+              trigger={
+                <button className={`p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors flex items-center gap-1 ${printMenuOpen ? 'bg-gray-100' : ''}`} title="印刷・出力">
+                  <Printer size={tb.icon} /><ChevronDown size={tb.chevron} />
+                </button>
+              }
+              items={[
+                { icon: <Printer size={16} />, label: '印刷 / PDF出力...', onClick: () => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true) } },
+                { icon: <LayoutTemplate size={16} />, label: 'レイアウト調整', onClick: () => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true) } },
+                { icon: <FileSpreadsheet size={16} />, label: 'CSV出力', onClick: () => { closeAllMenus(); const data = exportFullData(); const csv = exportToCSV(data); downloadCSV(csv, `${data.projectSettings.name || '工程表'}.csv`) } },
+              ]}
+            />
+            <button onClick={() => { closeAllMenus(); toggleProjectSettingsDialog() }} className="p-2 rounded hover:bg-gray-100 text-gray-600 transition-colors" title="工程表設定">
+              <Settings size={tb.icon} />
+            </button>
+          </div>
+        </>
+      ) : (
+        /* ===== 768〜1200px: ハンバーガーレイアウト ===== */
+        <>
+          <div ref={desktopMoreRef} className="relative border-r border-gray-200 pr-2">
+            <button
+              onClick={() => { closeAllMenus(); setDesktopMoreOpen(!desktopMoreOpen) }}
+              className={`p-2 rounded hover:bg-gray-100 transition-colors ${desktopMoreOpen ? 'bg-gray-100 text-blue-600' : 'text-gray-600'}`}
+              title="メニュー"
+            >
+              <Menu size={tb.icon} />
+            </button>
+            {desktopMoreOpen && (
+              <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 w-52 py-1 text-sm">
+                {projectMenuItems.map((item, i) => (
+                  <button key={i} onClick={() => { item.onClick(); setDesktopMoreOpen(false) }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700">
+                    {item.icon}<span>{item.label}</span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 my-1" />
+                <button onClick={() => { captureForPrint(); setPrintPreviewOpen(true); setDesktopMoreOpen(false) }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700">
+                  <Printer size={14} /><span>印刷 / PDF出力...</span>
+                </button>
+                <button onClick={() => { const data = exportFullData(); downloadCSV(exportToCSV(data), `${data.projectSettings.name || '工程表'}.csv`); setDesktopMoreOpen(false) }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700">
+                  <FileSpreadsheet size={14} /><span>CSV出力</span>
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button onClick={() => { toggleProjectSettingsDialog(); setDesktopMoreOpen(false) }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700">
+                  <Settings size={14} /><span>設定</span>
+                </button>
+                {openTutorial && (
+                  <button onClick={() => { openTutorial(); setDesktopMoreOpen(false) }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 text-gray-700">
+                    <HelpCircle size={14} /><span>操作ガイド</span>
+                  </button>
+                )}
+                <div className="border-t border-gray-100 my-1" />
+                <div className="px-2 py-1 flex items-center"><HeaderExtras compact /></div>
+              </div>
+            )}
+          </div>
+          {logoBlock}
+        </>
+      )}
 
       {/* 編集モード切替 + 元に戻す/やり直し */}
       <div className="flex items-center border-r border-gray-200 pr-4" style={{ gap: tb.innerGap }}>
@@ -761,7 +787,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         {showPropertiesPanel ? <PanelRightClose size={tb.icon} /> : <PanelRightOpen size={tb.icon} />}
       </button>
 
-      {/* 右端クラスタ: 行数/行高（常時表示） */}
+      {/* 右端クラスタ: 行数/行高 */}
       <div className="ml-auto flex items-center gap-2 min-w-0 shrink-0">
         <div className="flex items-center gap-1 shrink-0">
           <label className="text-xs text-gray-500">行数:</label>
@@ -779,6 +805,17 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <label className="text-xs text-gray-500">行高:</label>
+          {tb.isFullLayout && (
+            <input
+              type="range"
+              min="20"
+              max="80"
+              step="2"
+              value={projectSettings.rowHeight || 40}
+              onChange={(e) => updateProjectSettings({ rowHeight: Number(e.target.value) })}
+              className="w-16 h-4"
+            />
+          )}
           <input
             type="number"
             min="20"
@@ -789,6 +826,11 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             className="w-12 px-1 py-1 text-sm border rounded text-center"
           />
         </div>
+        {tb.isFullLayout && (
+          <div className="shrink-0">
+            <HeaderExtras openTutorial={openTutorial} />
+          </div>
+        )}
       </div>
 
       {/* ダイアログ */}
