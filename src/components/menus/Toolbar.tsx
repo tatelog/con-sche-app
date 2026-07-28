@@ -161,7 +161,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
   // ツールバー幅に応じてアイコンサイズ・ギャップを動的に変更
   const toolbarRef = useRef<HTMLDivElement>(null)
-  const [tb, setTb] = useState({ icon: 20, chevron: 14, subChevron: 12, sectionGap: 16, innerGap: 4, isFullLayout: typeof window !== 'undefined' && window.innerWidth >= 1200 })
+  const [tb, setTb] = useState({ icon: 20, chevron: 14, subChevron: 12, sectionGap: 16, innerGap: 4, isFullLayout: typeof window !== 'undefined' && window.innerWidth >= 1280 })
   useEffect(() => {
     const el = toolbarRef.current
     if (!el) return
@@ -174,7 +174,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         subChevron: Math.round(8 + t * 4),
         sectionGap: Math.round(4 + t * 12),
         innerGap: Math.round(1 + t * 3),
-        isFullLayout: w >= 1200,
+        isFullLayout: w >= 1280,
       })
     })
     observer.observe(el)
@@ -521,9 +521,9 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   // ロゴブロック（フルレイアウト・ハンバーガー共用）
   const logoBlock = (
     <div className="font-bold text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
-      <span className="flex flex-col leading-none w-9">
-        <span className="text-sm">Con-Sche</span>
-        <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
+      <span className="flex flex-col leading-none">
+        <span className="text-[13px] leading-tight">Con-Sche</span>
+        <span className="text-[8px] font-semibold tracking-widest text-gray-400">コンスケ</span>
       </span>
       {editingName ? (
         <input
@@ -562,7 +562,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
     <div ref={toolbarRef} className="h-12 bg-white border-b border-gray-200 flex items-center px-4" style={{ gap: tb.sectionGap }}>
 
       {tb.isFullLayout ? (
-        /* ===== 1200px以上: フルレイアウト ===== */
+        /* ===== 1280px以上: フルレイアウト（2行ロゴ） ===== */
         <>
           {logoBlock}
           {/* プロジェクト・印刷・設定 */}
@@ -599,7 +599,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
           </div>
         </>
       ) : (
-        /* ===== 768〜1200px: ハンバーガーレイアウト ===== */
+        /* ===== 768〜1279px: ハンバーガーレイアウト（1行ロゴ） ===== */
         <>
           <div ref={desktopMoreRef} className="relative border-r border-gray-200 pr-2">
             <button
@@ -637,7 +637,10 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               </div>
             )}
           </div>
-          {logoBlock}
+          {/* ハンバーガーレイアウトは1行ロゴ */}
+          <div className="font-bold text-gray-800 border-r border-gray-200 pr-3 flex items-center shrink-0">
+            <span className="text-[13px]">Con-Sche</span>
+          </div>
         </>
       )}
 
