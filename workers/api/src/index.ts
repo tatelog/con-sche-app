@@ -46,6 +46,9 @@ export interface Env {
   /** 任意: 配信停止リンクの署名鍵（wrangler secret put UNSUB_SECRET）。
    *  未設定なら /api/unsubscribe と /api/admin/broadcast は404 */
   UNSUB_SECRET?: string;
+  /** 任意: domain-gate Worker URL。設定するとお問い合わせ時にスパムスコアリングを行う。
+   *  未設定 or 空文字ならチェックをスキップ（フォームは正常動作する） */
+  DOMAIN_GATE_URL?: string;
 }
 
 const MAIL_FROM_DEFAULT = 'Con-Sche <noreply@tatelog.biz>';
@@ -454,6 +457,37 @@ async function handleContact(request: Request, env: Env, ctx: ExecutionContext):
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return json(env, 400, { error: 'メールアドレスの形式が正しくありません。' });
+  }
+
+  // ブロック済みドメインチェック（登録と同じルール）
+  const contactDomain = email.split('@')[1]?.toLowerCase() ?? '';
+  const blockedContact = await env.DB.prepare(
+    "SELECT domain FROM blocked_domains WHERE ?1 = domain OR ?1 LIKE '%.' || domain LIMIT 1"
+  ).bind(contactDomain).first<{ domain: string }>();
+  if (blockedContact) {
+    return json(env, 400, { error: '恐れ入りますが、このドメインからのお問い合わせは受け付けておりません。' });
+  }
+
+  // domain-gate スパムスコアリング（失敗してもお問い合わせはスルー）
+  if (env.DOMAIN_GATE_URL) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3000);
+      const gateRes = await fetch(`${env.DOMAIN_GATE_URL}/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name: str('name', 100), message: str('message', 500) }),
+        signal: ctrl.signal,
+      }).finally(() => clearTimeout(timer));
+      if (gateRes.ok) {
+        const gate = await gateRes.json() as { allowed: boolean; reason?: string };
+        if (!gate.allowed) {
+          return json(env, 400, { error: gate.reason ?? '恐れ入りますが、このお問い合わせは受け付けられませんでした。' });
+        }
+      }
+    } catch {
+      // タイムアウト・ネットワークエラー等はスルーしてお問い合わせを受け付ける
+    }
   }
 
   const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';

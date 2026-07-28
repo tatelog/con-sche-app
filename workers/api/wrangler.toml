@@ -15,3 +15,5 @@ database_id = "af578008-3f83-43cf-a5d7-9d0dfa190dfe"
 [vars]
 # CORSで許可するオリジン（本番ドメインに合わせる。"*" は開発用）
 ALLOWED_ORIGIN = "*"
+# domain-gate Worker URL（スパムスコアリング。未設定 or 空文字ならチェックをスキップ）
+DOMAIN_GATE_URL = "https://domain-gate.ishikawa-yutaka.workers.dev"
