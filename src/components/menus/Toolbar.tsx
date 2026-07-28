@@ -751,11 +751,11 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
         {showPropertiesPanel ? <PanelRightClose size={20} /> : <PanelRightOpen size={20} />}
       </button>
 
-      {/* 右端クラスタ: 行数/行高（広い画面のみ）+ 常設3ボタン。あふれてボタンが画面外に出ないようshrink-0 */}
-      <div className="ml-auto flex items-center gap-2 shrink-0">
+      {/* 右端クラスタ: 行数/行高 + 常設アイコン */}
+      <div className="ml-auto flex items-center gap-2 min-w-0">
       {/* 表示行数 + 行高さ（lg以上で表示。xl未満はスライダー省略） */}
-      <div className="hidden lg:flex items-center gap-4 text-sm text-gray-600">
-        <div className="flex items-center gap-1">
+      <div className="hidden lg:flex items-center gap-2 text-sm text-gray-600 min-w-0">
+        <div className="flex items-center gap-1 shrink-0">
           <label className="text-xs text-gray-500">行数:</label>
           <input
             type="number"
@@ -766,10 +766,10 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               const rows = parseInt(e.target.value) || 20
               updateProjectSettings({ displayRows: rows, paperSize: 'custom' as const })
             }}
-            className="w-16 px-2 py-1 text-sm border rounded"
+            className="w-14 px-1 py-1 text-sm border rounded text-center"
           />
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <label className="text-xs text-gray-500">行高:</label>
           <input
             type="range"
@@ -787,13 +787,15 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             step="2"
             value={projectSettings.rowHeight || 40}
             onChange={(e) => updateProjectSettings({ rowHeight: Number(e.target.value) || 40 })}
-            className="w-14 px-1 py-1 text-sm border rounded text-center"
+            className="w-12 px-1 py-1 text-sm border rounded text-center"
           />
         </div>
       </div>
 
-      {/* 操作ガイド・ホーム画面追加・お知らせ・お問い合わせ */}
-      <HeaderExtras openTutorial={openTutorial} />
+      {/* 操作ガイド・ホーム画面追加・お知らせ・お問い合わせ（常に表示） */}
+      <div className="shrink-0">
+        <HeaderExtras openTutorial={openTutorial} />
+      </div>
       </div>
 
       {/* ダイアログ */}
