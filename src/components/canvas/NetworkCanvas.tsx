@@ -2700,14 +2700,17 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                         }
 
                         if (!text) return null
+                        const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
                         return (
                           <Text
                             key={rowIdx}
                             text={text}
                             fontSize={fs * canvasScale}
                             fill={color}
-                            align="center"
-                            width={DAY_WIDTH * canvasScale}
+                            align={isSpanLabel ? 'left' : 'center'}
+                            x={isSpanLabel ? 2 : 0}
+                            width={isSpanLabel ? DAY_WIDTH * 8 * canvasScale : DAY_WIDTH * canvasScale}
+                            wrap="none"
                             y={textY}
                           />
                         )

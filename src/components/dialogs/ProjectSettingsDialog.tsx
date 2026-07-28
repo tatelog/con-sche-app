@@ -448,10 +448,11 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                                       }
                                     }
                                     if (!label) return null
+                                    const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
                                     const fill = rowType === 'holiday' ? '#1D4ED8' : (rowType === 'weekday' ? (isWE ? '#DC2626' : '#6B7280') : (isWE ? '#DC2626' : '#374151'))
                                     const fs = Math.max(5.5, Math.min(9, rowH * 0.55))
                                     return (
-                                      <text key={ri} x={DAY_W / 2} y={ty} fontSize={fs} textAnchor="middle" fill={fill} overflow="visible">{label}</text>
+                                      <text key={ri} x={isSpanLabel ? 2 : DAY_W / 2} y={ty} fontSize={fs} textAnchor={isSpanLabel ? 'start' : 'middle'} fill={fill}>{label}</text>
                                     )
                                   })}
                                 </g>

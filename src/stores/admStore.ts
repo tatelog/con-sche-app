@@ -1812,7 +1812,12 @@ export const useADMStore = create<ADMState>((set, get) => ({
     }
 
     set({
-      projectSettings: data.projectSettings,
+      projectSettings: {
+        // 旧ファイルに存在しないフィールドのデフォルト値
+        calendarHeaderRows: ['day', 'weekday'],
+        monthlyWeeklyLabel: false,
+        ...data.projectSettings,
+      },
       nodes: newNodes,
       activities: newActivities,
       buildings: newBuildings,
@@ -1927,7 +1932,11 @@ export const useADMStore = create<ADMState>((set, get) => ({
     }
 
     set({
-      projectSettings: data.projectSettings,
+      projectSettings: {
+        calendarHeaderRows: ['day', 'weekday'],
+        monthlyWeeklyLabel: false,
+        ...data.projectSettings,
+      },
       nodes: newNodes,
       activities: newActivities,
       // ライトはマスタ・階層なし → 空にリセット
