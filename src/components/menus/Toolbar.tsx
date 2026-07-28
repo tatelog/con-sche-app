@@ -287,83 +287,27 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
     },
   ]
 
-  // モバイル: 2段構成ツールバー
+  // モバイル: 1段ツールバー（ズームUIはピンチ操作で代替）
   if (isMobile) {
     return (
       <>
-        {/* 1段目: ナビゲーション・プロジェクト */}
-        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-2 gap-2">
-            {/* ロゴ + プロジェクト名 */}
-          <div className="font-bold text-base text-gray-800 flex items-center gap-1 min-w-0 flex-1">
-            <span className="flex flex-col leading-none shrink-0">
+        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-2 gap-1">
+          {/* ロゴ + プロジェクト名 */}
+          <div className="font-bold text-base text-gray-800 flex items-center gap-1 shrink-0">
+            <span className="flex flex-col leading-none">
               <span className="text-sm">Con-Sche</span>
               <span className="text-[6px] font-semibold tracking-widest text-gray-400">コンスケ</span>
             </span>
             <span
-              className="text-xs font-normal text-gray-500 truncate max-w-[120px] cursor-pointer"
+              className="text-xs font-normal text-gray-500 truncate max-w-[60px] cursor-pointer"
               onClick={() => { setNameInput(currentProjectName); setEditingName(true) }}
             >
               - {currentProjectName}{isDirty ? ' *' : ''}
             </span>
           </div>
 
-          {/* プロジェクトメニュー */}
-          <DropdownMenu
-            isOpen={projectMenuOpen}
-            onToggle={() => { setProjectMenuOpen(!projectMenuOpen); setPrintMenuOpen(false) }}
-            onClose={() => setProjectMenuOpen(false)}
-            trigger={
-              <button className={`p-2 rounded hover:bg-gray-100 text-gray-600 ${projectMenuOpen ? 'bg-gray-100' : ''}`}>
-                <FolderOpen size={18} />
-              </button>
-            }
-            items={projectMenuItems}
-          />
+          <div className="w-px h-5 bg-gray-300 mx-0.5 shrink-0" />
 
-          {/* 印刷 */}
-          <DropdownMenu
-            isOpen={printMenuOpen}
-            onToggle={() => { setPrintMenuOpen(!printMenuOpen); setProjectMenuOpen(false) }}
-            onClose={() => setPrintMenuOpen(false)}
-            trigger={
-              <button className={`p-2 rounded hover:bg-gray-100 text-gray-600 ${printMenuOpen ? 'bg-gray-100' : ''}`}>
-                <Printer size={18} />
-              </button>
-            }
-            items={[
-              {
-                icon: <Printer size={16} />,
-                label: '印刷 / PDF出力...',
-                onClick: () => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true) },
-              },
-              {
-                icon: <FileSpreadsheet size={16} />,
-                label: 'CSV出力',
-                onClick: () => {
-                  closeAllMenus()
-                  const data = exportFullData()
-                  const csv = exportToCSV(data)
-                  const filename = `${data.projectSettings.name || '工程表'}.csv`
-                  downloadCSV(csv, filename)
-                },
-              },
-            ]}
-          />
-
-          {/* 設定 */}
-          <button
-            onClick={() => { closeAllMenus(); toggleProjectSettingsDialog() }}
-            className="p-2 rounded hover:bg-gray-100 text-gray-600"
-          >
-            <Settings size={18} />
-          </button>
-
-          {/* ホーム画面追加・お知らせ・お問い合わせ */}
-          <HeaderExtras compact />
-        </div>
-
-        {/* 2段目: 編集モード・undo/redo・ズーム */}
-        <div className="h-10 bg-white border-b border-gray-200 flex items-center px-2 gap-1">
           {/* 選択モード */}
           <DropdownMenu
             isOpen={selectMenuOpen}
@@ -371,7 +315,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             onClose={() => setSelectMenuOpen(false)}
             trigger={
               <button className={`p-1.5 rounded transition-colors flex items-center gap-0.5 ${isSelectGroup ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>
-                <SelectIcon size={18} />
+                <SelectIcon size={16} />
                 <ChevronDown size={10} />
               </button>
             }
@@ -388,7 +332,7 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             onClose={() => setDrawMenuOpen(false)}
             trigger={
               <button className={`p-1.5 rounded transition-colors flex items-center gap-0.5 ${isDrawGroup ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}>
-                <DrawIcon size={18} />
+                <DrawIcon size={16} />
                 <ChevronDown size={10} />
               </button>
             }
@@ -404,38 +348,83 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
             onClick={() => setEditMode('progress')}
             className={`p-1.5 rounded transition-colors ${isProgressMode ? 'bg-blue-100 text-blue-600' : 'text-gray-600'}`}
           >
-            <Waypoints size={18} />
+            <Waypoints size={16} />
           </button>
 
-          <div className="w-px h-5 bg-gray-300 mx-0.5" />
+          <div className="w-px h-5 bg-gray-300 mx-0.5 shrink-0" />
 
           {/* Undo/Redo */}
           <button onClick={undo} disabled={!canUndo} className={`p-1.5 rounded ${canUndo ? 'text-gray-600' : 'text-gray-300'}`}>
-            <Undo2 size={18} />
+            <Undo2 size={16} />
           </button>
           <button onClick={redo} disabled={!canRedo} className={`p-1.5 rounded ${canRedo ? 'text-gray-600' : 'text-gray-300'}`}>
-            <Redo2 size={18} />
+            <Redo2 size={16} />
           </button>
 
-          <div className="w-px h-5 bg-gray-300 mx-0.5" />
+          {/* 右端: プロジェクト操作・設定・行数行高 */}
+          <div className="ml-auto flex items-center gap-0.5 shrink-0">
+            {/* プロジェクトメニュー */}
+            <DropdownMenu
+              isOpen={projectMenuOpen}
+              onToggle={() => { setProjectMenuOpen(!projectMenuOpen); setPrintMenuOpen(false) }}
+              onClose={() => setProjectMenuOpen(false)}
+              trigger={
+                <button className={`p-1.5 rounded hover:bg-gray-100 text-gray-600 ${projectMenuOpen ? 'bg-gray-100' : ''}`}>
+                  <FolderOpen size={16} />
+                </button>
+              }
+              items={projectMenuItems}
+            />
 
-          {/* ズーム */}
-          <button onClick={handleZoomOut} className="p-1.5 rounded text-gray-600">
-            <ZoomOut size={18} />
-          </button>
-          <button onClick={handleResetView} className="text-xs text-gray-600 w-12 text-center py-0.5">
-            {Math.round(canvasScale * 100)}%
-          </button>
-          <button onClick={handleZoomIn} className="p-1.5 rounded text-gray-600">
-            <ZoomIn size={18} />
-          </button>
+            {/* 印刷 */}
+            <DropdownMenu
+              isOpen={printMenuOpen}
+              onToggle={() => { setPrintMenuOpen(!printMenuOpen); setProjectMenuOpen(false) }}
+              onClose={() => setPrintMenuOpen(false)}
+              trigger={
+                <button className={`p-1.5 rounded hover:bg-gray-100 text-gray-600 ${printMenuOpen ? 'bg-gray-100' : ''}`}>
+                  <Printer size={16} />
+                </button>
+              }
+              items={[
+                {
+                  icon: <Printer size={16} />,
+                  label: '印刷 / PDF出力...',
+                  onClick: () => { closeAllMenus(); captureForPrint(); setPrintPreviewOpen(true) },
+                },
+                {
+                  icon: <FileSpreadsheet size={16} />,
+                  label: 'CSV出力',
+                  onClick: () => {
+                    closeAllMenus()
+                    const data = exportFullData()
+                    const csv = exportToCSV(data)
+                    const filename = `${data.projectSettings.name || '工程表'}.csv`
+                    downloadCSV(csv, filename)
+                  },
+                },
+              ]}
+            />
 
-          <button onClick={openTutorial} className="p-1.5 rounded text-gray-600" title="操作ガイド">
-            <HelpCircle size={18} />
-          </button>
+            {/* 設定 */}
+            <button
+              onClick={() => { closeAllMenus(); toggleProjectSettingsDialog() }}
+              className="p-1.5 rounded hover:bg-gray-100 text-gray-600"
+            >
+              <Settings size={16} />
+            </button>
 
-          {/* 行数/行高（モバイル版右端） */}
-          <div className="ml-auto flex items-center gap-1">
+            {/* 操作ガイド */}
+            <button onClick={openTutorial} className="p-1.5 rounded text-gray-600" title="操作ガイド">
+              <HelpCircle size={16} />
+            </button>
+
+            {/* ホーム画面追加・お知らせ・お問い合わせ */}
+            <HeaderExtras compact />
+
+            <div className="w-px h-5 bg-gray-300 mx-0.5" />
+
+            {/* 行数/行高 */}
             <input
               type="number" min="5" max="100"
               value={projectSettings.displayRows}
@@ -443,14 +432,14 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
                 const rows = parseInt(e.target.value) || 20
                 updateProjectSettings({ displayRows: rows, paperSize: 'custom' as const })
               }}
-              className="w-10 px-1 py-0.5 text-xs border rounded text-center"
+              className="w-9 px-0.5 py-0.5 text-xs border rounded text-center"
               title="表示行数"
             />
             <input
               type="number" min="20" max="80" step="2"
               value={projectSettings.rowHeight || 40}
               onChange={(e) => updateProjectSettings({ rowHeight: Number(e.target.value) || 40 })}
-              className="w-10 px-1 py-0.5 text-xs border rounded text-center"
+              className="w-9 px-0.5 py-0.5 text-xs border rounded text-center"
               title="行高"
             />
           </div>
