@@ -637,9 +637,13 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               </div>
             )}
           </div>
-          {/* ハンバーガーレイアウトは1行ロゴ */}
+          {/* ハンバーガーレイアウトは3行ロゴ */}
           <div className="font-bold text-gray-800 border-r border-gray-200 pr-3 flex items-center shrink-0">
-            <span className="text-[13px]">Con-Sche</span>
+            <span className="flex flex-col leading-none">
+              <span className="text-[10px]">Con-</span>
+              <span className="text-[10px]">Sche</span>
+              <span className="text-[7px] font-semibold tracking-widest text-gray-400">コンスケ</span>
+            </span>
           </div>
         </>
       )}
