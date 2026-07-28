@@ -10,7 +10,7 @@ compatibility_date = "2026-06-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "con-sche-api"
-database_id = "REPLACE_WITH_ACTUAL_DATABASE_ID"
+database_id = "af578008-3f83-43cf-a5d7-9d0dfa190dfe"
 
 [vars]
 # CORSで許可するオリジン（本番ドメインに合わせる。"*" は開発用）

@@ -2,7 +2,7 @@
  * Con-Sche - ADM形式ネットワーク工程表アプリケーション
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { NetworkCanvas } from '@/components/canvas/NetworkCanvas'
 import { PropertiesPanel } from '@/components/panels/PropertiesPanel'
 import { Toolbar } from '@/components/menus/Toolbar'
@@ -26,10 +26,86 @@ function useIsMobile() {
   return isMobile
 }
 
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+const REGISTRATION_KEY = 'consche_registration'
+
 function App() {
   const isMobile = useIsMobile()
   const [mobilePanel, setMobilePanel] = useState(false)
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
+  const pingedRef = useRef(false)
+
+  // 起動時ping: アクティブユーザーを記録する
+  useEffect(() => {
+    if (pingedRef.current) return
+    pingedRef.current = true
+    try {
+      const raw = localStorage.getItem(REGISTRATION_KEY)
+      const customerId = raw ? (JSON.parse(raw) as { customerId?: string }).customerId : undefined
+      if (customerId) {
+        fetch(`${API_BASE}/api/ping`, {
+          method: 'POST',
+          headers: { 'X-Consche-Id': customerId },
+        }).catch(() => {})
+      }
+    } catch {
+      // localStorageアクセス失敗は無視
+    }
+  }, [])
+
+  // 自動保存 + 起動時復元
+  const nodesMap = useADMStore((state) => state.nodes)
+  const currentProjectId = useADMStore((state) => state.currentProjectId)
+  const exportFullData = useADMStore((state) => state.exportFullData)
+  const importFullData = useADMStore((state) => state.importFullData)
+  const loadProjectFromDB = useADMStore((state) => state.loadProjectFromDB)
+
+  const DRAFT_KEY = 'consche_draft'
+  const LAST_PROJECT_KEY = 'consche_last_project_id'
+
+  // 起動時復元（マウント時1回）
+  useEffect(() => {
+    const lastProjectId = localStorage.getItem(LAST_PROJECT_KEY)
+    if (lastProjectId) {
+      loadProjectFromDB(lastProjectId).catch(() => {
+        // DBに存在しない場合は下書きを試みる
+        const draft = localStorage.getItem(DRAFT_KEY)
+        if (draft) {
+          try { importFullData(JSON.parse(draft)) } catch { /* 破損は無視 */ }
+        }
+        localStorage.removeItem(LAST_PROJECT_KEY)
+      })
+    } else {
+      const draft = localStorage.getItem(DRAFT_KEY)
+      if (draft) {
+        try { importFullData(JSON.parse(draft)) } catch { localStorage.removeItem(DRAFT_KEY) }
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 保存済みプロジェクトIDを localStorage に記録
+  useEffect(() => {
+    if (currentProjectId) {
+      localStorage.setItem(LAST_PROJECT_KEY, currentProjectId)
+    }
+  }, [currentProjectId])
+
+  // 新規プロジェクト（未保存）を3秒デバウンスで localStorage に自動保存
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (currentProjectId) return  // 保存済みは useAutoSave が担当
+    if (nodesMap.size === 0) return
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    draftTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(exportFullData()))
+      } catch { /* 容量オーバーは無視 */ }
+    }, 3000)
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current)
+    }
+  }, [nodesMap, currentProjectId, exportFullData])
 
   // パネル幅をストアから取得
   const projectSettings = useADMStore((state) => state.projectSettings)

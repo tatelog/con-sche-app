@@ -919,6 +919,27 @@ function BugakariPickerPopup({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedDetail, setSelectedDetail] = useState<string | null>(null)
+  const [pos, setPos] = useState({ x: Math.max(0, window.innerWidth / 2 - 300), y: 120 })
+  const [dragging, setDragging] = useState(false)
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
+
+  useEffect(() => {
+    if (!dragging) return
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      setPos({
+        x: Math.max(0, dragRef.current.origX + (e.clientX - dragRef.current.startX)),
+        y: Math.max(0, dragRef.current.origY + (e.clientY - dragRef.current.startY)),
+      })
+    }
+    const onMouseUp = () => setDragging(false)
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [dragging])
 
   const categories = getFilteredCategories(enabledDokenCodes)
   const details = selectedCategory ? getDetailsForCategory(selectedCategory, enabledDokenCodes) : []
@@ -929,12 +950,23 @@ function BugakariPickerPopup({
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute z-50 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-w-2xl w-[600px]">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-          <span className="text-xs font-bold text-gray-700">歩掛マスタ</span>
+      <div
+        className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-xl w-[600px]"
+        style={{ left: pos.x, top: pos.y }}
+      >
+        {/* ヘッダー（ドラッグハンドル） */}
+        <div
+          className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50 rounded-t-lg cursor-move select-none"
+          onMouseDown={e => {
+            e.preventDefault()
+            setDragging(true)
+            dragRef.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y }
+          }}
+        >
+          <span className="text-xs font-bold text-gray-700">⠿ 歩掛マスタ</span>
           <button
             onClick={() => setSettingsOpen(true)}
+            onMouseDown={e => e.stopPropagation()}
             className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
           >
             ⚙ 土建設定

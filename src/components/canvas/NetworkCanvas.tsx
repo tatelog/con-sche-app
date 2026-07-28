@@ -73,6 +73,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const activityStartNodeId = useADMStore((state) => state.activityStartNodeId)
   const getHierarchyRows = useADMStore((state) => state.getHierarchyRows)
   const getBuildingsArray = useADMStore((state) => state.getBuildingsArray)
+  const addBuilding = useADMStore((state) => state.addBuilding)
+  const updateBuilding = useADMStore((state) => state.updateBuilding)
 
   // テキストボックス
   const textboxesMap = useTextBoxStore((state) => state.textboxes)
@@ -134,6 +136,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const markDirty = useADMStore((state) => state.markDirty)
   const undo = useADMStore((state) => state.undo)
   const redo = useADMStore((state) => state.redo)
+  const saveHistory = useADMStore((state) => state.saveHistory)
   const canUndo = useADMStore((state) => state.canUndo)
   const canRedo = useADMStore((state) => state.canRedo)
   const beginBatch = useADMStore((state) => state.beginBatch)
@@ -1487,7 +1490,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   // 列タイプに応じた一意キーを取得（グループ化用）
   // zone/floor: IDベース（エンティティ単位で結合）
   // detail: 名前ベース（同じ階の連続する同名行が結合）
-  const getColumnKey = (row: typeof hierarchyRows[0], columnType: string): string => {
+  const getColumnKey = (row: typeof hierarchyRows[0], columnType: string, rowIndex?: number, columnId?: string): string => {
     switch (columnType) {
       case 'building':
         return row.buildingId ?? ''
@@ -1496,8 +1499,14 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       case 'floor':
         return row.roomId
       case 'grid':
-        return ''
+        return row.detailId
       case 'detail':
+        return `${row.zoneId}/${row.roomId}/${row.detailName || row.detailId}`
+      case 'custom':
+        if (columnId != null && rowIndex != null) {
+          const val = getCustomColumnValue(columnId, rowIndex)
+          return `${row.zoneId}/${row.roomId}/${val || row.detailId}`
+        }
         return row.detailId
       default:
         return ''
@@ -1529,10 +1538,10 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     for (const col of visibleColumns) {
       const columnInfo: { isFirst: boolean; rowSpan: number }[] = []
       let groupStartIndex = 0
-      let currentKey = hierarchyRows.length > 0 ? getColumnKey(hierarchyRows[0], col.type) : ''
+      let currentKey = hierarchyRows.length > 0 ? getColumnKey(hierarchyRows[0], col.type, 0, col.id) : ''
 
       for (let i = 0; i < hierarchyRows.length; i++) {
-        const rowKey = getColumnKey(hierarchyRows[i], col.type)
+        const rowKey = getColumnKey(hierarchyRows[i], col.type, i, col.id)
 
         if (rowKey !== currentKey || i === 0) {
           if (i > 0) {
@@ -1575,6 +1584,10 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   // マスタデータから選択肢を取得
   const getOptionsForColumn = useCallback((columnType: string, columnId?: string) => {
     switch (columnType) {
+      case 'building':
+        return getBuildingsArray()
+      case 'grid':
+        return getMasterItems('grid')
       case 'zone':
         return getMasterItems('zone')
       case 'floor':
@@ -1586,7 +1599,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       default:
         return []
     }
-  }, [getMasterItems, getCustomMasterItems])
+  }, [getBuildingsArray, getMasterItems, getCustomMasterItems])
 
   // 行ヘッダーのセルクリックハンドラー（マスタ選択用）
   const handleCellClick = useCallback((
@@ -1605,20 +1618,49 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const handleCellSelectChange = useCallback((selectedName: string) => {
     if (!editingCell) return
 
+    saveHistory()
+
     const { rowIndex, columnType } = editingCell
     const row = hierarchyRows[rowIndex]
+    // 変更前の行順序をスナップショット（ノード追従計算用）
+    const beforeRows = [...allHierarchyRows]
 
     if (row) {
       // 既存行の更新（選択行のみ変更、グループの他の行は変わらない）
       switch (columnType) {
+        case 'building': {
+          const sameBuildingRows = hierarchyRows.filter(r => r.buildingId === row.buildingId)
+          const existingBuilding = buildings.find(b => b.name === selectedName && b.id !== row.buildingId)
+          if (sameBuildingRows.length === 1 && !existingBuilding) {
+            // この棟に属する行が1つで同名棟もない → 直接リネーム
+            if (row.buildingId) updateBuilding(row.buildingId, { name: selectedName })
+          } else {
+            // 既存の同名棟があればそこへ移動（マージ）、なければ新規作成
+            const targetBuildingId = existingBuilding?.id ?? addBuilding(selectedName)
+            // 移動先の棟内で同名工区があればそこへ、なければ新規作成
+            const existingZone = Array.from(zones.values()).find(z => z.buildingId === targetBuildingId && z.name === row.zoneName)
+            let targetZoneId: string
+            if (existingZone) {
+              targetZoneId = existingZone.id
+            } else {
+              targetZoneId = addZone(row.zoneName ?? '新規工区')
+              updateZone(targetZoneId, { buildingId: targetBuildingId })
+            }
+            // 移動先の工区内で同名の階があればそこへ、なければ新規作成
+            const existingRoom = Array.from(rooms.values()).find(r => r.zoneId === targetZoneId && r.name === row.roomName)
+            const targetRoomId = existingRoom?.id ?? addRoom(targetZoneId, row.roomName)
+            updateDetailCategory(row.detailId, { roomId: targetRoomId })
+          }
+          break
+        }
         case 'zone': {
           const sameZoneRows = hierarchyRows.filter(r => r.zoneId === row.zoneId)
-          if (sameZoneRows.length === 1) {
-            // この工区に属する行が1つだけなら直接リネーム
+          const existingZone = Array.from(zones.values()).find(z => z.name === selectedName && z.id !== row.zoneId)
+          if (sameZoneRows.length === 1 && !existingZone) {
+            // この工区に属する行が1つで同名工区もない → 直接リネーム
             updateZone(row.zoneId, { name: selectedName })
           } else {
-            // 既存の同名工区があればそこへ移動、なければ新規作成
-            const existingZone = Array.from(zones.values()).find(z => z.name === selectedName && z.id !== row.zoneId)
+            // 既存の同名工区があればそこへ移動（マージ）、なければ新規作成
             const targetZoneId = existingZone?.id ?? addZone(selectedName)
             // 移動先の同名階があればそこへ、なければ新規作成
             const existingRoom = Array.from(rooms.values()).find(r => r.zoneId === targetZoneId && r.name === row.roomName)
@@ -1629,10 +1671,12 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         }
         case 'floor': {
           const sameRoomRows = hierarchyRows.filter(r => r.roomId === row.roomId)
-          if (sameRoomRows.length === 1) {
+          const existingRoom = Array.from(rooms.values()).find(r => r.zoneId === row.zoneId && r.name === selectedName && r.id !== row.roomId)
+          if (sameRoomRows.length === 1 && !existingRoom) {
+            // この階に属する行が1つで同名階もない → 直接リネーム
             updateRoom(row.roomId, { name: selectedName })
           } else {
-            const existingRoom = Array.from(rooms.values()).find(r => r.zoneId === row.zoneId && r.name === selectedName && r.id !== row.roomId)
+            // 既存の同名階があればそこへ移動（マージ）、なければ新規作成
             const targetRoomId = existingRoom?.id ?? addRoom(row.zoneId, selectedName)
             updateDetailCategory(row.detailId, { roomId: targetRoomId })
           }
@@ -1647,15 +1691,38 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           }
           break
       }
+
     } else {
       // 空行への新規追加
       // 上の行から親情報を取得
       const prevRow = rowIndex > 0 ? hierarchyRows[rowIndex - 1] : null
 
       switch (columnType) {
+        case 'building': {
+          // 同名の棟が既にあれば統合、なければ新規作成してzone→room→detailも自動生成
+          const existingBuilding = buildings.find(b => b.name === selectedName)
+          const buildingId = existingBuilding?.id ?? addBuilding(selectedName)
+          const zoneId = addZone('新規工区')
+          updateZone(zoneId, { buildingId })
+          const roomId = addRoom(zoneId, '新規階')
+          addDetailCategory(roomId, '新規細目')
+          break
+        }
         case 'zone': {
-          // 新しい工区を作成し、階と細目も作成
-          const zoneId = addZone(selectedName)
+          // 同じ棟内で既存の同名工区があれば統合してグルーピングを維持
+          const currentBuildingId = prevRow?.buildingId
+          const existingZone = Array.from(zones.values()).find(
+            z => z.name === selectedName && z.buildingId === currentBuildingId
+          )
+          let zoneId: string
+          if (existingZone) {
+            zoneId = existingZone.id
+          } else {
+            zoneId = addZone(selectedName)
+            if (currentBuildingId) {
+              updateZone(zoneId, { buildingId: currentBuildingId })
+            }
+          }
           const roomId = addRoom(zoneId, '新規階')
           addDetailCategory(roomId, '新規細目')
           break
@@ -1668,7 +1735,11 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
             if (visibleColumns.some((c) => c.type === 'zone')) break
             zoneId = addZone('未分類')
           }
-          const roomId = addRoom(zoneId, selectedName)
+          // 同じ工区内に同名の階・部屋がある場合は統合してグルーピングを維持
+          const existingRoom = Array.from(rooms.values()).find(
+            r => r.zoneId === zoneId && r.name === selectedName
+          )
+          const roomId = existingRoom?.id ?? addRoom(zoneId, selectedName)
           addDetailCategory(roomId, '新規細目')
           break
         }
@@ -1695,8 +1766,36 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       }
     }
 
+    // 行の並び順変化（新規追加・zone/room変更）を検出してノードを追従
+    const afterRows = getHierarchyRows()
+
+    // afterRows にあって beforeRows にない行（新規追加された行）
+    const beforeDetailIds = new Set(beforeRows.map(r => r.detailId))
+    const addedRows = afterRows.filter(r => !beforeDetailIds.has(r.detailId))
+
+    nodes.forEach(node => {
+      const oldRowIdx = Math.floor(node.position.y / ROW_HEIGHT)
+
+      if (oldRowIdx < beforeRows.length) {
+        // 既存行のノード: detailId ベースで追従
+        const oldRow = beforeRows[oldRowIdx]
+        if (!oldRow) return
+        const newRow = afterRows.find(r => r.detailId === oldRow.detailId)
+        if (!newRow || Math.abs(newRow.y - oldRow.y) < 0.5) return
+        const offsetInRow = node.position.y - oldRow.y
+        moveNode(node.id, { x: node.position.x, y: newRow.y + offsetInRow })
+      } else {
+        // 空行のY座標にあるノード → 新規追加行へ追従
+        const emptyIdx = oldRowIdx - beforeRows.length
+        const targetRow = addedRows[emptyIdx]
+        if (!targetRow) return
+        const offsetInRow = node.position.y - oldRowIdx * ROW_HEIGHT
+        moveNode(node.id, { x: node.position.x, y: targetRow.y + offsetInRow })
+      }
+    })
+
     setEditingCell(null)
-  }, [editingCell, hierarchyRows, zones, rooms, visibleColumns, updateZone, updateRoom, updateDetailCategory, addZone, addRoom, addDetailCategory, setCustomColumnValue])
+  }, [editingCell, hierarchyRows, allHierarchyRows, nodes, zones, rooms, buildings, visibleColumns, updateZone, updateRoom, updateDetailCategory, addZone, addRoom, addDetailCategory, setCustomColumnValue, addBuilding, updateBuilding, saveHistory, getHierarchyRows, moveNode])
 
   // セルから新規マスタ項目追加
   const handleAddCellItem = useCallback(() => {
@@ -1713,6 +1812,12 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     setAddItemError(null)
 
     switch (editingCell.columnType) {
+      case 'building':
+        addBuilding(name)
+        break
+      case 'grid':
+        addMasterItem('grid', name)
+        break
       case 'zone':
         addMasterItem('zone', name)
         break
@@ -1731,7 +1836,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
     setNewItemName('')
     // ドロップダウンは閉じない（続けて追加できるように）
-  }, [editingCell, newItemName, addMasterItem, addCustomMasterItem, getOptionsForColumn])
+  }, [editingCell, newItemName, addBuilding, addMasterItem, addCustomMasterItem, getOptionsForColumn])
 
   // 入力値をセルに直接確定（Enter確定: マスタ登録 + セルへ反映 + 閉じる）
   // 同名が既にある場合はエラーにせず「既存項目の選択」として扱う
@@ -1759,7 +1864,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     if (columnType === 'floor' && !prevRow?.zoneId && zones.size === 0 && zoneVisible) {
       return '先にこの行の「工区」を設定してください。階は工区の中に作られます。'
     }
-    if (columnType === 'detail' && !prevRow?.roomId && (zoneVisible || floorVisible)) {
+    if ((columnType === 'detail' || columnType === 'custom') && !prevRow?.roomId && (zoneVisible || floorVisible)) {
       const parentLabel = floorVisible && !zoneVisible ? '階数' : '工区'
       return `先にこの行の「${parentLabel}」を設定してください（上の階層から順に作られます）。`
     }
@@ -1969,7 +2074,16 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       return
     }
 
-    // 1. ノードY座標を入れ替え
+    // 1. 階(room)をまたぐドラッグはキャンセル（floorセルから変更する）
+    if (fromRow.roomId !== toRow.roomId) {
+      setDraggedRowIndex(null)
+      setDragOverRowIndex(null)
+      return
+    }
+
+    saveHistory()
+
+    // 2. ノードY座標を入れ替え
     const nodesOnFromRow = getNodesOnRow(draggedRowIndex)
     const nodesOnToRow = getNodesOnRow(dragOverRowIndex)
     const fromRowY = draggedRowIndex * ROW_HEIGHT
@@ -1984,33 +2098,24 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       moveNode(node.id, { x: node.position.x, y: fromRowY + offset })
     })
 
-    // 2. hierarchyRowsの新しい並びを計算
+    // 3. hierarchyRowsの新しい並びを計算
     const newRows = [...hierarchyRows]
     const [movedRow] = newRows.splice(draggedRowIndex, 1)
     newRows.splice(dragOverRowIndex, 0, movedRow)
 
-    // 3. 移動先のroomが異なる場合、roomIdを変更
-    if (fromRow.roomId !== toRow.roomId) {
-      updateDetailCategory(fromRow.detailId, { roomId: toRow.roomId })
-    }
-
-    // 4. 影響するroom内のorder値を再付番
-    const affectedRoomIds = new Set([fromRow.roomId, toRow.roomId])
-    for (const roomId of affectedRoomIds) {
-      let order = 0
-      for (const row of newRows) {
-        const detail = detailCategories.get(row.detailId)
-        if (!detail) continue
-        const effectiveRoomId = row.detailId === fromRow.detailId ? toRow.roomId : detail.roomId
-        if (effectiveRoomId === roomId) {
-          updateDetailCategory(row.detailId, { order: order++ })
-        }
+    // 4. 同一room内のorder値を再付番
+    let order = 0
+    for (const row of newRows) {
+      const detail = detailCategories.get(row.detailId)
+      if (!detail) continue
+      if (detail.roomId === fromRow.roomId) {
+        updateDetailCategory(row.detailId, { order: order++ })
       }
     }
 
     setDraggedRowIndex(null)
     setDragOverRowIndex(null)
-  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode])
+  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, saveHistory])
 
   // 指定行以降のノードを1行分下にシフト
   const shiftNodesDown = useCallback((fromRowIndex: number) => {

@@ -151,7 +151,7 @@ function generateToken(): string {
 
 /**
  * 顧客作成 + APIキー発行（ハッシュのみ保存）。
- * 戻り値: 平文APIキー / 'duplicate'（メール重複） / null（その他失敗）
+ * 戻り値: { apiKey, customerId } / 'duplicate'（メール重複） / null（その他失敗）
  */
 async function issueCustomerKey(
   env: Env,
@@ -160,7 +160,7 @@ async function issueCustomerKey(
   email: string,
   now: string,
   ip: string
-): Promise<string | 'duplicate' | null> {
+): Promise<{ apiKey: string; customerId: string } | 'duplicate' | null> {
   const customerId = crypto.randomUUID();
   const keyId = crypto.randomUUID();
   const apiKey = generateApiKey();
@@ -183,7 +183,21 @@ async function issueCustomerKey(
     }
     return null;
   }
-  return apiKey;
+  return { apiKey, customerId };
+}
+
+/** アプリ起動ping: last_seen_at を更新してアクティブ状況を記録する */
+async function handlePing(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const customerId = (request.headers.get('X-Consche-Id') ?? '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(customerId)) {
+    return json(env, 400, { error: 'invalid id' });
+  }
+  const now = new Date().toISOString();
+  ctx.waitUntil(
+    env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
+      .bind(now, customerId).run().catch(() => {})
+  );
+  return json(env, 200, {});
 }
 
 /** メール確認リンクの検証 → 本登録（キー発行） */
@@ -225,7 +239,7 @@ async function handleVerify(request: Request, env: Env, ctx: ExecutionContext): 
     `:tada: *新規登録（メール確認済み）*\n会社: ${pending.company}\n氏名: ${pending.name}\nメール: ${pending.email}`
   ));
 
-  return json(env, 201, { apiKey: issued });
+  return json(env, 201, { apiKey: issued.apiKey, customerId: issued.customerId });
 }
 
 /** お問い合わせ受信を運営宛にメール通知する（失敗しても問い合わせ保存自体は成功扱い） */
@@ -520,6 +534,10 @@ export default {
       return handleVerify(request, env, ctx);
     }
 
+    if (url.pathname === '/api/ping' && request.method === 'POST') {
+      return handlePing(request, env, ctx);
+    }
+
     if (url.pathname !== '/api/register' || request.method !== 'POST') {
       return json(env, 404, { error: 'Not found' });
     }
@@ -617,6 +635,6 @@ export default {
       `:tada: *新規登録*\n会社: ${company}\n氏名: ${name}\nメール: ${email}`
     ));
 
-    return json(env, 201, { apiKey: issued });
+    return json(env, 201, { apiKey: issued.apiKey, customerId: issued.customerId });
   },
 };

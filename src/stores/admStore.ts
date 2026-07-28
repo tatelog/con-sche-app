@@ -69,6 +69,7 @@ export interface ADMExportData {
     zones: MasterItem[]
     rooms: MasterItem[]
     details: MasterItem[]
+    grids?: MasterItem[]
   }
   // v3 追加フィールド（オプション: v2互換維持）
   textboxes?: TextBox[]
@@ -101,7 +102,40 @@ interface HistorySnapshot {
   activities: Map<string, Activity>
   nextNodeNumber: number
   textboxes: Map<string, TextBox>
+  buildings: Map<string, Building>
+  zones: Map<string, Zone>
+  rooms: Map<string, Room>
+  detailCategories: Map<string, DetailCategory>
+  zoneMaster: Map<string, MasterItem>
+  roomMaster: Map<string, MasterItem>
+  detailMaster: Map<string, MasterItem>
+  gridMaster: Map<string, MasterItem>
+  customMasters: Map<string, Map<string, MasterItem>>
+  customColumnValues: Map<string, string>
 }
+
+const copyCustomMasters = (m: Map<string, Map<string, MasterItem>>) => {
+  const copy = new Map<string, Map<string, MasterItem>>()
+  for (const [k, v] of m) copy.set(k, new Map(v))
+  return copy
+}
+
+const makeSnapshot = (state: ADMState): HistorySnapshot => ({
+  nodes: new Map(state.nodes),
+  activities: new Map(state.activities),
+  nextNodeNumber: state.nextNodeNumber,
+  textboxes: new Map(useTextBoxStore.getState().textboxes),
+  buildings: new Map(state.buildings),
+  zones: new Map(state.zones),
+  rooms: new Map(state.rooms),
+  detailCategories: new Map(state.detailCategories),
+  zoneMaster: new Map(state.zoneMaster),
+  roomMaster: new Map(state.roomMaster),
+  detailMaster: new Map(state.detailMaster),
+  gridMaster: new Map(state.gridMaster),
+  customMasters: copyCustomMasters(state.customMasters),
+  customColumnValues: new Map(state.customColumnValues),
+})
 
 // 履歴の最大数
 const MAX_HISTORY = 50
@@ -122,6 +156,7 @@ interface ADMState {
   zoneMaster: Map<string, MasterItem>
   roomMaster: Map<string, MasterItem>
   detailMaster: Map<string, MasterItem>
+  gridMaster: Map<string, MasterItem>
 
   // カスタム列データ
   customMasters: Map<string, Map<string, MasterItem>> // columnId → masterItems
@@ -173,10 +208,10 @@ interface ADMState {
   renameProject: (id: string, newName: string) => Promise<void>
 
   // アクション - マスタ
-  addMasterItem: (type: 'zone' | 'room' | 'detail', name: string) => string
-  updateMasterItem: (type: 'zone' | 'room' | 'detail', id: string, name: string) => void
-  deleteMasterItem: (type: 'zone' | 'room' | 'detail', id: string) => void
-  getMasterItems: (type: 'zone' | 'room' | 'detail') => MasterItem[]
+  addMasterItem: (type: 'zone' | 'room' | 'detail' | 'grid', name: string) => string
+  updateMasterItem: (type: 'zone' | 'room' | 'detail' | 'grid', id: string, name: string) => void
+  deleteMasterItem: (type: 'zone' | 'room' | 'detail' | 'grid', id: string) => void
+  getMasterItems: (type: 'zone' | 'room' | 'detail' | 'grid') => MasterItem[]
 
   // アクション - カスタム列マスタ
   addCustomMasterItem: (columnId: string, name: string) => string
@@ -303,6 +338,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
   zoneMaster: new Map(),
   roomMaster: new Map(),
   detailMaster: new Map(),
+  gridMaster: new Map(),
 
   // カスタム列データ
   customMasters: new Map(),
@@ -481,7 +517,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // ======================================
 
   addMasterItem: (type, name) => {
-    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : 'detailMaster'
+    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : type === 'grid' ? 'gridMaster' : 'detailMaster'
     const master = get()[masterKey]
 
     // 同名の項目が既にあれば追加せず既存IDを返す（重複登録防止）
@@ -501,7 +537,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
   },
 
   updateMasterItem: (type, id, name) => {
-    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : 'detailMaster'
+    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : type === 'grid' ? 'gridMaster' : 'detailMaster'
 
     set((state) => {
       const item = state[masterKey].get(id)
@@ -514,7 +550,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
   },
 
   deleteMasterItem: (type, id) => {
-    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : 'detailMaster'
+    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : type === 'grid' ? 'gridMaster' : 'detailMaster'
 
     set((state) => {
       const newMaster = new Map(state[masterKey])
@@ -524,7 +560,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
   },
 
   getMasterItems: (type) => {
-    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : 'detailMaster'
+    const masterKey = type === 'zone' ? 'zoneMaster' : type === 'room' ? 'roomMaster' : type === 'grid' ? 'gridMaster' : 'detailMaster'
     return Array.from(get()[masterKey].values()).sort((a, b) => a.order - b.order)
   },
 
@@ -760,10 +796,13 @@ export const useADMStore = create<ADMState>((set, get) => ({
     const rows: HierarchyRow[] = []
     let y = 0
 
-    // 棟がある場合: 棟 → 工区 → 階 → 部屋名
+    // 棟がある場合: 棟 → 工区 → 階 → 部屋名（buildingId未設定のzoneも「棟なし」として末尾に表示）
     // 棟がない場合: 従来通り 工区 → 階 → 部屋名
     const buildingGroups = buildings.length > 0
-      ? buildings.map(b => ({ building: b, zones: zones.filter(z => z.buildingId === b.id) }))
+      ? [
+          ...buildings.map(b => ({ building: b, zones: zones.filter(z => z.buildingId === b.id) })),
+          { building: undefined, zones: zones.filter(z => !z.buildingId) },
+        ].filter(g => g.zones.length > 0)
       : [{ building: undefined, zones }]
 
     for (const { building, zones: groupZones } of buildingGroups) {
@@ -1511,6 +1550,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
       zoneMaster: new Map(),
       roomMaster: new Map(),
       detailMaster: new Map(),
+      gridMaster: new Map(),
       nodes: new Map(),
       activities: new Map(),
       criticalPath: [],
@@ -1618,6 +1658,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
         zones: Array.from(state.zoneMaster.values()),
         rooms: Array.from(state.roomMaster.values()),
         details: Array.from(state.detailMaster.values()),
+        grids: Array.from(state.gridMaster.values()),
       },
       // v3: テキストボックス
       textboxes: useTextBoxStore.getState().getTextBoxesArray(),
@@ -1737,6 +1778,11 @@ export const useADMStore = create<ADMState>((set, get) => ({
       newDetailMaster.set(item.id, item)
     }
 
+    const newGridMaster = new Map<string, MasterItem>()
+    for (const item of (data.masters.grids ?? [])) {
+      newGridMaster.set(item.id, item)
+    }
+
     // 次のノード番号を計算
     let maxNumber = 0
     for (const node of newNodes.values()) {
@@ -1776,6 +1822,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
       zoneMaster: newZoneMaster,
       roomMaster: newRoomMaster,
       detailMaster: newDetailMaster,
+      gridMaster: newGridMaster,
       customMasters: newCustomMasters,
       customColumnValues: newCustomColumnValues,
       nextNodeNumber: maxNumber + 1,
@@ -1891,6 +1938,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
       zoneMaster: new Map(),
       roomMaster: new Map(),
       detailMaster: new Map(),
+      gridMaster: new Map(),
       customMasters: new Map(),
       customColumnValues: new Map(),
       nextNodeNumber: maxNumber + 1,
@@ -1965,12 +2013,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
     // バッチ中はスキップ（endBatchで1回だけ保存）
     if ((state as unknown as { _batchDepth: number })._batchDepth > 0) return
 
-    const snapshot: HistorySnapshot = {
-      nodes: new Map(state.nodes),
-      activities: new Map(state.activities),
-      nextNodeNumber: state.nextNodeNumber,
-      textboxes: new Map(useTextBoxStore.getState().textboxes),
-    }
+    const snapshot: HistorySnapshot = makeSnapshot(state)
 
     set((state) => {
       const newHistory = [...state.history, snapshot]
@@ -1993,12 +2036,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
     const depth = (state as unknown as { _batchDepth: number })._batchDepth
     if (depth === 0) {
       // 最初のbeginBatchでスナップショット保存
-      const snapshot: HistorySnapshot = {
-        nodes: new Map(state.nodes),
-        activities: new Map(state.activities),
-        nextNodeNumber: state.nextNodeNumber,
-        textboxes: new Map(useTextBoxStore.getState().textboxes),
-      }
+      const snapshot: HistorySnapshot = makeSnapshot(state)
       set((s) => ({
         ...s,
         _batchDepth: 1,
@@ -2052,17 +2090,22 @@ export const useADMStore = create<ADMState>((set, get) => ({
     const snapshot = (state as unknown as { _batchSnapshot: HistorySnapshot | null })._batchSnapshot
     if (snapshot) {
       // 巻き戻し前の状態をfutureに保存（Redo対応）
-      const currentSnapshot: HistorySnapshot = {
-        nodes: new Map(state.nodes),
-        activities: new Map(state.activities),
-        nextNodeNumber: state.nextNodeNumber,
-        textboxes: new Map(useTextBoxStore.getState().textboxes),
-      }
+      const currentSnapshot: HistorySnapshot = makeSnapshot(state)
       set((s) => ({
         ...s,
         nodes: snapshot.nodes,
         activities: snapshot.activities,
         nextNodeNumber: snapshot.nextNodeNumber,
+        buildings: snapshot.buildings,
+        zones: snapshot.zones,
+        rooms: snapshot.rooms,
+        detailCategories: snapshot.detailCategories,
+        zoneMaster: snapshot.zoneMaster,
+        roomMaster: snapshot.roomMaster,
+        detailMaster: snapshot.detailMaster,
+        gridMaster: snapshot.gridMaster,
+        customMasters: snapshot.customMasters,
+        customColumnValues: snapshot.customColumnValues,
         activityStartNodeId: null,
         selectedNodeId: null,
         selectedActivityId: null,
@@ -2092,12 +2135,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
     if (state.history.length === 0) return
 
     // 現在の状態をfutureに保存
-    const currentSnapshot: HistorySnapshot = {
-      nodes: new Map(state.nodes),
-      activities: new Map(state.activities),
-      nextNodeNumber: state.nextNodeNumber,
-      textboxes: new Map(useTextBoxStore.getState().textboxes),
-    }
+    const currentSnapshot: HistorySnapshot = makeSnapshot(state)
 
     // 履歴から最後の状態を取得
     const newHistory = [...state.history]
@@ -2107,6 +2145,16 @@ export const useADMStore = create<ADMState>((set, get) => ({
       nodes: prevSnapshot.nodes,
       activities: prevSnapshot.activities,
       nextNodeNumber: prevSnapshot.nextNodeNumber,
+      buildings: prevSnapshot.buildings,
+      zones: prevSnapshot.zones,
+      rooms: prevSnapshot.rooms,
+      detailCategories: prevSnapshot.detailCategories,
+      zoneMaster: prevSnapshot.zoneMaster,
+      roomMaster: prevSnapshot.roomMaster,
+      detailMaster: prevSnapshot.detailMaster,
+      gridMaster: prevSnapshot.gridMaster,
+      customMasters: prevSnapshot.customMasters,
+      customColumnValues: prevSnapshot.customColumnValues,
       history: newHistory,
       future: [...state.future, currentSnapshot],
       canUndo: newHistory.length > 0,
@@ -2448,12 +2496,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
     if (state.future.length === 0) return
 
     // 現在の状態をhistoryに保存
-    const currentSnapshot: HistorySnapshot = {
-      nodes: new Map(state.nodes),
-      activities: new Map(state.activities),
-      nextNodeNumber: state.nextNodeNumber,
-      textboxes: new Map(useTextBoxStore.getState().textboxes),
-    }
+    const currentSnapshot: HistorySnapshot = makeSnapshot(state)
 
     // futureから最後の状態を取得
     const newFuture = [...state.future]
@@ -2463,6 +2506,16 @@ export const useADMStore = create<ADMState>((set, get) => ({
       nodes: nextSnapshot.nodes,
       activities: nextSnapshot.activities,
       nextNodeNumber: nextSnapshot.nextNodeNumber,
+      buildings: nextSnapshot.buildings,
+      zones: nextSnapshot.zones,
+      rooms: nextSnapshot.rooms,
+      detailCategories: nextSnapshot.detailCategories,
+      zoneMaster: nextSnapshot.zoneMaster,
+      roomMaster: nextSnapshot.roomMaster,
+      detailMaster: nextSnapshot.detailMaster,
+      gridMaster: nextSnapshot.gridMaster,
+      customMasters: nextSnapshot.customMasters,
+      customColumnValues: nextSnapshot.customColumnValues,
       history: [...state.history, currentSnapshot],
       future: newFuture,
       canUndo: true,

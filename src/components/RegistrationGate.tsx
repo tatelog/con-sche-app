@@ -14,6 +14,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
 
 interface RegistrationState {
   registeredAt: string;
+  customerId?: string;
 }
 
 function loadRegistration(): RegistrationState | null {
@@ -84,6 +85,7 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
       });
       const body = (await res.json().catch(() => ({}))) as {
         apiKey?: string;
+        customerId?: string;
         pendingVerification?: boolean;
         alreadyRegistered?: boolean;
         error?: string;
@@ -97,6 +99,10 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
       }
       if (res.ok && body.apiKey) {
         window.gtag?.('event', 'sign_up', { method: 'direct' });
+        if (body.customerId) {
+          const state: RegistrationState = { registeredAt: new Date().toISOString(), customerId: body.customerId };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
         setIssuedKey(body.apiKey);
         return;
       }
@@ -169,7 +175,7 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
                 {copied ? 'コピーしました ✓' : 'コードをコピー'}
               </button>
               <button
-                onClick={complete}
+                onClick={() => complete()}
                 className="w-full rounded-xl px-4 py-3 text-sm font-bold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
               >
                 エディタを使い始める

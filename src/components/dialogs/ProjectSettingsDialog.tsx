@@ -32,7 +32,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
 
   // マスタ編集モーダル
   const [masterEditModal, setMasterEditModal] = useState<{
-    type: 'zone' | 'room' | 'detail' | 'custom' | 'building'
+    type: 'zone' | 'room' | 'detail' | 'grid' | 'custom' | 'building'
     label: string
     columnId?: string
   } | null>(null)
@@ -100,7 +100,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
   }
 
   // マスタ種別を取得
-  const getMasterType = (columnType: HeaderColumnType): 'zone' | 'room' | 'detail' | 'building' | null => {
+  const getMasterType = (columnType: HeaderColumnType): 'zone' | 'room' | 'detail' | 'grid' | 'building' | null => {
     switch (columnType) {
       case 'building':
         return 'building'
@@ -110,6 +110,8 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
         return 'room'
       case 'detail':
         return 'detail'
+      case 'grid':
+        return 'grid'
       default:
         return null
     }
@@ -126,6 +128,8 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
         return '階数マスタ'
       case 'detail':
         return '部屋名マスタ'
+      case 'grid':
+        return '通りマスタ'
       default:
         return ''
     }
@@ -618,7 +622,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                     ? getBuildingsArray()
                     : masterEditModal.type === 'custom' && masterEditModal.columnId
                       ? getCustomMasterItems(masterEditModal.columnId)
-                      : getMasterItems(masterEditModal.type as 'zone' | 'room' | 'detail')
+                      : getMasterItems(masterEditModal.type as 'zone' | 'room' | 'detail' | 'grid')
                   return items.length > 0 ? (
                     <div className="space-y-1">
                       {items.map((item) => (
@@ -631,7 +635,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                               } else if (masterEditModal.type === 'custom' && masterEditModal.columnId) {
                                 deleteCustomMasterItem(masterEditModal.columnId, item.id)
                               } else {
-                                deleteMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail', item.id)
+                                deleteMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail' | 'grid', item.id)
                               }
                             }}
                             className="text-red-400 hover:text-red-600 text-sm"
@@ -664,7 +668,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                         } else if (masterEditModal.type === 'custom' && masterEditModal.columnId) {
                           addCustomMasterItem(masterEditModal.columnId, newMasterItemName.trim())
                         } else {
-                          addMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail', newMasterItemName.trim())
+                          addMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail' | 'grid', newMasterItemName.trim())
                         }
                         setNewMasterItemName('')
                       }
@@ -678,7 +682,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                         } else if (masterEditModal.type === 'custom' && masterEditModal.columnId) {
                           addCustomMasterItem(masterEditModal.columnId, newMasterItemName.trim())
                         } else {
-                          addMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail', newMasterItemName.trim())
+                          addMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail' | 'grid', newMasterItemName.trim())
                         }
                         setNewMasterItemName('')
                       }
@@ -728,7 +732,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                               } else if (masterEditModal.type === 'custom' && masterEditModal.columnId) {
                                 addCustomMasterItem(masterEditModal.columnId, name)
                               } else {
-                                addMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail', name)
+                                addMasterItem(masterEditModal.type as 'zone' | 'room' | 'detail' | 'grid', name)
                               }
                             }
                           }
