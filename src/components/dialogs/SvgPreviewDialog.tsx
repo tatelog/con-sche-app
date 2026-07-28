@@ -273,13 +273,6 @@ function computeIdealPathPoints(
 // ヘルパー
 // ═══════════════════════════════════════════════════════
 
-function formatDateShort(date: Date): string {
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
-
-function formatDayOfWeek(date: Date): string {
-  return ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
-}
 
 function getHolidayObj(date: Date, calendar: { holidays: Array<{ date: string; name: string; status: string }> }) {
   const y = date.getFullYear()
@@ -380,29 +373,81 @@ function generateSVG(
     colX += col.width
   }
 
-  dates.forEach((date, i) => {
-    const x = rowHeaderWidth + i * DAY_WIDTH
-    const weekend = isWeekend(date)
-    const holidayObj = calendar ? getHolidayObj(date, calendar) : null
-    const isHolidayDay = holidayObj != null && holidayObj.status !== 'workday'
-    const isWorkdayHoliday = holidayObj != null && holidayObj.status === 'workday'
+  {
+    const headerRows = projectSettings.calendarHeaderRows ?? ['day', 'weekday']
+    const rowCount = headerRows.length
+    const rowH = HEADER_HEIGHT / rowCount
+    const displayMode = projectSettings.displayMode
+    const showWeeklyLabel = (projectSettings.monthlyWeeklyLabel ?? false) && (displayMode === 'monthly' || displayMode === 'master')
+    const calFs = Math.min(projectSettings.calendarFontSize ?? 9, rowH * 0.55)
+    const DAY_NAMES = ['\u65E5', '\u6708', '\u706B', '\u6C34', '\u6728', '\u91D1', '\u571F']
 
-    let bg = HEADER_BG
-    if (isHolidayDay || isWorkdayHoliday) bg = '#DBEAFE'
-    else if (weekend) bg = '#FEE2E2'
+    dates.forEach((date, i) => {
+      const x = rowHeaderWidth + i * DAY_WIDTH
+      const weekend = isWeekend(date)
+      const holidayObj = calendar ? getHolidayObj(date, calendar) : null
+      const isHolidayDay = holidayObj != null && holidayObj.status !== 'workday'
+      const isWorkdayHoliday = holidayObj != null && holidayObj.status === 'workday'
 
-    let textColor = '#374151', subColor = '#6B7280'
-    if (isHolidayDay || isWorkdayHoliday) { textColor = '#1D4ED8'; subColor = '#1D4ED8' }
-    else if (weekend) { textColor = '#DC2626'; subColor = '#DC2626' }
+      let bg = HEADER_BG
+      if (isHolidayDay || isWorkdayHoliday) bg = '#DBEAFE'
+      else if (weekend) bg = '#FEE2E2'
 
-    parts.push(`<rect x="${x}" y="0" width="${DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${bg}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
-    parts.push(`<text x="${x + DAY_WIDTH / 2}" y="16" text-anchor="middle" font-size="9" fill="${textColor}">${formatDateShort(date)}</text>`)
-    const subText = holidayObj ? holidayObj.name.slice(0, 2) : formatDayOfWeek(date)
-    parts.push(`<text x="${x + DAY_WIDTH / 2}" y="30" text-anchor="middle" font-size="8" fill="${subColor}">${escapeXml(subText)}</text>`)
-    if (holidayObj && !weekend) {
-      parts.push(`<text x="${x + DAY_WIDTH / 2}" y="44" text-anchor="middle" font-size="6" fill="#1D4ED8">${isWorkdayHoliday ? '\u25CB' : '\u25CF'}</text>`)
-    }
-  })
+      const baseTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#374151'
+      const subTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#6B7280'
+
+      parts.push(`<rect x="${x}" y="0" width="${DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${bg}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
+
+      headerRows.forEach((rowType, rowIdx) => {
+        const cy = rowIdx * rowH + rowH / 2
+        const isWeeklyHidden = showWeeklyLabel && (rowType === 'day' || rowType === 'weekday') && i % 7 !== 0
+
+        let text = ''
+        let color = baseTextColor
+
+        switch (rowType) {
+          case 'year': {
+            const isBound = i === 0 || (date.getMonth() === 0 && date.getDate() === 1)
+            text = isBound ? `${date.getFullYear()}\u5E74` : ''
+            break
+          }
+          case 'fiscalYear': {
+            const isBound = i === 0 || (date.getMonth() === 3 && date.getDate() === 1)
+            if (isBound) {
+              const fy = date.getMonth() >= 3 ? date.getFullYear() : date.getFullYear() - 1
+              text = `${fy}\u5E74\u5EA6`
+            }
+            break
+          }
+          case 'month': {
+            const isBound = i === 0 || date.getDate() === 1
+            text = isBound ? `${date.getMonth() + 1}\u6708` : ''
+            break
+          }
+          case 'day':
+            text = isWeeklyHidden ? '' : `${date.getDate()}`
+            break
+          case 'weekday':
+            text = isWeeklyHidden ? '' : DAY_NAMES[date.getDay()]
+            color = subTextColor
+            break
+          case 'holiday':
+            text = holidayObj ? (holidayObj.name.slice(0, 2)) : ''
+            color = '#1D4ED8'
+            break
+        }
+
+        if (!text) return
+
+        const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
+        if (isSpanLabel) {
+          parts.push(`<text x="${x + 2}" y="${cy}" dominant-baseline="middle" text-anchor="start" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
+        } else {
+          parts.push(`<text x="${x + DAY_WIDTH / 2}" y="${cy}" dominant-baseline="middle" text-anchor="middle" font-size="${calFs}" fill="${color}">${escapeXml(text)}</text>`)
+        }
+      })
+    })
+  }
 
   parts.push(`<line x1="${rowHeaderWidth}" y1="${HEADER_HEIGHT}" x2="${svgWidth}" y2="${HEADER_HEIGHT}" stroke="#9CA3AF" stroke-width="1"/>`)
 
@@ -441,12 +486,11 @@ function generateSVG(
   // 端部は印刷枠と重なるため描画しない（i=0〜内側のみ）
   for (let i = 1; i < effectiveTotalDays; i++) {
     const x = gridOffsetX + i * DAY_WIDTH
-    const nw = isNonWorkdayUtil(dates[i], calendar)
-    parts.push(`<line x1="${x}" y1="${gridOffsetY}" x2="${x}" y2="${gridOffsetY + totalRows * ROW_HEIGHT}" stroke="${nw ? '#D1D5DB' : GRID_COLOR}" stroke-width="0.5"/>`)
+    parts.push(`<line x1="${x}" y1="${gridOffsetY}" x2="${x}" y2="${gridOffsetY + totalRows * ROW_HEIGHT}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
   }
   for (let i = 1; i < totalRows; i++) {
     const y = gridOffsetY + i * ROW_HEIGHT
-    parts.push(`<line x1="${gridOffsetX}" y1="${y}" x2="${svgWidth}" y2="${y}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
+    parts.push(`<line x1="${gridOffsetX}" y1="${y}" x2="${svgWidth}" y2="${y}" stroke="#D1D5DB" stroke-width="1"/>`)
   }
   // 下端罫線（非稼働日グレー塗りの上に描画）
   const bottomY = gridOffsetY + totalRows * ROW_HEIGHT
