@@ -25,6 +25,7 @@ import { SCurveOverlay } from './SCurveOverlay'
 import { CanvasScrollbars } from './CanvasScrollbars'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import type { Activity } from '@/types/adm'
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   isWeekend as isWeekendUtil,
   isNonWorkday as isNonWorkdayUtil,
@@ -334,6 +335,13 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     return totalDays
   }, [displayMode, viewStartDate, totalDays])
 
+  const viewEndDate = useMemo(() => {
+    const end = new Date(viewStartDate)
+    end.setDate(end.getDate() + effectiveTotalDays - 1)
+    return end
+  }, [viewStartDate, effectiveTotalDays])
+  const formatNav = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
+
   // スクロールバー用にコンテンツ範囲とビューポート実寸を uiStore へ publish
   // viewport は Stage の実寸（行ヘッダーパネル・ナビバーを除いた領域）を渡すこと
   useEffect(() => {
@@ -488,6 +496,24 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     const maxOffset = Math.max(0, projectSettings.totalProjectDays - effectiveTotalDays)
     updateProjectSettings({ viewStartOffset: maxOffset })
   }, [projectSettings.totalProjectDays, effectiveTotalDays, updateProjectSettings])
+
+  const navigateToToday = useCallback(() => {
+    const projStart = new Date(projectSettings.startDate)
+    projStart.setHours(0, 0, 0, 0)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const diffDays = Math.floor((today.getTime() - projStart.getTime()) / 86400000)
+    if (displayMode === 'weekly2') {
+      updateProjectSettings({ viewStartOffset: diffDays })
+    } else if (displayMode === 'weekly3') {
+      updateProjectSettings({ viewStartOffset: diffDays - 7 })
+    } else if (displayMode === 'monthly') {
+      const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+      updateProjectSettings({ viewStartOffset: Math.floor((firstOfMonth.getTime() - projStart.getTime()) / 86400000) })
+    } else {
+      updateProjectSettings({ viewStartOffset: diffDays })
+    }
+  }, [projectSettings.startDate, displayMode, updateProjectSettings])
 
 
 
@@ -2160,8 +2186,24 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
   return (
     <div className="relative flex flex-col" style={{ height }}>
-      {/* ページナビゲーション（行ヘッダー幅内、totalPages > 1 のみ表示） */}
+      {/* ナビゲーションバー */}
       <div className="flex items-center bg-gray-100 border-b border-gray-300" style={{ height: NAV_HEIGHT }}>
+        {/* カレンダーナビ（左端） */}
+        <div className="flex items-center gap-0.5 px-2 border-r border-gray-200 shrink-0 h-full">
+          <button onClick={navigatePrev} className="p-1 rounded hover:bg-gray-200 text-gray-600" title="前へ">
+            <ChevronLeft size={14} />
+          </button>
+          <button onClick={navigateToToday} className="p-1 rounded hover:bg-gray-200 text-gray-600" title="今日へ">
+            <CalendarDays size={14} />
+          </button>
+          <button onClick={navigateNext} className="p-1 rounded hover:bg-gray-200 text-gray-600" title="次へ">
+            <ChevronRight size={14} />
+          </button>
+          <span className="text-xs text-gray-600 whitespace-nowrap ml-0.5">
+            {formatNav(viewStartDate)}〜{formatNav(viewEndDate)}
+          </span>
+        </div>
+        {/* 棟切替 + ページネーション */}
         <div className="flex items-center justify-start gap-2 pl-2 flex-shrink-0" style={{ width: headerPanelWidth }}>
           {showBuildingSelector && buildings.length > 0 && (
             <div className="flex items-center gap-1">

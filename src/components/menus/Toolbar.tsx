@@ -3,7 +3,7 @@
  * 描画モード: クリックでノード追加、ノード間クリックで作業追加
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   MousePointer2,
   MousePointerClick,
@@ -20,9 +20,6 @@ import {
   Printer,
   LayoutTemplate,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  CalendarDays,
   Settings,
   FileType2,
   Waypoints,
@@ -35,7 +32,6 @@ import {
   Menu,
 } from 'lucide-react'
 import { useADMStore } from '@/stores/admStore'
-import { computeViewStartDate } from '@/utils/dateUtils'
 import { exportToCSV, downloadCSV } from '@/utils/csvExport'
 import { useUIStore } from '@/stores/uiStore'
 import { usePrintStore } from '@/stores/printStore'
@@ -248,75 +244,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
     setMobileMoreOpen(false)
   }
 
-  // カレンダーナビゲーション
-  const viewStartDate = useMemo(() => computeViewStartDate(projectSettings), [projectSettings])
-  const effectiveTotalDaysNav = useMemo(() => {
-    const displayMode = projectSettings.displayMode
-    if (displayMode === 'monthly') {
-      return new Date(viewStartDate.getFullYear(), viewStartDate.getMonth() + 1, 0).getDate()
-    }
-    return projectSettings.displayDays
-  }, [projectSettings, viewStartDate])
-  const viewEndDate = useMemo(() => {
-    const end = new Date(viewStartDate)
-    end.setDate(end.getDate() + effectiveTotalDaysNav - 1)
-    return end
-  }, [viewStartDate, effectiveTotalDaysNav])
-  const formatNav = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
-
-  const navigatePrev = useCallback(() => {
-    const displayMode = projectSettings.displayMode
-    const viewStartOffset = projectSettings.viewStartOffset || 0
-    const startDate = new Date(projectSettings.startDate)
-    if (displayMode === 'weekly2' || displayMode === 'weekly3') {
-      updateProjectSettings({ viewStartOffset: viewStartOffset - 7 })
-    } else if (displayMode === 'monthly') {
-      const cur = new Date(startDate)
-      cur.setDate(cur.getDate() + viewStartOffset)
-      cur.setDate(1)
-      cur.setMonth(cur.getMonth() - 1)
-      updateProjectSettings({ viewStartOffset: Math.floor((cur.getTime() - startDate.getTime()) / 86400000) })
-    } else {
-      updateProjectSettings({ viewStartOffset: viewStartOffset - effectiveTotalDaysNav })
-    }
-  }, [projectSettings, effectiveTotalDaysNav, updateProjectSettings])
-
-  const navigateNext = useCallback(() => {
-    const displayMode = projectSettings.displayMode
-    const viewStartOffset = projectSettings.viewStartOffset || 0
-    const startDate = new Date(projectSettings.startDate)
-    if (displayMode === 'weekly2' || displayMode === 'weekly3') {
-      updateProjectSettings({ viewStartOffset: viewStartOffset + 7 })
-    } else if (displayMode === 'monthly') {
-      const cur = new Date(startDate)
-      cur.setDate(cur.getDate() + viewStartOffset)
-      cur.setDate(1)
-      cur.setMonth(cur.getMonth() + 1)
-      updateProjectSettings({ viewStartOffset: Math.floor((cur.getTime() - startDate.getTime()) / 86400000) })
-    } else {
-      updateProjectSettings({ viewStartOffset: viewStartOffset + effectiveTotalDaysNav })
-    }
-  }, [projectSettings, effectiveTotalDaysNav, updateProjectSettings])
-
-  const navigateToToday = useCallback(() => {
-    const displayMode = projectSettings.displayMode
-    const projStart = new Date(projectSettings.startDate)
-    projStart.setHours(0, 0, 0, 0)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const diffDays = Math.floor((today.getTime() - projStart.getTime()) / 86400000)
-    if (displayMode === 'weekly2') {
-      updateProjectSettings({ viewStartOffset: diffDays })
-    } else if (displayMode === 'weekly3') {
-      updateProjectSettings({ viewStartOffset: diffDays - 7 })
-    } else if (displayMode === 'monthly') {
-      const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-      updateProjectSettings({ viewStartOffset: Math.floor((firstOfMonth.getTime() - projStart.getTime()) / 86400000) })
-    } else {
-      updateProjectSettings({ viewStartOffset: diffDays })
-    }
-  }, [projectSettings, updateProjectSettings])
-
   const captureForPrint = () => {
     if (captureCanvas) {
       const result = captureCanvas()
@@ -455,17 +382,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               </div>
             )}
           </div>
-
-          {/* カレンダーナビ（ハンバーガー直後） */}
-          <button onClick={navigatePrev} className="p-1.5 rounded text-gray-600 hover:bg-gray-100 shrink-0" title="前へ">
-            <ChevronLeft size={16} />
-          </button>
-          <button onClick={navigateToToday} className="p-1.5 rounded text-gray-600 hover:bg-gray-100 shrink-0" title="今日へ">
-            <CalendarDays size={16} />
-          </button>
-          <button onClick={navigateNext} className="p-1.5 rounded text-gray-600 hover:bg-gray-100 shrink-0" title="次へ">
-            <ChevronRight size={16} />
-          </button>
 
           {/* ロゴ + プロジェクト名 */}
           <div className="font-bold text-base text-gray-800 flex items-center gap-1 shrink-0">
@@ -642,25 +558,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
     </div>
   )
 
-  // カレンダーナビゲーションブロック（共用）
-  const navBlock = (
-    <div className="flex items-center gap-0.5 border-r border-gray-200 pr-3 shrink-0">
-      <button onClick={navigatePrev} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 transition-colors" title="前へ">
-        <ChevronLeft size={tb.icon} />
-      </button>
-      <button onClick={navigateToToday} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 transition-colors" title="今日へ">
-        <CalendarDays size={tb.icon} />
-      </button>
-      <button onClick={navigateNext} className="p-1.5 rounded hover:bg-gray-100 text-gray-600 transition-colors" title="次へ">
-        <ChevronRight size={tb.icon} />
-      </button>
-      <span className="text-xs text-gray-600 whitespace-nowrap ml-0.5">
-        {formatNav(viewStartDate)}〜{formatNav(viewEndDate)}
-        {(projectSettings.viewStartOffset || 0) < 0 && <span className="text-orange-500 ml-1">※過去</span>}
-      </span>
-    </div>
-  )
-
   return (
     <div ref={toolbarRef} className="h-12 bg-white border-b border-gray-200 flex items-center px-4" style={{ gap: tb.sectionGap }}>
 
@@ -700,7 +597,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               <Settings size={tb.icon} />
             </button>
           </div>
-          {navBlock}
         </>
       ) : (
         /* ===== 768〜1200px: ハンバーガーレイアウト ===== */
@@ -741,7 +637,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
               </div>
             )}
           </div>
-          {navBlock}
           {logoBlock}
         </>
       )}
