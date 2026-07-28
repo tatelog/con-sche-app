@@ -340,23 +340,6 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
               </p>
             </div>
 
-            {/* 行の高さ */}
-            <div className="mb-4">
-              <label className="block text-sm text-gray-600 mb-2">行の高さ (px)</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min={24}
-                  max={80}
-                  step={2}
-                  value={projectSettings.rowHeight || 40}
-                  onChange={(e) => updateProjectSettings({ rowHeight: Number(e.target.value) })}
-                  className="flex-1"
-                />
-                <span className="text-sm font-mono w-10 text-right">{projectSettings.rowHeight || 40}</span>
-              </div>
-            </div>
-
             {/* カレンダーヘッダー行設定 */}
             <div className="mb-4">
               <label className="block text-sm text-gray-600 mb-2">
@@ -618,6 +601,32 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                   className="w-20 px-2 py-1.5 border rounded text-sm text-center"
                 />
                 <span className="text-sm text-gray-500">px</span>
+              </div>
+            </div>
+
+            {/* フォントサイズ */}
+            <div className="mb-4">
+              <label className="block text-sm text-gray-600 mb-2">フォントサイズ (px)</label>
+              <div className="space-y-2">
+                {([
+                  { label: 'パス上（作業名・日数）', key: 'activityLabelFontSize', min: 6, max: 16, def: 9 },
+                  { label: '行ヘッダー', key: 'headerFontSize', min: 6, max: 16, def: 10 },
+                  { label: '日付（カレンダー）', key: 'calendarFontSize', min: 5, max: 14, def: 9 },
+                ] as const).map(({ label, key, min, max, def }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 w-36 shrink-0">{label}</span>
+                    <input
+                      type="range"
+                      min={min}
+                      max={max}
+                      step={1}
+                      value={projectSettings[key] ?? def}
+                      onChange={(e) => updateProjectSettings({ [key]: Number(e.target.value) })}
+                      className="flex-1"
+                    />
+                    <span className="text-xs font-mono w-6 text-right">{projectSettings[key] ?? def}</span>
+                  </div>
+                ))}
               </div>
             </div>
 

@@ -34,6 +34,7 @@ interface ActivityArrowProps {
   defaultTextAlign?: 'left' | 'center' | 'right'
   defaultLeaderLineStyle?: 'line' | 'underline'
   onLabelDragEnd?: (offset: { x: number; y: number }) => void
+  activityLabelFontSize?: number
 }
 
 const CRITICAL_COLOR = '#DC2626' // red-600
@@ -399,6 +400,7 @@ export function ActivityArrow({
   defaultTextAlign,
   defaultLeaderLineStyle,
   onLabelDragEnd,
+  activityLabelFontSize = 9,
 }: ActivityArrowProps) {
   // ゼロ長ダミー作業は描画しない（始点と終点が同じ位置）
   if (activity.isDummy) {
@@ -653,7 +655,7 @@ export function ActivityArrow({
 
   // テキスト高さ・実測幅の取得（引き出し線・下線用）
   const textRef = useRef<Konva.Text>(null)
-  const [textHeight, setTextHeight] = useState(9) // fontSize default
+  const [textHeight, setTextHeight] = useState(activityLabelFontSize) // fontSize default
   const [measuredTextWidth, setMeasuredTextWidth] = useState(0)
 
   useEffect(() => {
@@ -955,7 +957,7 @@ export function ActivityArrow({
                   ? activity.name
                   : `${activity.duration}日`
           }
-          fontSize={9}
+          fontSize={activityLabelFontSize}
           fill={activity.isCritical ? CRITICAL_COLOR : '#374151'}
           align={effectiveAlign}
           width={effectiveTextWidth}

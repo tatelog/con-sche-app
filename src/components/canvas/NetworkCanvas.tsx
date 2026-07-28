@@ -2258,7 +2258,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
               <div
                 key={col.id}
                 className={`flex items-center justify-center ${idx < visibleColumns.length - 1 ? 'border-r border-gray-200' : ''}`}
-                style={{ width: col.width * canvasScale, fontSize: 10 * canvasScale }}
+                style={{ width: col.width * canvasScale, fontSize: (projectSettings.headerFontSize ?? 10) * canvasScale }}
               >
                 {col.label}
               </div>
@@ -2333,7 +2333,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                   {row && (
                     <div
                       className="flex items-center justify-center h-full text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors cursor-grab active:cursor-grabbing border-r border-gray-200"
-                      style={{ width: HANDLE_COLUMN_WIDTH, fontSize: 10 * canvasScale }}
+                      style={{ width: HANDLE_COLUMN_WIDTH, fontSize: (projectSettings.headerFontSize ?? 10) * canvasScale }}
                       draggable
                       onDragStart={(e) => handleDragStart(e, dataRowIndex)}
                       onDragEnd={handleDragEnd}
@@ -2387,7 +2387,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       top: displayRowStart * scaledRowHeight + 1,
                       width: col.width * canvasScale - 2,
                       height: displayRowSpan * scaledRowHeight - 2,
-                      fontSize: 10 * canvasScale,
+                      fontSize: (projectSettings.headerFontSize ?? 10) * canvasScale,
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -2426,7 +2426,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       top: rowIndex * scaledRowHeight + 1,
                       width: col.width * canvasScale - 2,
                       height: scaledRowHeight - 2,
-                      fontSize: 10 * canvasScale,
+                      fontSize: (projectSettings.headerFontSize ?? 10) * canvasScale,
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -2661,7 +2661,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       />
                       {headerRows.map((rowType, rowIdx) => {
                         const textY = rowIdx * rowH + Math.max(2, rowH / 2 - 5)
-                        const fs = Math.min(9, rowH * 0.55)
+                        const fs = Math.min(projectSettings.calendarFontSize ?? 9, rowH * 0.55)
                         const isWeeklyHidden = showWeeklyLabel && (rowType === 'day' || rowType === 'weekday') && i % 7 !== 0
 
                         let text = ''
@@ -2910,6 +2910,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       originalToY={effectiveToPos.y}
                       defaultTextAlign={projectSettings.defaultActivityDisplay.textAlign ?? 'center'}
                       defaultLeaderLineStyle={projectSettings.defaultActivityDisplay.leaderLineStyle ?? 'line'}
+                      activityLabelFontSize={projectSettings.activityLabelFontSize ?? 9}
                       onLabelDragEnd={(offset) => updateActivity(activity.id, { labelOffset: offset })}
                     />
                   )

@@ -1816,6 +1816,9 @@ export const useADMStore = create<ADMState>((set, get) => ({
         // 旧ファイルに存在しないフィールドのデフォルト値
         calendarHeaderRows: ['day', 'weekday'],
         monthlyWeeklyLabel: false,
+        activityLabelFontSize: 9,
+        headerFontSize: 10,
+        calendarFontSize: 9,
         ...data.projectSettings,
       },
       nodes: newNodes,
