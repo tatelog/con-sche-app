@@ -22,7 +22,6 @@ import {
   ChevronDown,
   Settings,
   FileType2,
-  ArrowLeft,
   Waypoints,
   FileSpreadsheet,
   PanelRightClose,
@@ -470,16 +469,6 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
   // デスクトップ: 従来の1段ツールバー
   return (
     <div className="h-12 bg-white border-b border-gray-200 flex items-center px-4 gap-4">
-      {/* 工程表一覧 */}
-      <button
-        onClick={() => setProjectListOpen(true)}
-        className="flex items-center gap-1 text-sm text-slate-500 hover:text-primary-600 transition-colors shrink-0"
-        title="工程表一覧"
-      >
-        <ArrowLeft size={16} />
-        <span className="hidden sm:inline">工程表一覧</span>
-      </button>
-      <div className="w-px h-6 bg-gray-300" />
       {/* ロゴ + プロジェクト名（クリックで編集） */}
       <div className="font-bold text-lg text-gray-800 border-r border-gray-200 pr-4 flex items-center gap-2">
         <span className="flex flex-col leading-none">
