@@ -92,9 +92,14 @@ CPM 結果の `isCritical` と `totalFloat` を見れば、**どの作業の短�
 
 ## ChatGPT / Claude への組み込み方
 
-- **ChatGPT（GPTs / Actions）** — GPTエディタの「Actions」に [openapi.yaml](/openapi.yaml) の内容を貼り付け、認証方式に「API Key（Bearer）」を選んで APIコードを設定
-- **Claude（Claude Code / Desktop）** — openapi.yaml をプロジェクトに置いて「この仕様書に従ってCon-Sche APIを呼んで」と指示。curl でもフェッチでも呼び出せます
+:::caution まず確認
+ChatGPT・Claude の「普通のチャット画面」は外部APIに接続できないため、そのままではこれらのレシピは動きません。下のいずれかの方法で接続してください（詳しくは[かんたん版](./easy-start)）。
+:::
+
+- **ChatGPT（GPTs / Actions）** — GPTエディタの「アクション」に [openapi.yaml](/openapi.yaml) の内容を貼り付け、認証方式に「APIキー（Bearer）」を選んで APIコードを設定。初回だけ10分の設定で、以降はチャット感覚で使えます
+- **Claude Code / Codex / Cursor などのエージェント型ツール** — openapi.yaml を作業フォルダに置いて「この仕様書に従ってCon-Sche APIを呼んで」と指示するだけ。設定不要です
 - **自作スクリプト** — 仕様書を OpenAPI Generator にかければ各言語のクライアントコードを生成できます
+- **MCPサーバー（検討中）** — Claude のコネクタ追加だけで使える形を、ご要望に応じて提供予定です。使いたい方はアプリ内のお問い合わせからお知らせください
 
 :::tip APIコードの扱い
 APIコード（`cs_live_...`）はパスワードと同じ扱いで。AI チャットの公開共有リンクやリポジトリに残さないようご注意ください。
