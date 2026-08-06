@@ -25,6 +25,14 @@ const sidebars: SidebarsConfig = {
         'network-schedule/export',
       ],
     },
+    {
+      type: 'category',
+      label: 'API・AI連携',
+      items: [
+        'api/overview',
+        'api/ai-recipes',
+      ],
+    },
     'faq',
   ],
 };

@@ -1,0 +1,360 @@
+openapi: 3.1.0
+info:
+  title: Con-Sche 連携API
+  version: "1.0.0"
+  description: |
+    Con-Sche（コンスケ）の工程データをプログラム・AIエージェントから操作するためのAPIです。
+
+    ## できること
+    - **CPM計算** — 工程ネットワーク（結合点＋作業）から最早/最遅開始、フロート、クリティカルパス、各作業のカレンダー日付を計算
+    - **ファイル変換** — 工程JSON ⇔ .csaファイル（Con-Scheエディタで開ける形式）の相互変換
+    - **利用量照会** — 当月の消費ポイント確認
+
+    ## 典型ユースケース: 工程の遅延シフト
+    「躯体工事が3日遅延した。後続工程をシフトして」という操作は次の3ステップで実現できます。
+    1. `.csa` ファイルを `POST /api/v1/convert` で工程JSONに変換
+    2. 遅延した作業の `duration` を増やす（例: 5 → 8）
+    3. `POST /api/v1/cpm` で再計算 → 後続作業の開始日・終了日が自動でシフトされる
+       （フロートのある並行作業は動かない＝CPMに基づく正しいシフト）
+    仕上げに `POST /api/v1/convert` でJSONを .csa に戻せばエディタで開けます。
+
+    ## データモデル（ADM形式）
+    Con-Sche はアローダイアグラム（ADM）方式です。
+    - **node（結合点）**: 作業の始点・終点となるイベント。`id` のみ必須
+    - **activity（作業）**: 2つの結合点を結ぶ矢線。`fromNodeId` → `toNodeId` へ `duration`（稼働日数）かけて進む
+    - 依存関係は結合点の共有で表現します（例: 作業Aの `toNodeId` = 作業Bの `fromNodeId` なら B は A の後続）
+    - `duration: 0` の作業はダミー作業（依存関係のみを表す）
+
+    ## 認証
+    エディタの利用者登録時に発行されるAPIコード（`cs_live_...`）を Bearer トークンとして送ります。
+
+    ## 従量ポイント
+    読み取り系 = 2pt / 更新系 = 3pt。無料枠は月90pt（読み取り45回相当）。
+    成功レスポンス（2xx）のみ課金。レスポンスヘッダ `X-ConSche-Usage` で当月消費量を返します。
+  contact:
+    name: Con-Sche サポート
+    url: https://con-sche.tatelog.biz
+servers:
+  - url: https://con-sche-api.ishikawa-yutaka.workers.dev
+    description: 本番環境
+security:
+  - apiKey: []
+paths:
+  /api/v1/cpm:
+    post:
+      operationId: calculateCpm
+      summary: CPM計算（2pt）
+      description: |
+        工程データからCPM（クリティカルパス法）計算を行います。
+        各作業の最早/最遅開始・終了、トータルフロート、フリーフロート、クリティカルパス、全体工期を返します。
+        `calendar` を指定すると稼働日番号をカレンダー日付（YYYY-MM-DD）に変換して返します。
+
+        **遅延シフトのレシピ**: 遅延した作業の `duration` を遅延日数ぶん増やして再計算するだけで、
+        後続作業の日付がすべて自動シフトされます。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CpmRequest'
+            examples:
+              basic:
+                summary: 5工程の工事（基礎→躯体→内装→仕上げ、並行で外構）
+                value:
+                  nodes:
+                    - { id: n1 }
+                    - { id: n2 }
+                    - { id: n3 }
+                    - { id: n4 }
+                    - { id: n5 }
+                  activities:
+                    - { id: A, name: 基礎工事, fromNodeId: n1, toNodeId: n2, duration: 4 }
+                    - { id: B, name: 躯体工事, fromNodeId: n2, toNodeId: n3, duration: 5 }
+                    - { id: C, name: 内装工事, fromNodeId: n3, toNodeId: n4, duration: 6 }
+                    - { id: D, name: 仕上げ工事, fromNodeId: n4, toNodeId: n5, duration: 3 }
+                    - { id: E, name: 外構工事, fromNodeId: n2, toNodeId: n5, duration: 5 }
+                  calendar:
+                    startDate: "2026-08-17"
+                    workDays: [1, 2, 3, 4, 5, 6]
+      responses:
+        "200":
+          description: CPM計算結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CpmResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          description: 作業の依存関係に循環がある
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "429":
+          $ref: '#/components/responses/QuotaExceeded'
+  /api/v1/convert:
+    post:
+      operationId: convertSchedule
+      summary: 工程JSON ⇔ .csaファイル変換（2pt）
+      description: |
+        Content-Type で変換方向が決まります。
+        - `application/json` を送ると **工程JSON → .csaファイル**（バイナリzip）を返します。ノード位置はCPM結果から自動配置されるため、返ってきたファイルはそのままCon-Scheエディタで開けます。
+        - `application/zip`（または octet-stream）で .csa/.csl ファイルを送ると **ファイル → 工程JSON** を返します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertJsonRequest'
+          application/zip:
+            schema:
+              type: string
+              format: binary
+              description: .csa / .csl ファイル（上限10MB）
+      responses:
+        "200":
+          description: 変換結果（JSON→.csa はバイナリ、.csa→JSON は工程データ）
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                type: object
+                description: 工程データ（nodes / activities / projectSettings / calendar 等）
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          description: ファイルが読み込めない、または依存関係に循環がある
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "429":
+          $ref: '#/components/responses/QuotaExceeded'
+  /api/v1/usage:
+    get:
+      operationId: getUsage
+      summary: 当月利用量の照会（0pt）
+      responses:
+        "200":
+          description: 当月の消費ポイントと上限
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month:
+                    type: string
+                    example: "2026-08"
+                  usedPoints:
+                    type: integer
+                    example: 12
+                  limitPoints:
+                    type: integer
+                    example: 90
+                  note:
+                    type: string
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: エディタ利用者登録時に発行されるAPIコード（cs_live_...）
+  responses:
+    BadRequest:
+      description: リクエスト形式が不正（エラーメッセージは日本語で原因を返す）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: APIコードが未指定または無効
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    QuotaExceeded:
+      description: 今月の無料枠（90pt）を超過
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              usedPoints:
+                type: integer
+              limitPoints:
+                type: integer
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: 日本語のエラーメッセージ
+    CalendarInput:
+      type: object
+      required: [startDate]
+      properties:
+        startDate:
+          type: string
+          format: date
+          description: 工程の起点日（YYYY-MM-DD）。第1稼働日はこの日以降の最初の稼働日
+        workDays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description: 稼働曜日（0=日〜6=土）。省略時は月〜金 [1,2,3,4,5]
+        holidays:
+          type: array
+          items:
+            type: object
+            required: [date]
+            properties:
+              date:
+                type: string
+                format: date
+              name:
+                type: string
+              status:
+                type: string
+                enum: [holiday, workday]
+                description: holiday=休日指定 / workday=稼働日指定（休日出勤）
+    NodeInput:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: 結合点ID（工程内で一意）
+        number:
+          type: integer
+          description: 表示番号（省略時は配列順で自動採番）
+        label:
+          type: string
+    ActivityInput:
+      type: object
+      required: [id, fromNodeId, toNodeId, duration]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: 作業名（例. 躯体工事）
+        fromNodeId:
+          type: string
+          description: 開始側の結合点ID
+        toNodeId:
+          type: string
+          description: 終了側の結合点ID
+        duration:
+          type: number
+          minimum: 0
+          description: 所要稼働日数。0はダミー作業（依存関係のみ）
+        isDummy:
+          type: boolean
+          description: 省略時は duration === 0 で自動判定
+    CpmRequest:
+      type: object
+      required: [nodes, activities]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeInput'
+          maxItems: 2000
+        activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityInput'
+          maxItems: 5000
+        calendar:
+          $ref: '#/components/schemas/CalendarInput'
+    CpmResponse:
+      type: object
+      properties:
+        projectDuration:
+          type: integer
+          description: 全体工期（稼働日数）
+        projectEndDate:
+          type: [string, "null"]
+          format: date
+          description: 完了日（calendar 指定時のみ）
+        criticalPath:
+          type: array
+          items:
+            type: string
+          description: クリティカルパス上の作業ID
+        nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              number: { type: integer }
+              earliestTime: { type: integer, description: 最早結合点時刻（稼働日番号） }
+              latestTime: { type: integer, description: 最遅結合点時刻 }
+              slack: { type: integer, description: 余裕日数 }
+              earliestStartDate: { type: [string, "null"], format: date }
+              latestStartDate: { type: [string, "null"], format: date }
+        activities:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              duration: { type: number }
+              es: { type: integer, description: 最早開始（稼働日番号） }
+              ef: { type: integer, description: 最早終了 }
+              ls: { type: integer, description: 最遅開始 }
+              lf: { type: integer, description: 最遅終了 }
+              totalFloat: { type: integer, description: トータルフロート }
+              freeFloat: { type: integer, description: フリーフロート }
+              isCritical: { type: boolean }
+              startDate: { type: [string, "null"], format: date, description: 開始日（calendar 指定時） }
+              endDate: { type: [string, "null"], format: date, description: 終了日（calendar 指定時） }
+    ConvertJsonRequest:
+      type: object
+      required: [nodes, activities]
+      properties:
+        name:
+          type: string
+          description: 工程表名（省略時 "API生成工程表"）
+        calendar:
+          $ref: '#/components/schemas/CalendarInput'
+        nodes:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/NodeInput'
+              - type: object
+                properties:
+                  position:
+                    type: object
+                    description: エディタ上の座標（省略時はCPM結果から自動配置）
+                    properties:
+                      x: { type: number }
+                      y: { type: number }
+        activities:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ActivityInput'
+              - type: object
+                properties:
+                  rowIndex:
+                    type: integer
+                    description: エディタ上の表示行（省略時は自動）
