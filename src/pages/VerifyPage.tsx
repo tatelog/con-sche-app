@@ -16,8 +16,12 @@ type VerifyState =
   | { status: 'already' }
   | { status: 'error'; message: string };
 
-function markRegistered() {
-  localStorage.setItem(REGISTRATION_STORAGE_KEY, JSON.stringify({ registeredAt: new Date().toISOString() }));
+function markRegistered(customerId?: string) {
+  // customerId は起動ping（アクティブ計測）の識別に使う。無ければ従来どおりフラグのみ
+  localStorage.setItem(REGISTRATION_STORAGE_KEY, JSON.stringify({
+    registeredAt: new Date().toISOString(),
+    ...(customerId ? { customerId } : {}),
+  }));
 }
 
 export default function VerifyPage() {
@@ -40,11 +44,12 @@ export default function VerifyPage() {
         });
         const body = (await res.json().catch(() => ({}))) as {
           apiKey?: string;
+          customerId?: string;
           alreadyRegistered?: boolean;
           error?: string;
         };
         if (res.ok && body.apiKey) {
-          markRegistered();
+          markRegistered(body.customerId);
           window.gtag?.('event', 'sign_up_verified');
           setState({ status: 'success', apiKey: body.apiKey });
         } else if (res.status === 409 || body.alreadyRegistered) {
@@ -84,9 +89,11 @@ export default function VerifyPage() {
               エディタを使うだけならこのコードは不要です。
             </p>
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-4 text-xs text-amber-800 leading-relaxed">
-              <span className="font-bold">このコードは再発行できません。</span>
-              この画面を閉じると二度と表示されません。
+              <span className="font-bold">この画面を閉じると二度と表示されません。</span>
               <span className="font-bold">AI連携・システム連携を使う予定がある方は、必ずこの場でコードを控えて安全な場所に保存してください。</span>
+              紛失した場合は
+              <a href="https://con-sche-docs.pages.dev/reissue/" target="_blank" rel="noreferrer" className="underline">再発行ページ</a>
+              から再発行できます（旧コードは無効になります）。
             </div>
             <div className="bg-slate-100 rounded-lg p-3 font-mono text-xs break-all mb-3 select-all">
               {state.apiKey}

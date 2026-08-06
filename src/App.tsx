@@ -36,18 +36,30 @@ function App() {
   const pingedRef = useRef(false)
 
   // 起動時ping: アクティブユーザーを記録する
+  // customerId が無い端末（メール確認方式の登録）は登録時メールで照合し、
+  // サーバーが返した customerId を保存して次回から自己修復する
   useEffect(() => {
     if (pingedRef.current) return
     pingedRef.current = true
     try {
       const raw = localStorage.getItem(REGISTRATION_KEY)
-      const customerId = raw ? (JSON.parse(raw) as { customerId?: string }).customerId : undefined
-      if (customerId) {
-        fetch(`${API_BASE}/api/ping`, {
-          method: 'POST',
-          headers: { 'X-Consche-Id': customerId },
-        }).catch(() => {})
+      const state = raw ? (JSON.parse(raw) as { customerId?: string; email?: string }) : {}
+      const headers: Record<string, string> = {}
+      if (state.customerId) {
+        headers['X-Consche-Id'] = state.customerId
+      } else if (state.email) {
+        headers['X-Consche-Email'] = state.email
+      } else {
+        return
       }
+      fetch(`${API_BASE}/api/ping`, { method: 'POST', headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((body: { customerId?: string } | null) => {
+          if (body?.customerId && !state.customerId) {
+            localStorage.setItem(REGISTRATION_KEY, JSON.stringify({ ...state, customerId: body.customerId }))
+          }
+        })
+        .catch(() => {})
     } catch {
       // localStorageアクセス失敗は無視
     }
