@@ -197,18 +197,41 @@ async function issueCustomerKey(
   return { apiKey, customerId };
 }
 
-/** アプリ起動ping: last_seen_at を更新してアクティブ状況を記録する */
+/**
+ * アプリ起動ping: last_seen_at を更新してアクティブ状況を記録する
+ * - X-Consche-Id（customerId）があればそれで記録
+ * - 無ければ X-Consche-Email（登録メール）で照合して記録し、customerId を返す。
+ *   メール確認方式の登録では端末に customerId が残らないため、この応答で
+ *   フロントが localStorage に保存して自己修復する（既存ユーザー救済）。
+ */
 async function handlePing(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  const customerId = (request.headers.get('X-Consche-Id') ?? '').trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(customerId)) {
-    return json(env, 400, { error: 'invalid id' });
-  }
   const now = new Date().toISOString();
-  ctx.waitUntil(
-    env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
-      .bind(now, customerId).run().catch(() => {})
-  );
-  return json(env, 200, {});
+
+  const customerId = (request.headers.get('X-Consche-Id') ?? '').trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(customerId)) {
+    ctx.waitUntil(
+      env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
+        .bind(now, customerId).run().catch(() => {})
+    );
+    return json(env, 200, {});
+  }
+
+  const email = (request.headers.get('X-Consche-Email') ?? '').trim().toLowerCase();
+  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const customer = await env.DB.prepare(
+      'SELECT id FROM customers WHERE email = ?1 AND deleted_at IS NULL'
+    ).bind(email).first<{ id: string }>();
+    if (customer) {
+      ctx.waitUntil(
+        env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
+          .bind(now, customer.id).run().catch(() => {})
+      );
+      return json(env, 200, { customerId: customer.id });
+    }
+    return json(env, 200, {});
+  }
+
+  return json(env, 400, { error: 'invalid id' });
 }
 
 /** メール確認リンクの検証 → 本登録（キー発行） */
@@ -452,7 +475,7 @@ async function handleAdminReissue(request: Request, env: Env, url: URL): Promise
  * 依頼だけでは既存キーに影響しない（無効化はリンクを開いてredeemした時のみ）ため、
  * 第三者が他人のアドレスを入れても実害はない。
  */
-async function handleReissueRequest(request: Request, env: Env): Promise<Response> {
+async function handleReissueRequest(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   if (!env.RESEND_API_KEY) {
     return json(env, 500, { error: '現在この機能は利用できません。お問い合わせください。' });
   }
@@ -500,6 +523,8 @@ async function handleReissueRequest(request: Request, env: Env): Promise<Respons
   });
   if (!res.ok) {
     console.error('[reissue] mail send failed:', res.status, (await res.text()).slice(0, 200));
+  } else {
+    ctx.waitUntil(notifySlack(env, `🔑 接続コード再発行リンクを自動送信: ${customer.name}（${email}）`));
   }
   return genericOk();
 }
@@ -510,7 +535,7 @@ async function handleReissueRequest(request: Request, env: Env): Promise<Respons
  * → 200 { apiKey } / 404 不明トークン / 410 使用済み・期限切れ
  * 成功時は同一顧客の既存キーをすべて suspended にする（紛失キーの悪用防止）。
  */
-async function handleReissueRedeem(request: Request, env: Env): Promise<Response> {
+async function handleReissueRedeem(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   let body: { token?: string };
   try {
     body = await request.json();
@@ -550,6 +575,12 @@ async function handleReissueRedeem(request: Request, env: Env): Promise<Response
       "INSERT INTO api_keys (id, customer_id, key_hash, plan, status, created_at) VALUES (?1, ?2, ?3, 'free', 'active', ?4)"
     ).bind(crypto.randomUUID(), row!.customer_id, keyHash, nowIso),
   ]);
+
+  const who = await env.DB.prepare(
+    'SELECT name, company, email FROM customers WHERE id = ?1'
+  ).bind(row!.customer_id).first<{ name: string; company: string; email: string }>();
+  ctx.waitUntil(notifySlack(env,
+    `✅ 接続コードが再発行されました: ${who?.company ?? '?'} ${who?.name ?? '?'}（${who?.email ?? row!.customer_id}）— 旧キーは無効化済み`));
 
   return json(env, 200, { apiKey });
 }
@@ -729,11 +760,11 @@ export default {
     }
 
     if (url.pathname === '/api/reissue/request' && request.method === 'POST') {
-      return handleReissueRequest(request, env);
+      return handleReissueRequest(request, env, ctx);
     }
 
     if (url.pathname === '/api/reissue/redeem' && request.method === 'POST') {
-      return handleReissueRedeem(request, env);
+      return handleReissueRedeem(request, env, ctx);
     }
 
     if (url.pathname === '/api/verify' && request.method === 'POST') {
