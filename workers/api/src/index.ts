@@ -24,7 +24,14 @@
 import { handleV1 } from './v1';
 import { extractToken, safeEqual } from './adminAuth';
 import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
-import { validateReissueToken, buildReissueUrl, REISSUE_TTL_HOURS, type ReissueTokenRow } from './reissue';
+import {
+  validateReissueToken,
+  buildReissueUrl,
+  canIssueReissueToken,
+  buildReissueEmailText,
+  REISSUE_TTL_HOURS,
+  type ReissueTokenRow,
+} from './reissue';
 
 export interface Env {
   DB: D1Database;
@@ -439,6 +446,65 @@ async function handleAdminReissue(request: Request, env: Env, url: URL): Promise
 }
 
 /**
+ * 公開: セルフサービス再発行の受付
+ * POST /api/reissue/request { email }
+ * → 登録メールアドレスなら再発行リンクを自動送信。該当が無くても同じ200を返す（アドレス列挙防止）。
+ * 依頼だけでは既存キーに影響しない（無効化はリンクを開いてredeemした時のみ）ため、
+ * 第三者が他人のアドレスを入れても実害はない。
+ */
+async function handleReissueRequest(request: Request, env: Env): Promise<Response> {
+  if (!env.RESEND_API_KEY) {
+    return json(env, 500, { error: '現在この機能は利用できません。お問い合わせください。' });
+  }
+  let body: { email?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return json(env, 400, { error: 'リクエスト形式が不正です。' });
+  }
+  const email = (body.email ?? '').trim().toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return json(env, 400, { error: 'メールアドレスの形式が正しくありません。' });
+  }
+
+  // 以降、該当の有無に関わらず同じレスポンスを返す（登録済みかどうかを外部から判別させない）
+  const genericOk = () => json(env, 200, { ok: true });
+
+  const customer = await env.DB.prepare(
+    'SELECT id, name FROM customers WHERE email = ?1 AND deleted_at IS NULL'
+  ).bind(email).first<{ id: string; name: string }>();
+  if (!customer) return genericOk();
+
+  const nowIso = new Date().toISOString();
+  const active = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM reissue_tokens WHERE customer_id = ?1 AND used_at IS NULL AND expires_at > ?2'
+  ).bind(customer.id, nowIso).first<{ n: number }>();
+  if (!canIssueReissueToken(active?.n ?? 0)) return genericOk();
+
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + REISSUE_TTL_HOURS * 3600_000).toISOString();
+  await env.DB.prepare(
+    'INSERT INTO reissue_tokens (token, customer_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)'
+  ).bind(token, customer.id, nowIso, expiresAt).run();
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: env.MAIL_FROM || MAIL_FROM_DEFAULT,
+      to: [email],
+      reply_to: env.CONTACT_NOTIFY_TO,
+      subject: '【Con-Sche】接続コードの再発行リンク',
+      text: buildReissueEmailText(customer.name, buildReissueUrl(REISSUE_DOCS_BASE, token)),
+    }),
+  });
+  if (!res.ok) {
+    console.error('[reissue] mail send failed:', res.status, (await res.text()).slice(0, 200));
+  }
+  return genericOk();
+}
+
+/**
  * 公開: ワンタイムトークンを引き換えて新しい接続コードを1回だけ返す
  * POST /api/reissue/redeem { token }
  * → 200 { apiKey } / 404 不明トークン / 410 使用済み・期限切れ
@@ -660,6 +726,10 @@ export default {
 
     if (url.pathname === '/api/admin/reissue' && request.method === 'POST') {
       return handleAdminReissue(request, env, url);
+    }
+
+    if (url.pathname === '/api/reissue/request' && request.method === 'POST') {
+      return handleReissueRequest(request, env);
     }
 
     if (url.pathname === '/api/reissue/redeem' && request.method === 'POST') {
