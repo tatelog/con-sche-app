@@ -24,6 +24,12 @@
   .copy:hover { background: #f1f5f9; }
   .copy.done { background: #dcfce7; border-color: #86efac; color: #166534; }
   .divider { border: none; border-top: 1px solid #e2e8f0; margin: 26px 0 4px; }
+  .input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; font-size: 1rem; margin-top: 6px; font-family: inherit; }
+  .input:focus { outline: 2px solid #1e3a8a; border-color: #1e3a8a; }
+  .btn:disabled { background: #94a3b8; cursor: default; }
+  button.btn { width: 100%; border: none; cursor: pointer; font-family: inherit; }
+  .notice { background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; padding: 12px 14px; font-size: .9rem; line-height: 1.8; color: #166534; margin-top: 16px; }
+  .error { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 14px; font-size: .9rem; line-height: 1.7; color: #991b1b; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -31,37 +37,61 @@
   <div class="logo">Con-Sche（コンスケ）</div>
   <div class="card">
     <h1>接続コードの再発行</h1>
-    <p>ご登録時に発行された接続コード（<strong>cs_live_...</strong>）を紛失された方向けの窓口です。<strong>ご登録時のメールアドレスから</strong>ご依頼ください。確認のうえ、個別に再発行してお送りします。</p>
+    <p>ご登録時に発行された接続コード（<strong>cs_live_...</strong>）を紛失された方向けの窓口です。</p>
+    <p><strong>ご登録時のメールアドレス</strong>を入力すると、再発行用のリンクが自動でそのアドレスに届きます（24時間有効・1回きり）。</p>
 
-    <h2>方法1: ボタンでメールを作成</h2>
-    <p>下のボタンを押すと、件名と本文が入力済みのメールが立ち上がります。そのまま送信してください。</p>
-    <a class="btn" href="mailto:contact@tatelog.biz?subject=%E6%8E%A5%E7%B6%9A%E3%82%B3%E3%83%BC%E3%83%89%E5%86%8D%E7%99%BA%E8%A1%8C%E3%81%AE%E3%81%8A%E9%A1%98%E3%81%84&body=%E6%8E%A5%E7%B6%9A%E3%82%B3%E3%83%BC%E3%83%89%EF%BC%88cs_live_...%EF%BC%89%E3%81%AE%E5%86%8D%E7%99%BA%E8%A1%8C%E3%82%92%E3%81%8A%E9%A1%98%E3%81%84%E3%81%97%E3%81%BE%E3%81%99%E3%80%82">
-      再発行を依頼するメールを作成
-    </a>
-    <p class="alt">※ボタンを押しても何も起きない場合は、お使いのパソコンにメールソフトが設定されていません。方法2をご利用ください。</p>
+    <label class="alt" for="req-email">ご登録時のメールアドレス</label>
+    <input type="email" id="req-email" class="input" placeholder="you@example.co.jp" autocomplete="email">
+    <button class="btn" id="req-btn">再発行リンクを送る</button>
+    <div class="notice" id="req-done" style="display:none">
+      ご登録が確認できた場合、入力いただいたメールアドレスに再発行リンクをお送りしました。数分待っても届かない場合は、迷惑メールフォルダをご確認のうえ、下記の窓口までご連絡ください。
+    </div>
+    <div class="error" id="req-error" style="display:none"></div>
 
     <hr class="divider">
 
-    <h2>方法2: コピーして送る（ボタンが動かない方）</h2>
-    <p>普段お使いのメール（Gmail・Outlookなど）で新規メールを作成し、以下をコピーして送信してください。</p>
+    <h2>うまくいかない場合（メールでのご依頼）</h2>
+    <p class="alt">リンクが届かない・登録メールアドレスが分からなくなった等の場合は、<strong>contact@tatelog.biz</strong> 宛に「接続コード再発行のお願い」とご連絡ください。個別に対応します。</p>
     <div class="field">
       <span class="field-label">宛先</span>
       <span class="field-value" id="v-to">contact@tatelog.biz</span>
       <button class="copy" data-target="v-to">コピー</button>
     </div>
-    <div class="field">
-      <span class="field-label">件名</span>
-      <span class="field-value" id="v-subject">接続コード再発行のお願い</span>
-      <button class="copy" data-target="v-subject">コピー</button>
-    </div>
-    <div class="field">
-      <span class="field-label">本文</span>
-      <span class="field-value" id="v-body">接続コード（cs_live_...）の再発行をお願いします。</span>
-      <button class="copy" data-target="v-body">コピー</button>
-    </div>
   </div>
 </div>
 <script>
+var REQ_API = 'https://con-sche-api.ishikawa-yutaka.workers.dev/api/reissue/request';
+var reqBtn = document.getElementById('req-btn');
+var reqEmail = document.getElementById('req-email');
+var reqDone = document.getElementById('req-done');
+var reqError = document.getElementById('req-error');
+
+reqBtn.addEventListener('click', function () {
+  var email = reqEmail.value.trim();
+  reqError.style.display = 'none';
+  if (!email || email.indexOf('@') < 1) {
+    reqError.textContent = 'メールアドレスを入力してください。';
+    reqError.style.display = 'block';
+    return;
+  }
+  reqBtn.disabled = true;
+  reqBtn.textContent = '送信中...';
+  fetch(REQ_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email })
+  }).then(function (r) {
+    if (!r.ok) { throw new Error('bad status'); }
+    reqDone.style.display = 'block';
+    reqBtn.style.display = 'none';
+  }).catch(function () {
+    reqError.textContent = '送信に失敗しました。時間をおいて再度お試しいただくか、下記の窓口までご連絡ください。';
+    reqError.style.display = 'block';
+    reqBtn.disabled = false;
+    reqBtn.textContent = '再発行リンクを送る';
+  });
+});
+
 document.querySelectorAll('.copy').forEach(function (btn) {
   btn.addEventListener('click', function () {
     var text = document.getElementById(btn.dataset.target).textContent;

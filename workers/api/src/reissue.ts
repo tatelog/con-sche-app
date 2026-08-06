@@ -35,3 +35,29 @@ export function validateReissueToken(row: ReissueTokenRow | null, nowIso: string
 export function buildReissueUrl(docsBase: string, token: string): string {
   return `${docsBase.replace(/\/+$/, '')}/reissue-code/?token=${token}`;
 }
+
+/** セルフサービス発行のスパム抑制: アクティブな（未使用・期限内）トークンが上限未満のときだけ発行する */
+export const REISSUE_MAX_ACTIVE_TOKENS = 3;
+
+export function canIssueReissueToken(activeCount: number): boolean {
+  return activeCount < REISSUE_MAX_ACTIVE_TOKENS;
+}
+
+/** 再発行リンクの自動送信メール本文（コードの平文は絶対に載せない） */
+export function buildReissueEmailText(name: string, url: string): string {
+  return [
+    `${name} 様`,
+    '',
+    'Con-Sche（コンスケ）の接続コード再発行のご依頼を受け付けました。',
+    `以下のリンクを開くと、新しい接続コードが1回だけ表示されます（有効期限: ${REISSUE_TTL_HOURS}時間）。`,
+    '',
+    url,
+    '',
+    '※表示されたコードは必ずコピーして、安全な場所に保管してください。',
+    '※新しいコードが発行されると、これまでのコードは無効になります。',
+    '※心当たりがない場合は、このメールを無視してください（リンクを開かない限り何も起こりません）。',
+    '',
+    '--',
+    '株式会社建ログ / Con-Sche',
+  ].join('\n');
+}
