@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>接続コードの再発行 | Con-Sche</title>
+<style>
+  body { font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; margin: 0; background: #f1f5f9; color: #1e293b; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 48px 20px; }
+  .card { background: #fff; border-radius: 12px; padding: 32px 28px; box-shadow: 0 1px 4px rgba(15, 23, 42, .08); }
+  h1 { font-size: 1.25rem; margin: 0 0 8px; color: #1e3a8a; }
+  p { line-height: 1.9; margin: 12px 0; font-size: .95rem; }
+  .btn { display: block; text-align: center; background: #1e3a8a; color: #fff; text-decoration: none; font-weight: 700; padding: 14px 20px; border-radius: 8px; margin: 24px 0 8px; font-size: 1rem; }
+  .btn:hover { background: #1d4ed8; }
+  .alt { font-size: .85rem; color: #64748b; }
+  .alt code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: .85rem; }
+  .logo { text-align: center; margin-bottom: 20px; font-weight: 900; color: #1e3a8a; font-size: 1.1rem; }
+  h2 { font-size: 1rem; margin: 28px 0 8px; color: #1e3a8a; }
+  .field { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+  .field-label { flex: 0 0 3.5em; font-size: .85rem; color: #64748b; }
+  .field-value { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-size: .9rem; overflow-wrap: anywhere; }
+  .copy { flex: 0 0 auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; font-size: .85rem; cursor: pointer; color: #1e3a8a; font-weight: 700; }
+  .copy:hover { background: #f1f5f9; }
+  .copy.done { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .divider { border: none; border-top: 1px solid #e2e8f0; margin: 26px 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">Con-Sche（コンスケ）</div>
+  <div class="card">
+    <h1>接続コードの再発行</h1>
+    <p>ご登録時に発行された接続コード（<strong>cs_live_...</strong>）を紛失された方向けの窓口です。<strong>ご登録時のメールアドレスから</strong>ご依頼ください。確認のうえ、個別に再発行してお送りします。</p>
+
+    <h2>方法1: ボタンでメールを作成</h2>
+    <p>下のボタンを押すと、件名と本文が入力済みのメールが立ち上がります。そのまま送信してください。</p>
+    <a class="btn" href="mailto:contact@tatelog.biz?subject=%E6%8E%A5%E7%B6%9A%E3%82%B3%E3%83%BC%E3%83%89%E5%86%8D%E7%99%BA%E8%A1%8C%E3%81%AE%E3%81%8A%E9%A1%98%E3%81%84&body=%E6%8E%A5%E7%B6%9A%E3%82%B3%E3%83%BC%E3%83%89%EF%BC%88cs_live_...%EF%BC%89%E3%81%AE%E5%86%8D%E7%99%BA%E8%A1%8C%E3%82%92%E3%81%8A%E9%A1%98%E3%81%84%E3%81%97%E3%81%BE%E3%81%99%E3%80%82">
+      再発行を依頼するメールを作成
+    </a>
+    <p class="alt">※ボタンを押しても何も起きない場合は、お使いのパソコンにメールソフトが設定されていません。方法2をご利用ください。</p>
+
+    <hr class="divider">
+
+    <h2>方法2: コピーして送る（ボタンが動かない方）</h2>
+    <p>普段お使いのメール（Gmail・Outlookなど）で新規メールを作成し、以下をコピーして送信してください。</p>
+    <div class="field">
+      <span class="field-label">宛先</span>
+      <span class="field-value" id="v-to">contact@tatelog.biz</span>
+      <button class="copy" data-target="v-to">コピー</button>
+    </div>
+    <div class="field">
+      <span class="field-label">件名</span>
+      <span class="field-value" id="v-subject">接続コード再発行のお願い</span>
+      <button class="copy" data-target="v-subject">コピー</button>
+    </div>
+    <div class="field">
+      <span class="field-label">本文</span>
+      <span class="field-value" id="v-body">接続コード（cs_live_...）の再発行をお願いします。</span>
+      <button class="copy" data-target="v-body">コピー</button>
+    </div>
+  </div>
+</div>
+<script>
+document.querySelectorAll('.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var text = document.getElementById(btn.dataset.target).textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      btn.textContent = 'コピー済み';
+      btn.classList.add('done');
+      setTimeout(function () { btn.textContent = 'コピー'; btn.classList.remove('done'); }, 2000);
+    });
+  });
+});
+</script>
+</body>
+</html>

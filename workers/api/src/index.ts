@@ -24,6 +24,7 @@
 import { handleV1 } from './v1';
 import { extractToken, safeEqual } from './adminAuth';
 import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
+import { validateReissueToken, buildReissueUrl, REISSUE_TTL_HOURS, type ReissueTokenRow } from './reissue';
 
 export interface Env {
   DB: D1Database;
@@ -394,6 +395,99 @@ async function handleAdminBroadcast(request: Request, env: Env, url: URL): Promi
   return json(env, errors.length ? 502 : 200, { sent, total: emails.length, errors });
 }
 
+const REISSUE_DOCS_BASE = 'https://con-sche-docs.pages.dev';
+
+/**
+ * 管理者用: 接続コード再発行のワンタイムリンクを発行する
+ * POST /api/admin/reissue { email } （要 ADMIN_STATS_TOKEN。認証失敗は404で存在を隠す）
+ * → 200 { url, email, name, company, expiresAt }
+ * コードの平文はメールに載せず、このリンクを利用者に送る運用。
+ */
+async function handleAdminReissue(request: Request, env: Env, url: URL): Promise<Response> {
+  const expected = env.ADMIN_STATS_TOKEN;
+  if (!expected || !safeEqual(extractToken(request.headers.get('Authorization'), url), expected)) {
+    return json(env, 404, { error: 'Not found' });
+  }
+  let body: { email?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return json(env, 400, { error: 'リクエスト形式が不正です。' });
+  }
+  const email = (body.email ?? '').trim().toLowerCase();
+  if (!email) return json(env, 400, { error: 'email は必須です。' });
+
+  const customer = await env.DB.prepare(
+    'SELECT id, name, company FROM customers WHERE email = ?1 AND deleted_at IS NULL'
+  ).bind(email).first<{ id: string; name: string; company: string }>();
+  if (!customer) return json(env, 404, { error: '該当する登録者が見つかりません。' });
+
+  const token = generateToken();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + REISSUE_TTL_HOURS * 3600_000);
+  await env.DB.prepare(
+    'INSERT INTO reissue_tokens (token, customer_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)'
+  ).bind(token, customer.id, now.toISOString(), expiresAt.toISOString()).run();
+
+  return json(env, 200, {
+    url: buildReissueUrl(REISSUE_DOCS_BASE, token),
+    email,
+    name: customer.name,
+    company: customer.company,
+    expiresAt: expiresAt.toISOString(),
+  });
+}
+
+/**
+ * 公開: ワンタイムトークンを引き換えて新しい接続コードを1回だけ返す
+ * POST /api/reissue/redeem { token }
+ * → 200 { apiKey } / 404 不明トークン / 410 使用済み・期限切れ
+ * 成功時は同一顧客の既存キーをすべて suspended にする（紛失キーの悪用防止）。
+ */
+async function handleReissueRedeem(request: Request, env: Env): Promise<Response> {
+  let body: { token?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return json(env, 400, { error: 'リクエスト形式が不正です。' });
+  }
+  const token = (body.token ?? '').trim();
+  if (!/^[0-9a-f]{64}$/.test(token)) return json(env, 404, { error: 'リンクが正しくありません。' });
+
+  const row = await env.DB.prepare(
+    'SELECT token, customer_id, created_at, expires_at, used_at FROM reissue_tokens WHERE token = ?1'
+  ).bind(token).first<ReissueTokenRow>();
+
+  const nowIso = new Date().toISOString();
+  const state = validateReissueToken(row ?? null, nowIso);
+  if (state === 'not_found') return json(env, 404, { error: 'リンクが正しくありません。' });
+  if (state === 'used') {
+    return json(env, 410, { error: 'このリンクは使用済みです。再発行が必要な場合はもう一度お問い合わせください。' });
+  }
+  if (state === 'expired') {
+    return json(env, 410, { error: `このリンクは期限切れです（有効期限${REISSUE_TTL_HOURS}時間）。もう一度お問い合わせください。` });
+  }
+
+  // used_at を条件付きUPDATEで立てる（同時アクセスでも1回しか成功しない）
+  const marked = await env.DB.prepare(
+    'UPDATE reissue_tokens SET used_at = ?1 WHERE token = ?2 AND used_at IS NULL'
+  ).bind(nowIso, token).run();
+  if (!marked.meta.changes) {
+    return json(env, 410, { error: 'このリンクは使用済みです。' });
+  }
+
+  const apiKey = generateApiKey();
+  const keyHash = await sha256Hex(apiKey);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE api_keys SET status = 'suspended' WHERE customer_id = ?1").bind(row!.customer_id),
+    env.DB.prepare(
+      "INSERT INTO api_keys (id, customer_id, key_hash, plan, status, created_at) VALUES (?1, ?2, ?3, 'free', 'active', ?4)"
+    ).bind(crypto.randomUUID(), row!.customer_id, keyHash, nowIso),
+  ]);
+
+  return json(env, 200, { apiKey });
+}
+
 /**
  * 運営用の読み取り専用集計（Cowork等の定期レポートが叩く）
  * - ADMIN_STATS_TOKEN 未設定なら404（OSSセルフホストでは存在しない扱い）
@@ -562,6 +656,14 @@ export default {
 
     if (url.pathname === '/api/admin/broadcast' && request.method === 'POST') {
       return handleAdminBroadcast(request, env, url);
+    }
+
+    if (url.pathname === '/api/admin/reissue' && request.method === 'POST') {
+      return handleAdminReissue(request, env, url);
+    }
+
+    if (url.pathname === '/api/reissue/redeem' && request.method === 'POST') {
+      return handleReissueRedeem(request, env);
     }
 
     if (url.pathname === '/api/verify' && request.method === 'POST') {

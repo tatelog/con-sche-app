@@ -86,6 +86,17 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_customer ON api_keys(customer_id);
 CREATE INDEX IF NOT EXISTS idx_contacts_created ON contacts(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_key ON usage_logs(key_id, created_at);
 
+-- 接続コード再発行のワンタイムトークン（24時間有効・1回きり）
+-- 発行: POST /api/admin/reissue（管理者） / 引き換え: POST /api/reissue/redeem（公開）
+CREATE TABLE IF NOT EXISTS reissue_tokens (
+  token TEXT PRIMARY KEY,
+  customer_id TEXT NOT NULL REFERENCES customers(id),
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_reissue_customer ON reissue_tokens(customer_id);
+
 -- アプリ内「お知らせ」の配信元（投稿はwrangler d1 executeのINSERTで行う）
 CREATE TABLE IF NOT EXISTS announcements (
   id TEXT PRIMARY KEY,
