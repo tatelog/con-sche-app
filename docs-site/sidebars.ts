@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'API・AI連携',
       items: [
+        'api/easy-start',
         'api/overview',
         'api/ai-recipes',
       ],
