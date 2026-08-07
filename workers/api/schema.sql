@@ -106,3 +106,16 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at);
+
+-- WebMCPツール利用ログ（誰が・どのツールを・いつ。工程表データは持たない）
+-- 記録: POST /api/webmcp-event（フロント src/webmcp/ のツール実行時）
+-- 将来の有料課金時は customer_id × 月 で集計して課金判定に使う
+CREATE TABLE IF NOT EXISTS webmcp_logs (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT,  -- customers.id（未登録・匿名は NULL）
+  tool TEXT NOT NULL,
+  ip TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webmcp_logs_customer ON webmcp_logs(customer_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_webmcp_logs_created ON webmcp_logs(created_at);
