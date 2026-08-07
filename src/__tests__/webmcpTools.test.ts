@@ -9,6 +9,8 @@ import {
   shiftActivityTool,
   updateActivityDurationTool,
   validateScheduleTool,
+  getActivitiesOnDateTool,
+  findActivitiesTool,
 } from '@/webmcp/tools'
 import { registerConScheTools, CON_SCHE_TOOL_NAMES } from '@/webmcp/register'
 
@@ -27,6 +29,7 @@ import { registerConScheTools, CON_SCHE_TOOL_NAMES } from '@/webmcp/register'
 // フィクスチャ: 3結合点・3作業（a1→a2 がクリティカル、a3 は並行でフロートあり）
 //   n1 --a1(5日)--> n2 --a2(3日)--> n3
 //   n1 ------------a3(2日)--------> n3   (フロート6日)
+// 行階層: rowIndex 0 = A工区/3F/躯体（a1, a2）、rowIndex 1 = B工区/2F/外構（a3）
 function makeFixture(): ADMExportData {
   return {
     version: '3.0.0',
@@ -48,7 +51,20 @@ function makeFixture(): ADMExportData {
       createActivity({ id: 'a2', name: '内装工事', fromNodeId: 'n2', toNodeId: 'n3', duration: 3, rowIndex: 0 }),
       createActivity({ id: 'a3', name: '外構工事', fromNodeId: 'n1', toNodeId: 'n3', duration: 2, rowIndex: 1 }),
     ],
-    hierarchy: { zones: [], rooms: [], detailCategories: [] },
+    hierarchy: {
+      zones: [
+        { id: 'z1', name: 'A工区', order: 0 },
+        { id: 'z2', name: 'B工区', order: 1 },
+      ],
+      rooms: [
+        { id: 'r1', zoneId: 'z1', name: '3F', order: 0 },
+        { id: 'r2', zoneId: 'z2', name: '2F', order: 0 },
+      ],
+      detailCategories: [
+        { id: 'd1', roomId: 'r1', name: '躯体', order: 0 },
+        { id: 'd2', roomId: 'r2', name: '外構', order: 0 },
+      ],
+    },
     masters: { zones: [], rooms: [], details: [] },
   }
 }
@@ -238,7 +254,119 @@ describe('validate_schedule', () => {
 })
 
 // --------------------------------------------------
-// 6. registerConScheTools
+// 6. get_activities_on_date
+//
+// フィクスチャの日付（開始 2026-08-03, dayWidth 30）:
+//   n1 x=0   → 2026-08-03
+//   n2 x=150 → 2026-08-08
+//   n3 x=300 → 2026-08-13
+//   a1 (n1→n2): 8/3〜8/7  a2 (n2→n3): 8/8〜8/12  a3 (n1→n3): 8/3〜8/12
+// --------------------------------------------------
+describe('get_activities_on_date', () => {
+  it('指定日に実施中の作業だけを返す（開始〜終了の範囲判定）', async () => {
+    loadFixture()
+    const result = await getActivitiesOnDateTool.execute({ date: '2026-08-04' })
+    const data = parseResult(result)
+
+    const ids = data.activities.map((a: any) => a.id)
+    expect(ids).toContain('a1')
+    expect(ids).toContain('a3')
+    expect(ids).not.toContain('a2') // a2は8/8開始でまだ先
+    expect(data.date).toBe('2026-08-04')
+  })
+
+  it('後半の日付では後続作業が返る', async () => {
+    loadFixture()
+    const result = await getActivitiesOnDateTool.execute({ date: '2026-08-09' })
+    const data = parseResult(result)
+
+    const ids = data.activities.map((a: any) => a.id)
+    expect(ids).toContain('a2')
+    expect(ids).toContain('a3')
+    expect(ids).not.toContain('a1') // a1は8/7で終了済み
+  })
+
+  it('工期の範囲外の日付では作業0件を返す（エラーにしない）', async () => {
+    loadFixture()
+    const result = await getActivitiesOnDateTool.execute({ date: '2026-12-01' })
+    const data = parseResult(result)
+    expect(data.activities).toHaveLength(0)
+  })
+
+  it('不正な日付形式はエラーを返す', async () => {
+    loadFixture()
+    const result = await getActivitiesOnDateTool.execute({ date: 'あした' })
+    expect(result.isError).toBe(true)
+  })
+})
+
+// --------------------------------------------------
+// 7. find_activities
+// --------------------------------------------------
+describe('find_activities', () => {
+  it('作業名の部分一致で検索し、開始日と「あと何日で開始か」を返す', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: '内装', fromDate: '2026-08-01' })
+    const data = parseResult(result)
+
+    expect(data.matches).toHaveLength(1)
+    const m = data.matches[0]
+    expect(m.id).toBe('a2')
+    expect(m.startDate).toBe('2026-08-08')
+    expect(m.endDate).toBe('2026-08-12')
+    expect(m.daysUntilStart).toBe(7) // 8/1から8/8まで7日
+  })
+
+  it('開始済みの作業は daysUntilStart が0以下になる', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: '躯体', fromDate: '2026-08-05' })
+    const data = parseResult(result)
+    expect(data.matches[0].daysUntilStart).toBeLessThanOrEqual(0)
+  })
+
+  it('一致なしは空リストを返す（エラーにしない）', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: 'コンクリート打設' })
+    const data = parseResult(result)
+    expect(data.matches).toHaveLength(0)
+  })
+
+  it('queryが空はエラーを返す', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: '' })
+    expect(result.isError).toBe(true)
+  })
+
+  it('工区名でも検索できる（行ヘッダーの位置情報にマッチ）', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: 'A工区' })
+    const data = parseResult(result)
+    const ids = data.matches.map((m: any) => m.id)
+    expect(ids).toContain('a1')
+    expect(ids).toContain('a2')
+    expect(ids).not.toContain('a3') // a3はB工区
+  })
+
+  it('複数語はAND検索（「2F 外構工事」→ B工区の外構工事だけ）', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: '2F 外構工事' })
+    const data = parseResult(result)
+    expect(data.matches).toHaveLength(1)
+    expect(data.matches[0].id).toBe('a3')
+  })
+
+  it('検索結果に工区・階の位置情報が含まれる', async () => {
+    loadFixture()
+    const result = await findActivitiesTool.execute({ query: '躯体工事' })
+    const data = parseResult(result)
+    expect(data.matches[0].location).toEqual(
+      expect.objectContaining({ zone: 'A工区', floor: '3F' })
+    )
+  })
+})
+
+// --------------------------------------------------
+// 8. registerConScheTools
 // --------------------------------------------------
 describe('registerConScheTools', () => {
   it('document が無い環境（SSR等）では何もせず、例外を投げない', () => {

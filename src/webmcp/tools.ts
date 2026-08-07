@@ -14,6 +14,7 @@
 
 import { useADMStore } from '@/stores/admStore'
 import { detectCycle } from '@/utils/admCpm'
+import { xToDate } from '@/utils/dateUtils'
 import type { Activity } from '@/types/adm'
 import type { MCPToolResult, ModelContextTool } from './types'
 
@@ -27,6 +28,19 @@ function ok(data: unknown): MCPToolResult {
 
 function err(message: string): MCPToolResult {
   return { content: [{ type: 'text', text: message }], isError: true }
+}
+
+/** 作業の行位置（工区・階・細目）。行ヘッダー階層が無い工程表では null */
+function activityLocation(a: Activity): { building?: string; zone: string; floor: string; detail: string } | null {
+  if (a.rowIndex === undefined) return null
+  const row = useADMStore.getState().getHierarchyRows()[a.rowIndex]
+  if (!row) return null
+  return {
+    ...(row.buildingName ? { building: row.buildingName } : {}),
+    zone: row.zoneName,
+    floor: row.roomName,
+    detail: row.detailName,
+  }
 }
 
 /** エージェントに返す作業サマリー */
@@ -45,6 +59,7 @@ function activitySummary(a: Activity) {
     isDummy: a.isDummy,
     startDate: a.startDate,
     endDate: a.endDate,
+    location: activityLocation(a),
   }
 }
 
@@ -266,10 +281,140 @@ export const validateScheduleTool: ModelContextTool = {
   },
 }
 
+// ======================================
+// 日付ユーティリティ（座標→カレンダー日付）
+// ======================================
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function toISODate(d: Date): string {
+  return d.toISOString().split('T')[0]
+}
+
+/** 作業のカレンダー日付をノード座標から計算する。開始=fromNodeの日、終了=toNodeの前日 */
+function activityDates(a: Activity): { startDate: string; endDate: string } | null {
+  const state = useADMStore.getState()
+  const fromNode = state.getNode(a.fromNodeId)
+  const toNode = state.getNode(a.toNodeId)
+  if (!fromNode || !toNode) return null
+  const projectStart = new Date(state.projectSettings.startDate)
+  const dayWidth = state.projectSettings.dayWidth || 30
+  const start = xToDate(fromNode.position.x, projectStart, dayWidth)
+  const end = xToDate(toNode.position.x, projectStart, dayWidth)
+  end.setDate(end.getDate() - 1) // toNodeの日は次作業の開始日
+  if (end.getTime() < start.getTime()) end.setTime(start.getTime())
+  return { startDate: toISODate(start), endDate: toISODate(end) }
+}
+
+/** ローカルタイムの今日をYYYY-MM-DDで返す */
+function todayISO(): string {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// ======================================
+// get_activities_on_date
+// ======================================
+
+export const getActivitiesOnDateTool: ModelContextTool = {
+  name: 'get_activities_on_date',
+  description:
+    'List the activities in progress on a given date (default: today). Use this to answer "what work happens today?". ' +
+    '指定日（省略時は今日）に実施中の作業一覧を返す。「今日は何の作業?」に使う。',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      date: { type: 'string', description: 'Date in YYYY-MM-DD (default: today)' },
+    },
+  },
+  async execute(args) {
+    const date = args.date === undefined || args.date === null ? todayISO() : String(args.date)
+    if (!DATE_RE.test(date)) {
+      return err(`日付は YYYY-MM-DD 形式で指定してください（指定: ${date}）。`)
+    }
+    const state = useADMStore.getState()
+    const activities = state
+      .getActivitiesArray()
+      .filter((a) => !a.isDummy)
+      .map((a) => ({ activity: a, dates: activityDates(a) }))
+      .filter(({ dates }) => dates !== null && dates.startDate <= date && date <= dates.endDate)
+      .map(({ activity, dates }) => ({ ...activitySummary(activity), ...dates }))
+
+    return ok({
+      date,
+      projectName: state.projectSettings.name,
+      activities,
+    })
+  },
+}
+
+// ======================================
+// find_activities
+// ======================================
+
+export const findActivitiesTool: ModelContextTool = {
+  name: 'find_activities',
+  description:
+    'Search activities by name and/or location (zone, floor, e.g. "3F A工区 コンクリート打設"). Multiple words are AND-matched. Returns dates plus days until start. Use this to answer "when is the concrete pour on 3F?". ' +
+    '作業名や工区・階で検索する（複数語はAND）。開始日・終了日と「あと何日で開始か」を返す。「3階A工区の打設いつ?」に使う。',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Words to match against activity name and location (zone/floor/detail). Space-separated words are AND-matched.',
+      },
+      fromDate: {
+        type: 'string',
+        description: 'Base date (YYYY-MM-DD) for daysUntilStart (default: today)',
+      },
+    },
+    required: ['query'],
+  },
+  async execute(args) {
+    const query = String(args.query ?? '').trim()
+    if (!query) {
+      return err('query に検索する作業名や工区・階（部分一致）を指定してください。')
+    }
+    const fromDate =
+      args.fromDate === undefined || args.fromDate === null ? todayISO() : String(args.fromDate)
+    if (!DATE_RE.test(fromDate)) {
+      return err(`fromDate は YYYY-MM-DD 形式で指定してください（指定: ${fromDate}）。`)
+    }
+    const tokens = query.split(/[\s　]+/).filter(Boolean)
+    const state = useADMStore.getState()
+    const base = new Date(fromDate)
+    const matches = state
+      .getActivitiesArray()
+      .filter((a) => !a.isDummy)
+      .filter((a) => {
+        const loc = activityLocation(a)
+        const haystack = [a.name, loc?.building, loc?.zone, loc?.floor, loc?.detail]
+          .filter(Boolean)
+          .join(' ')
+        return tokens.every((t) => haystack.includes(t))
+      })
+      .map((a) => {
+        const dates = activityDates(a)
+        const daysUntilStart = dates
+          ? Math.round((new Date(dates.startDate).getTime() - base.getTime()) / 86_400_000)
+          : null
+        return { ...activitySummary(a), ...(dates ?? {}), daysUntilStart }
+      })
+
+    return ok({ query, fromDate, matches })
+  },
+}
+
 export const ALL_TOOLS: ModelContextTool[] = [
   getScheduleTool,
   getActivityTool,
   shiftActivityTool,
   updateActivityDurationTool,
   validateScheduleTool,
+  getActivitiesOnDateTool,
+  findActivitiesTool,
 ]
