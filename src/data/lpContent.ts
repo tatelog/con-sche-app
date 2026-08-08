@@ -23,6 +23,29 @@ export const HERO = {
   title: '現地・現物の工程表を手元に',
   subtitle: '使えないとは言わせない。「絵に描いた餅」で終わる工程表から卒業しよう。',
   cta1: '無料で使う',
+  // 見出しは2行で見せるため、行ごとに分けて保持する
+  headlineTop: '建設業のネットワーク',
+  headlineMain: '工程表の決定版',
+  leadLines: [
+    '現場の経験×数字で工程に意味を持たせよう。',
+    '「絵に描いた餅」で終わる工程表から卒業しよう。',
+  ],
+  cta2: '操作説明',
+};
+
+/** 複数セクションで使い回す短い文言・見出しラベル */
+export const COMMON = {
+  ctaPrimary: '無料で使う',
+  ctaDocs: '操作説明',
+  ctaApiDocs: 'APIドキュメント',
+  stickyNote: 'Con-Scheは無料でご利用いただけます',
+  comparisonHeadCategory: '項目',
+  comparisonHeadBefore: '従来のやり方',
+  solutionProblemLabel: '課題',
+  solutionSolutionLabel: '解決',
+  solutionPointsLabel: 'ポイント',
+  stickyNoteReturning: 'おかえりなさい。続きから作業できます',
+  ctaOpenApp: 'アプリを開く',
 };
 
 export const PROBLEMS = {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, CircleAlert, Zap, ArrowDown } from 'lucide-react';
-import { SOLUTION } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 const videoMap: Record<string, string> = {
@@ -11,6 +11,7 @@ const videoMap: Record<string, string> = {
 };
 
 export default function SolutionSection() {
+  const { SOLUTION, COMMON } = useLP();
   const [activeTab, setActiveTab] = useState(0);
   const tab = SOLUTION.tabs[activeTab];
 
@@ -51,7 +52,7 @@ export default function SolutionSection() {
             <div className="bg-slate-50 rounded-xl p-4">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <CircleAlert size={15} className="text-slate-400" />
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">課題</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{COMMON.solutionProblemLabel}</span>
               </div>
               <p className="text-base font-bold text-slate-700">{tab.problem}</p>
             </div>
@@ -61,12 +62,12 @@ export default function SolutionSection() {
             <div className="bg-primary-50 rounded-xl p-4">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Zap size={15} className="text-primary-500" />
-                <span className="text-xs font-bold text-primary-500 uppercase tracking-wide">解決</span>
+                <span className="text-xs font-bold text-primary-500 uppercase tracking-wide">{COMMON.solutionSolutionLabel}</span>
               </div>
               <p className="text-base font-bold text-primary-700">{tab.solution}</p>
             </div>
             <div className="pt-3">
-              <h4 className="font-bold text-slate-800 mb-2">ポイント</h4>
+              <h4 className="font-bold text-slate-800 mb-2">{COMMON.solutionPointsLabel}</h4>
               <ul className="space-y-2">
                 {tab.points.map((point) => (
                   <li key={point} className="flex items-start gap-2">

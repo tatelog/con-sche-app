@@ -1,10 +1,11 @@
 import { Users, ClipboardList, Network } from 'lucide-react';
-import { PHILOSOPHY } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 const iconMap = { Users, ClipboardList, Network } as const;
 
 export default function PhilosophySection() {
+  const { PHILOSOPHY } = useLP();
   return (
     <SectionContainer bgColor="white">
       <h2 className="text-3xl font-black text-slate-800 text-center mb-3">{PHILOSOPHY.title}</h2>

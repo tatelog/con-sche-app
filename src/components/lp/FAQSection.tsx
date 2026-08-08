@@ -1,8 +1,9 @@
-import { FAQ } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 import FAQItem from './shared/FAQItem';
 
 export default function FAQSection() {
+  const { FAQ } = useLP();
   return (
     <SectionContainer id="faq" bgColor="white">
       <h2 className="text-3xl font-black text-slate-800 text-center mb-14">{FAQ.title}</h2>

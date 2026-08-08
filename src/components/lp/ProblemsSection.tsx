@@ -1,10 +1,11 @@
 import { ImageOff, Unlink, GitBranchPlus, HelpCircle, MessageCircle } from 'lucide-react';
-import { PROBLEMS } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 const iconMap = { ImageOff, Unlink, GitBranchPlus, HelpCircle } as const;
 
 export default function ProblemsSection() {
+  const { PROBLEMS } = useLP();
   return (
     <SectionContainer bgColor="gray">
       <h2 className="text-3xl font-black text-slate-800 text-center mb-14">{PROBLEMS.title}</h2>

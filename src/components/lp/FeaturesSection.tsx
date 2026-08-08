@@ -2,12 +2,13 @@ import {
   Tablet, Calculator, Network, Blocks,
   Database, Route, LayoutDashboard, ClipboardCheck,
 } from 'lucide-react';
-import { FEATURES } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 const iconMap = { Tablet, Calculator, Network, Blocks, Database, Route, LayoutDashboard, ClipboardCheck } as const;
 
 export default function FeaturesSection() {
+  const { FEATURES } = useLP();
   return (
     <SectionContainer id="features" bgColor="white">
       <h2 className="text-3xl font-black text-slate-800 text-center mb-14">{FEATURES.title}</h2>
