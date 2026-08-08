@@ -4,6 +4,7 @@ import ProblemsSection from '../components/lp/ProblemsSection';
 import PhilosophySection from '../components/lp/PhilosophySection';
 import SolutionSection from '../components/lp/SolutionSection';
 import FeaturesSection from '../components/lp/FeaturesSection';
+import AIIntegrationSection from '../components/lp/AIIntegrationSection';
 import ComparisonSection from '../components/lp/ComparisonSection';
 import WorkflowSection from '../components/lp/WorkflowSection';
 import PricingSection from '../components/lp/PricingSection';
@@ -21,6 +22,7 @@ export default function LPPage() {
       <PhilosophySection />
       <SolutionSection />
       <FeaturesSection />
+      <AIIntegrationSection />
       <ComparisonSection />
       <WorkflowSection />
       <PricingSection />
