@@ -119,3 +119,17 @@ CREATE TABLE IF NOT EXISTS webmcp_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_webmcp_logs_customer ON webmcp_logs(customer_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_webmcp_logs_created ON webmcp_logs(created_at);
+
+-- 認証に失敗したAPIリクエスト。「使おうとしたが弾かれた」利用者を把握するための記録。
+-- 認証前で key_id が確定しないため usage_logs には入れられず、別テーブルにする。
+-- APIコードは全体を保存しない（先頭12文字のみ。同一人物の再試行を追える最小限）
+CREATE TABLE IF NOT EXISTS auth_failures (
+  id TEXT PRIMARY KEY,
+  reason TEXT NOT NULL,  -- missing_header（未提示/形式不正） | invalid_code（該当なし） | suspended（停止中）
+  endpoint TEXT NOT NULL,
+  key_prefix TEXT,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_failures_created ON auth_failures(created_at);
