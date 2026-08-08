@@ -9,6 +9,9 @@ export default function HeroSection() {
       <div className="max-w-7xl mx-auto grid md:grid-cols-[2fr_3fr] gap-10 items-center">
         {/* Left: text */}
         <div>
+          <p className="text-xs md:text-sm font-bold tracking-widest text-primary-600 mb-3">
+            {HERO.tagline}
+          </p>
           <h1 className="font-black text-slate-800 mb-6">
             <span className="text-2xl md:text-3xl lg:text-4xl">{HERO.headlineTop}</span><br />
             <span className="text-3xl md:text-5xl lg:text-6xl">{HERO.headlineMain}</span>

@@ -1,8 +1,8 @@
-import { ImageOff, Unlink, GitBranchPlus, HelpCircle, MessageCircle } from 'lucide-react';
+import { ImageOff, Unlink, GitBranchPlus, HelpCircle, MessageCircle, Bot } from 'lucide-react';
 import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
-const iconMap = { ImageOff, Unlink, GitBranchPlus, HelpCircle } as const;
+const iconMap = { ImageOff, Unlink, GitBranchPlus, HelpCircle, Bot } as const;
 
 export default function ProblemsSection() {
   const { PROBLEMS } = useLP();

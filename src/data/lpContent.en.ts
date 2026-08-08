@@ -19,6 +19,7 @@ export const EN: Partial<LPContent> = {
     cta1: 'Start free',
     headlineTop: 'Arrow diagram scheduling',
     headlineMain: 'for construction',
+    tagline: 'Con-Sche — short for Construction Schedule',
     leadLines: [
       'Give your schedule meaning, with site experience and real numbers.',
       'No more schedules that stay on the wall.',
@@ -41,7 +42,7 @@ export const EN: Partial<LPContent> = {
   },
 
   PROBLEMS: {
-    title: 'Is your schedule just a picture on the wall?',
+    title: 'Why construction schedules stop working',
     items: [
       {
         icon: 'ImageOff' as const,
@@ -68,12 +69,12 @@ export const EN: Partial<LPContent> = {
           'Your manager asks what happens if steel erection runs three days late. You stare at the chart and have no answer.',
       },
       {
-        icon: 'HelpCircle' as const,
-        title: 'BIM data {never reaches the schedule}',
+        icon: 'Bot' as const,
+        title: 'AI {cannot read your schedule}',
         desc:
-          'BIM knows the area and volume of every room, yet the schedule is retyped from scratch in another tool. The data stays disconnected.',
+          'You use generative AI every day, yet the schedule sits inside a PDF or spreadsheet. There is no way to hand it over, so you end up pasting screenshots and explaining.',
         quote:
-          'The model says "3F Meeting Room: 45.2 m² floor area", and you type that number into the schedule by hand. So much for BIM.',
+          '"Can we get AI to sort this schedule out?" All you can do is take a screenshot and paste it in.',
       },
     ],
   },
