@@ -47,9 +47,29 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(detectInitialLocale);
 
+  // 英語は差分マージ。未翻訳のキーは日本語がそのまま残る
+  const content = useMemo<LPContent>(
+    () => (locale === 'en' ? { ...JA, ...EN } : JA),
+    [locale]
+  );
+
   useEffect(() => {
     document.documentElement.lang = locale;
-  }, [locale]);
+
+    // index.html のtitle/metaは日本語で静的に埋め込まれているため、切替時に上書きする
+    const { META } = content;
+    document.title = META.title;
+
+    const setMeta = (selector: string, value: string) => {
+      const el = document.head.querySelector<HTMLMetaElement>(selector);
+      if (el) el.content = value;
+    };
+    setMeta('meta[name="description"]', META.description);
+    setMeta('meta[property="og:title"]', META.ogTitle);
+    setMeta('meta[property="og:description"]', META.ogDescription);
+    setMeta('meta[name="twitter:title"]', META.ogTitle);
+    setMeta('meta[name="twitter:description"]', META.ogDescription);
+  }, [locale, content]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
@@ -59,12 +79,6 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
       // 保存できなくても切替自体は成立させる
     }
   }, []);
-
-  // 英語は差分マージ。未翻訳のキーは日本語がそのまま残る
-  const content = useMemo<LPContent>(
-    () => (locale === 'en' ? { ...JA, ...EN } : JA),
-    [locale]
-  );
 
   const value = useMemo(() => ({ locale, setLocale, content }), [locale, setLocale, content]);
 

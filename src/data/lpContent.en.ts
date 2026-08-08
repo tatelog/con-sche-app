@@ -27,6 +27,15 @@ export const EN: Partial<LPContent> = {
     cta2: 'How to use',
   },
 
+  META: {
+    title: 'Con-Sche | Free arrow diagram scheduling for construction',
+    description:
+      'A web app for construction schedules in arrow diagram (ADM) form. Durations from quantities and productivity rates, automatic critical path, AI integration over MCP and REST API. Free to use.',
+    ogTitle: 'Con-Sche | Arrow diagram scheduling AI can operate',
+    ogDescription:
+      'Automatic critical path, durations backed by quantities, and a schedule that AI agents can read and edit directly through WebMCP. Free to use.',
+  },
+
   COMMON: {
     ctaPrimary: 'Start free',
     ctaDocs: 'How to use',
@@ -154,20 +163,6 @@ export const EN: Partial<LPContent> = {
           'Custom rates can be registered',
         ],
       },
-      {
-        id: 'bim',
-        label: 'BIM/IFC (in preparation)',
-        problem: 'BIM data goes unused',
-        solution: 'Quantities pulled straight from IFC',
-        desc:
-          'We are building the ability to import member quantities from IFC files and link them to productivity rates.*',
-        note: '* This feature is currently in preparation.',
-        points: [
-          'Direct IFC file import',
-          'Automatic quantity extraction',
-          'Automatic linking to productivity rates',
-        ],
-      },
     ],
   },
 
@@ -211,10 +206,10 @@ export const EN: Partial<LPContent> = {
       },
       {
         icon: 'Blocks' as const,
-        title: 'BIM/IFC integration (in preparation)',
+        title: 'Let AI enter the quantities',
         desc:
-          'We are building the ability to read floors, rooms, areas and volumes from IFC files, so what you are building becomes the basis of the schedule.',
-        note: '* Currently in preparation',
+          'Through MCP and the integration API, AI can write quantities and activities straight into the schedule. Have AI read your drawings or take-off sheets, then pass the result directly to Con-Sche.',
+        note: 'WebMCP supported. Works with ChatGPT and Claude',
       },
       {
         icon: 'LayoutDashboard' as const,
@@ -261,10 +256,10 @@ export const EN: Partial<LPContent> = {
         example: 'Even new staff can identify the critical path',
       },
       {
-        category: 'BIM',
-        before: 'Quantities typed by hand',
-        after: 'Pulled from IFC (in preparation)',
-        example: 'No more copying from member schedules. * Currently in preparation',
+        category: 'Entering quantities',
+        before: 'Retyped by hand',
+        after: 'Written directly by AI over MCP',
+        example: 'AI reads the drawing and writes the quantities into the schedule',
       },
       {
         category: 'On-site access',
@@ -297,8 +292,8 @@ export const EN: Partial<LPContent> = {
         a: 'Yes. You can enter durations directly without using the productivity rate master. Using rates gives you a better justified plan, but it is not required.',
       },
       {
-        q: 'Can I use it without BIM/IFC files?',
-        a: 'Yes, absolutely. BIM data is not needed for normal scheduling. Importing quantities from IFC files is currently in preparation.',
+        q: 'How do I enter quantities?',
+        a: 'You can type them in, or have AI enter them for you through MCP or the integration API. Let AI read your drawings or take-off sheets and write the results straight into the schedule, so your durations keep their basis.',
       },
       {
         q: 'Does it work on tablets and phones?',
