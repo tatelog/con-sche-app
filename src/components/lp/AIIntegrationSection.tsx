@@ -1,5 +1,5 @@
 import { Bot, Plug, ShieldCheck, ArrowRight } from 'lucide-react';
-import { AI_INTEGRATION } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 const iconMap = { Bot, Plug, ShieldCheck } as const;
@@ -10,6 +10,7 @@ const methodColor: Record<string, string> = {
 };
 
 export default function AIIntegrationSection() {
+  const { AI_INTEGRATION } = useLP();
   const { title, lead, items, apiSample, cta } = AI_INTEGRATION;
 
   return (

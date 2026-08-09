@@ -7,6 +7,7 @@ import type { LPContent } from '../i18n';
 export const EN: Partial<LPContent> = {
   NAV_LINKS: [
     { label: 'Features', href: '#features' },
+    { label: 'AI integration', href: '#ai-integration' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'FAQ', href: '#faq' },
     { label: 'Contact', href: 'https://tatelog.biz/contact/' },
@@ -115,6 +116,49 @@ export const EN: Partial<LPContent> = {
         emphasis: 'It makes visible the connections a bar chart hides.',
       },
     ],
+  },
+
+  AI_INTEGRATION: {
+    title: 'AI can operate the schedule directly.',
+    lead:
+      'Rather than exporting data for AI to read, AI operates Con-Sche itself. ' +
+      'Ask "what is scheduled for next week" or "what follows this activity", and the AI reads the schedule and answers.',
+    items: [
+      {
+        icon: 'Bot' as const,
+        title: 'Your browser AI operates it as-is',
+        desc:
+          'With Con-Sche open, an in-browser AI agent can read and edit the schedule. ' +
+          'WebMCP (document.modelContext) is supported — no setup, no installation.',
+        note: 'Tools: read schedule / query activities by date / search activities',
+      },
+      {
+        icon: 'Plug' as const,
+        title: 'Use it from ChatGPT and Claude',
+        desc:
+          'The API code issued at sign-up lets external AI and systems work with your schedule data. ' +
+          'Critical path calculation and schedule file conversion are available as API calls.',
+        note: 'OpenAPI 3.1 specification published',
+      },
+      {
+        icon: 'ShieldCheck' as const,
+        title: 'Schedule data stays with you',
+        desc:
+          'Operations completed in the browser never send schedule data to our servers, ' +
+          'so confidential project information stays where it belongs.',
+        note: 'Only the integration API transmits the data it needs',
+      },
+    ],
+    apiSample: {
+      label: 'Integration API',
+      endpoints: [
+        { method: 'POST', path: '/api/v1/cpm', desc: 'Calculate critical path and float' },
+        { method: 'POST', path: '/api/v1/convert', desc: 'Convert between schedule JSON and .csa' },
+        { method: 'GET', path: '/api/v1/usage', desc: 'Check this month’s usage' },
+      ],
+      note: 'Free tier: 90 points per month (about 45 read calls)',
+    },
+    cta: { label: 'Read the AI integration docs', href: '/api-docs' },
   },
 
   SOLUTION: {
