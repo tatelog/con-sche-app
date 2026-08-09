@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 全サイズ共通アイコン（文字入り）
+       小サイズで文字が最初に潰れるため、図案を上へ小さめに寄せ、
+       文字は太く大きく取って可読性を優先している -->
+  <rect width="512" height="512" rx="112" fill="#3b82f6"/>
+
+  <!-- 図案: 上半分に配置 -->
+  <g transform="translate(256,206) scale(0.72) translate(-256,-256)">
+    <g stroke="#ffffff" stroke-width="30" stroke-linecap="round" fill="none">
+      <path d="M136 168 H300"/>
+      <path d="M136 344 H300"/>
+      <path d="M300 168 L376 256"/>
+      <path d="M300 344 L376 256"/>
+    </g>
+    <g stroke="#ef4444" stroke-width="30" stroke-linecap="round" fill="none">
+      <path d="M136 256 H376"/>
+    </g>
+    <g fill="#ffffff">
+      <circle cx="136" cy="168" r="36"/>
+      <circle cx="136" cy="256" r="36"/>
+      <circle cx="136" cy="344" r="36"/>
+      <circle cx="376" cy="256" r="42"/>
+    </g>
+  </g>
+
+  <!-- 文字: 下半分いっぱいに -->
+  <text x="256" y="418" text-anchor="middle" fill="#ffffff"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="96" font-weight="800" letter-spacing="-3">Con-Sche</text>
+</svg>

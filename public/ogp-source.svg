@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- SNS共有カード用（1200x630）。正方形アイコンの流用より情報量を持たせる -->
+  <rect width="1200" height="630" fill="#ffffff"/>
+  <rect width="1200" height="12" fill="#3b82f6"/>
+
+  <!-- 左: 図案 -->
+  <g transform="translate(96,150) scale(0.62)">
+    <rect width="512" height="512" rx="112" fill="#3b82f6"/>
+    <g stroke="#ffffff" stroke-width="26" stroke-linecap="round" fill="none">
+      <path d="M136 168 H300"/>
+      <path d="M136 344 H300"/>
+      <path d="M300 168 L376 256"/>
+      <path d="M300 344 L376 256"/>
+    </g>
+    <g stroke="#ef4444" stroke-width="26" stroke-linecap="round" fill="none">
+      <path d="M136 256 H376"/>
+    </g>
+    <g fill="#ffffff">
+      <circle cx="136" cy="168" r="34"/>
+      <circle cx="136" cy="256" r="34"/>
+      <circle cx="136" cy="344" r="34"/>
+      <circle cx="376" cy="256" r="40"/>
+    </g>
+  </g>
+
+  <!-- 右: テキスト -->
+  <g font-family="'Helvetica Neue', 'Hiragino Sans', 'Yu Gothic UI', Arial, sans-serif">
+    <text x="512" y="248" fill="#1e293b" font-size="82" font-weight="800" letter-spacing="-2">Con-Sche</text>
+    <text x="512" y="300" fill="#3b82f6" font-size="30" font-weight="700">コンスケ ／ Construction Schedule</text>
+    <text x="512" y="378" fill="#334155" font-size="34" font-weight="600">建設業のネットワーク工程表</text>
+    <text x="512" y="430" fill="#64748b" font-size="28">歩掛×数量で工期を算出・クリティカルパス自動計算</text>
+    <text x="512" y="474" fill="#64748b" font-size="28">AIが直接操作できる工程表（WebMCP対応）</text>
+  </g>
+
+  <text x="1104" y="556" text-anchor="end" fill="#94a3b8"
+        font-family="'Helvetica Neue', Arial, sans-serif" font-size="24">con-sche.tatelog.biz</text>
+</svg>
