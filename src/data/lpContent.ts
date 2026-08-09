@@ -14,6 +14,7 @@ export const CONTACT = {
 
 export const NAV_LINKS = [
   { label: '機能', href: '#features' },
+  { label: 'AI連携', href: '#ai-integration' },
   { label: '料金', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
   { label: 'お問い合わせ', href: 'https://tatelog.biz/contact/' },
@@ -276,6 +277,49 @@ export const CTA_FINAL = {
   title: '「絵に描いた餅」とは言わせない。',
   subtitle: 'まずは、ネットワーク工程表の深化を体感してください。',
   cta: '無料で使う',
+};
+
+export const AI_INTEGRATION = {
+  title: 'AIが、工程表を直接さわれる。',
+  lead:
+    '工程データをAIに渡すのではなく、AIがCon-Scheそのものを操作します。' +
+    '「来週の作業を教えて」「この作業の後工程は？」と聞けば、AIが工程表を読んで答えます。',
+  items: [
+    {
+      icon: 'Bot' as const,
+      title: 'ブラウザのAIがそのまま操作',
+      desc:
+        'Con-Scheを開いた状態で、ブラウザ内のAIエージェントが工程表を読み書きできます。' +
+        'WebMCP（document.modelContext）に対応済み。設定もインストールも不要です。',
+      note: '対応ツール: 工程表の取得 / 日付ごとの作業照会 / 作業検索',
+    },
+    {
+      icon: 'Plug' as const,
+      title: 'ChatGPT・Claudeから使える',
+      desc:
+        '利用登録で発行されるAPIコードを使えば、外部のAIやシステムから工程データを扱えます。' +
+        'クリティカルパス計算や工程ファイルの変換をAPIとして呼び出せます。',
+      note: 'OpenAPI 3.1 仕様書を公開中',
+    },
+    {
+      icon: 'ShieldCheck' as const,
+      title: '工程データは外に出ない',
+      desc:
+        'ブラウザ内で完結する操作では、工程データがサーバーへ送信されることはありません。' +
+        '機密性の高い工事情報でも安心して扱えます。',
+      note: '連携APIを使う場合のみ、必要なデータが送信されます',
+    },
+  ],
+  apiSample: {
+    label: '連携APIの例',
+    endpoints: [
+      { method: 'POST', path: '/api/v1/cpm', desc: 'クリティカルパス・フロートを計算' },
+      { method: 'POST', path: '/api/v1/convert', desc: '工程JSON ⇔ .csa ファイル変換' },
+      { method: 'GET', path: '/api/v1/usage', desc: '当月の利用量を照会' },
+    ],
+    note: '無料枠 月90ポイント（読み取り45回相当）',
+  },
+  cta: { label: 'AI連携ドキュメントを見る', href: '/api-docs' },
 };
 
 export const FOOTER = {
