@@ -1,7 +1,9 @@
-import { CTA_FINAL, APP_URL } from '../../data/lpContent';
+import { APP_URL } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import CTAButton from './shared/CTAButton';
 
 export default function CTASection() {
+  const { CTA_FINAL, COMMON } = useLP();
   return (
     <section className="bg-gradient-to-r from-primary-600 to-primary-800 px-6 py-14">
       <div className="max-w-xl mx-auto text-center">
@@ -17,7 +19,7 @@ export default function CTASection() {
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center rounded-xl px-8 py-4 text-lg font-bold border-2 border-white text-white hover:bg-white/10 transition-all duration-300"
           >
-            操作説明
+            {COMMON.ctaDocs}
           </a>
         </div>
       </div>

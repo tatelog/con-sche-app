@@ -1,10 +1,11 @@
 import { Tablet, MousePointerClick, Users, ArrowRight } from 'lucide-react';
-import { WORKFLOW } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 const iconMap = { Tablet, MousePointerClick, Users } as const;
 
 export default function WorkflowSection() {
+  const { WORKFLOW } = useLP();
   return (
     <SectionContainer bgColor="white">
       <h2 className="text-3xl font-black text-slate-800 text-center mb-14">{WORKFLOW.title}</h2>

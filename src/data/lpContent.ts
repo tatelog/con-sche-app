@@ -14,6 +14,7 @@ export const CONTACT = {
 
 export const NAV_LINKS = [
   { label: '機能', href: '#features' },
+  { label: 'AI連携', href: '#ai-integration' },
   { label: '料金', href: '#pricing' },
   { label: 'FAQ', href: '#faq' },
   { label: 'お問い合わせ', href: 'https://tatelog.biz/contact/' },
@@ -23,6 +24,44 @@ export const HERO = {
   title: '現地・現物の工程表を手元に',
   subtitle: '使えないとは言わせない。「絵に描いた餅」で終わる工程表から卒業しよう。',
   cta1: '無料で使う',
+  // 見出しは2行で見せるため、行ごとに分けて保持する
+  headlineTop: '建設業のネットワーク',
+  headlineMain: '工程表の決定版',
+  // 名前の由来。英語圏では "Con-Sche" だけでは何のツールか伝わらないため見出し上に置く
+  tagline: 'Con-Sche（コンスケ）＝ Construction Schedule',
+  leadLines: [
+    '現場の経験×数字で工程に意味を持たせよう。',
+    '「絵に描いた餅」で終わる工程表から卒業しよう。',
+  ],
+  cta2: '操作説明',
+};
+
+/**
+ * ページのtitle/meta。index.html は日本語で静的に書かれているため、
+ * 言語切替時にこの値でDOMを上書きする（共有時のカード表示も言語に追従させる）
+ */
+export const META = {
+  title: 'Con-Sche（コンスケ）| 建設業向けネットワーク工程表を無料で - ADM工程表アプリ',
+  description:
+    '建設現場のためのネットワーク工程表（ADM形式）Webアプリ。数量×歩掛で工程に根拠を。クリティカルパス自動計算、A3/A2印刷、タブレット対応。',
+  ogTitle: 'Con-Sche（コンスケ）| 建設業向けネットワーク工程表を無料で',
+  ogDescription:
+    '数量×歩掛で工程に根拠を。クリティカルパス自動計算・A3/A2印刷・タブレット対応のADM工程表アプリ。無料で使えます。',
+};
+
+/** 複数セクションで使い回す短い文言・見出しラベル */
+export const COMMON = {
+  ctaPrimary: '無料で使う',
+  ctaDocs: '操作説明',
+  ctaApiDocs: 'APIドキュメント',
+  stickyNote: 'Con-Scheは無料でご利用いただけます',
+  comparisonHeadCategory: '項目',
+  comparisonHeadBefore: '従来のやり方',
+  solutionProblemLabel: '課題',
+  solutionSolutionLabel: '解決',
+  solutionPointsLabel: 'ポイント',
+  stickyNoteReturning: 'おかえりなさい。続きから作業できます',
+  ctaOpenApp: 'アプリを開く',
 };
 
 export const PROBLEMS = {
@@ -47,10 +86,10 @@ export const PROBLEMS = {
       quote: '所長に「鉄骨が3日遅れた場合の影響は？」と聞かれて、工程表を眺めても答えが出ない。',
     },
     {
-      icon: 'HelpCircle' as const,
-      title: 'BIMのデータが工程に{使えない}',
-      desc: 'BIMって便利だし、諸室ごとの面積や体積が分かるのに、工程表は別のソフトでゼロから手入力。情報が分断されたまま。',
-      quote: 'BIMに「3F 会議室: 床面積 45.2m²」と入っているのに、工程表の数量欄に改めて手打ちしている。なんのためのBIMなんだか。',
+      icon: 'Bot' as const,
+      title: 'AIに聞いても{工程表は読めない}',
+      desc: '生成AIをこれだけ使っているのに、工程表はPDFやExcelの中。AIに渡す手段がなく、結局スクリーンショットを貼って説明することになる。',
+      quote: '「この工程、AIに整理させられない？」と言われても、画面を撮って貼るくらいしかできない。',
     },
   ],
 };
@@ -109,15 +148,6 @@ export const SOLUTION = {
       note: '* 2026年2月時点の国土交通省 労務費基準ポータルサイト（roumuhi.mlit.go.jp）を参考にしています。',
       points: ['国交省の歩掛データベース内蔵', '数量入力で自動工期算出', 'カスタム歩掛の登録も可能'],
     },
-    {
-      id: 'bim',
-      label: 'BIM/IFC連携（準備中）',
-      problem: 'BIMデータが活用できない',
-      solution: 'IFCから数量を自動取得',
-      desc: 'BIMモデルのIFCファイルから部材数量を取り込み、歩掛と紐付けて工期を算出する機能を開発中です。*',
-      note: '* 現在準備中の機能です（近日対応予定）。',
-      points: ['IFCファイルの直接インポート', '部材数量の自動抽出', '歩掛との自動紐付け'],
-    },
   ],
 };
 
@@ -156,9 +186,9 @@ export const FEATURES = {
     },
     {
       icon: 'Blocks' as const,
-      title: 'BIM/IFC連携（準備中）',
-      desc: 'IFCファイルから階・部屋・面積・体積を自動取得し、造るものの数量をそのまま工程表の根拠にする機能を開発中です。',
-      note: '※ 現在準備中の機能です（近日対応予定）',
+      title: 'AIから数量を受け取る',
+      desc: 'MCP・連携APIを通じて、AIが工程表に直接数量や作業を入力できます。図面や資料をAIに読ませて、その結果をそのまま工程表へ渡せます。',
+      note: 'WebMCP対応。ChatGPT・Claudeからも利用可能',
     },
     {
       icon: 'LayoutDashboard' as const,
@@ -182,7 +212,7 @@ export const COMPARISON = {
     { category: '工期算出', before: '経験と勘', after: '歩掛×数量で自動算出', example: '「たぶん3ヶ月」→「歩掛から算出: 67日」' },
     { category: '依存関係', before: 'バーチャートでは見えない', after: 'ネットワーク工程表で可視化', example: '「配筋が遅れると型枠もコンクリも...」が一目瞭然' },
     { category: 'クリティカルパス', before: '経験者の頭の中', after: '自動計算・赤色で強調表示', example: '新人でもクリティカルパスを把握' },
-    { category: 'BIM活用', before: '数量を手打ち', after: 'IFCから自動取得（準備中）', example: '部材表→コピペの手間がゼロに ※ 現在準備中の機能です（近日対応予定）' },
+    { category: '数量の入力', before: '手打ちで転記', after: 'MCP経由でAIが直接入力', example: '図面を読ませたAIが、そのまま工程表へ数量を書き込む' },
     { category: '現場確認', before: '事務所に戻って確認', after: 'PWA対応でタブレットから', example: 'iPadで工程表を見ながら打合せ' },
     { category: 'データの根拠', before: '「前の現場では...」', after: '歩掛データベースに基づく', example: '誰が作っても一定の品質を確保 ※国交省の標準歩掛はごく一部です' },
   ],
@@ -230,7 +260,7 @@ export const FAQ = {
     { q: 'ネットワーク工程表とは何ですか？', a: 'ネットワーク工程表（ADM: Arrow Diagram Method）は、作業間の依存関係を矢線で表現する工程表です。クリティカルパスが自動で算出されるため、どの作業が全体工期に影響するかが一目で分かります。国交省の大規模工事でも採用されている方式です。' },
     { q: '操作は難しくないですか？', a: '右クリック・Ctrl・Spaceキーの3つの操作で工程表の作成が完結します。専用ソフトのような複雑なメニューはありません。' },
     { q: '歩掛データなしでも使えますか？', a: 'はい。歩掛マスタを使わずに、直接日数を手入力して工程表を作成できます。歩掛を使うとより根拠のある計画になりますが、必須ではありません。' },
-    { q: 'BIM/IFCファイルがなくても使えますか？', a: 'はい、まったく問題ありません。基本的な工程表作成にBIMデータは不要です。なお、IFCファイルからの数量取り込みは現在準備中で、近日対応予定です。' },
+    { q: '数量はどうやって入力しますか？', a: '手入力のほか、MCP・連携APIを通じてAIに入力してもらうこともできます。図面や数量表をAIに読ませ、その結果を工程表へ直接書き込ませる使い方ができるため、数量の根拠を持ったまま工程を組めます。' },
     { q: 'タブレットやスマホで使えますか？', a: 'はい。PWA対応なのでブラウザからアクセスでき、ホーム画面に追加すればアプリのように使えます。Chrome・Edge・Safari対応で、オフラインでも動作します。' },
     { q: 'データはどこに保存されますか？', a: 'お使いの端末のブラウザ内（IndexedDB）に自動保存されます。また、工程表をファイル（.csa形式）として書き出し、別の端末で読み込むこともできます。工程表データがサーバーに送信されることはありません。' },
     { q: '本当に無料ですか？', a: 'はい。エディタの全機能を無料でご利用いただけます。ご利用開始時に氏名・会社名・メールアドレスの登録をお願いしています。連携API（CPM計算・ファイル変換）も月間の無料枠内で無料でお試しいただけます。無料枠を超える本格的なシステム連携は個別契約にて承ります。' },
@@ -247,6 +277,49 @@ export const CTA_FINAL = {
   title: '「絵に描いた餅」とは言わせない。',
   subtitle: 'まずは、ネットワーク工程表の深化を体感してください。',
   cta: '無料で使う',
+};
+
+export const AI_INTEGRATION = {
+  title: 'AIが、工程表を直接さわれる。',
+  lead:
+    '工程データをAIに渡すのではなく、AIがCon-Scheそのものを操作します。' +
+    '「来週の作業を教えて」「この作業の後工程は？」と聞けば、AIが工程表を読んで答えます。',
+  items: [
+    {
+      icon: 'Bot' as const,
+      title: 'ブラウザのAIがそのまま操作',
+      desc:
+        'Con-Scheを開いた状態で、ブラウザ内のAIエージェントが工程表を読み書きできます。' +
+        'WebMCP（document.modelContext）に対応済み。設定もインストールも不要です。',
+      note: '対応ツール: 工程表の取得 / 日付ごとの作業照会 / 作業検索',
+    },
+    {
+      icon: 'Plug' as const,
+      title: 'ChatGPT・Claudeから使える',
+      desc:
+        '利用登録で発行されるAPIコードを使えば、外部のAIやシステムから工程データを扱えます。' +
+        'クリティカルパス計算や工程ファイルの変換をAPIとして呼び出せます。',
+      note: 'OpenAPI 3.1 仕様書を公開中',
+    },
+    {
+      icon: 'ShieldCheck' as const,
+      title: '工程データは外に出ない',
+      desc:
+        'ブラウザ内で完結する操作では、工程データがサーバーへ送信されることはありません。' +
+        '機密性の高い工事情報でも安心して扱えます。',
+      note: '連携APIを使う場合のみ、必要なデータが送信されます',
+    },
+  ],
+  apiSample: {
+    label: '連携APIの例',
+    endpoints: [
+      { method: 'POST', path: '/api/v1/cpm', desc: 'クリティカルパス・フロートを計算' },
+      { method: 'POST', path: '/api/v1/convert', desc: '工程JSON ⇔ .csa ファイル変換' },
+      { method: 'GET', path: '/api/v1/usage', desc: '当月の利用量を照会' },
+    ],
+    note: '無料枠 月90ポイント（読み取り45回相当）',
+  },
+  cta: { label: 'AI連携ドキュメントを見る', href: '/api-docs' },
 };
 
 export const FOOTER = {

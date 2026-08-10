@@ -1,9 +1,11 @@
 import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { PRICING, APP_URL } from '../../data/lpContent';
+import { APP_URL } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import SectionContainer from './shared/SectionContainer';
 
 export default function PricingSection() {
+  const { PRICING, COMMON } = useLP();
   const { free, paid } = PRICING;
   return (
     <SectionContainer id="pricing" bgColor="gray">
@@ -40,7 +42,7 @@ export default function PricingSection() {
               rel="noopener noreferrer"
               className="text-center rounded-xl px-6 py-3 text-base font-bold border-2 border-primary-600 text-primary-600 hover:bg-primary-50 transition-colors"
             >
-              操作説明
+              {COMMON.ctaDocs}
             </a>
           </div>
         </div>
@@ -59,7 +61,7 @@ export default function PricingSection() {
               {paid.cta}
             </a>
             <Link to="/api-docs" className="text-sm text-slate-500 underline hover:text-slate-700">
-              APIドキュメント
+              {COMMON.ctaApiDocs}
             </Link>
           </div>
         </div>

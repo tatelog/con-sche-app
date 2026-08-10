@@ -1,23 +1,29 @@
-import { HERO, APP_URL } from '../../data/lpContent';
+import { APP_URL } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import CTAButton from './shared/CTAButton';
 
 export default function HeroSection() {
+  const { HERO } = useLP();
   return (
     <section className="bg-gradient-to-b from-primary-50 to-white px-6 py-20 md:py-32">
       <div className="max-w-7xl mx-auto grid md:grid-cols-[2fr_3fr] gap-10 items-center">
         {/* Left: text */}
         <div>
+          <p className="text-xs md:text-sm font-bold tracking-widest text-primary-600 mb-3">
+            {HERO.tagline}
+          </p>
           <h1 className="font-black text-slate-800 mb-6">
-            <span className="text-2xl md:text-3xl lg:text-4xl">建設業のネットワーク</span><br />
-            <span className="text-3xl md:text-5xl lg:text-6xl">工程表の決定版</span>
+            <span className="text-2xl md:text-3xl lg:text-4xl">{HERO.headlineTop}</span><br />
+            <span className="text-3xl md:text-5xl lg:text-6xl">{HERO.headlineMain}</span>
           </h1>
           <div className="text-base md:text-lg text-slate-500 leading-relaxed mb-10 space-y-1">
-            <p>現場の経験×数字で工程に意味を持たせよう。</p>
-            <p>「絵に描いた餅」で終わる工程表から卒業しよう。</p>
+            {HERO.leadLines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
           </div>
           <div className="flex flex-wrap gap-4">
             <CTAButton text={HERO.cta1} href={APP_URL.app} />
-            <CTAButton text="操作説明" href={APP_URL.docs} variant="secondary" />
+            <CTAButton text={HERO.cta2} href={APP_URL.docs} variant="secondary" />
           </div>
         </div>
 

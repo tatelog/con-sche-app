@@ -106,3 +106,30 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_announcements_created ON announcements(created_at);
+
+-- WebMCPツール利用ログ（誰が・どのツールを・いつ。工程表データは持たない）
+-- 記録: POST /api/webmcp-event（フロント src/webmcp/ のツール実行時）
+-- 将来の有料課金時は customer_id × 月 で集計して課金判定に使う
+CREATE TABLE IF NOT EXISTS webmcp_logs (
+  id TEXT PRIMARY KEY,
+  customer_id TEXT,  -- customers.id（未登録・匿名は NULL）
+  tool TEXT NOT NULL,
+  ip TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webmcp_logs_customer ON webmcp_logs(customer_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_webmcp_logs_created ON webmcp_logs(created_at);
+
+-- 認証に失敗したAPIリクエスト。「使おうとしたが弾かれた」利用者を把握するための記録。
+-- 認証前で key_id が確定しないため usage_logs には入れられず、別テーブルにする。
+-- APIコードは全体を保存しない（先頭12文字のみ。同一人物の再試行を追える最小限）
+CREATE TABLE IF NOT EXISTS auth_failures (
+  id TEXT PRIMARY KEY,
+  reason TEXT NOT NULL,  -- missing_header（未提示/形式不正） | invalid_code（該当なし） | suspended（停止中）
+  endpoint TEXT NOT NULL,
+  key_prefix TEXT,
+  ip TEXT,
+  user_agent TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_failures_created ON auth_failures(created_at);

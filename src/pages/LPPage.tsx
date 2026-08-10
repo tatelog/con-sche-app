@@ -4,6 +4,7 @@ import ProblemsSection from '../components/lp/ProblemsSection';
 import PhilosophySection from '../components/lp/PhilosophySection';
 import SolutionSection from '../components/lp/SolutionSection';
 import FeaturesSection from '../components/lp/FeaturesSection';
+import AIIntegrationSection from '../components/lp/AIIntegrationSection';
 import ComparisonSection from '../components/lp/ComparisonSection';
 import WorkflowSection from '../components/lp/WorkflowSection';
 import PricingSection from '../components/lp/PricingSection';
@@ -11,9 +12,11 @@ import FAQSection from '../components/lp/FAQSection';
 import CTASection from '../components/lp/CTASection';
 import LPFooter from '../components/lp/LPFooter';
 import StickyBottomCTA from '../components/lp/StickyBottomCTA';
+import { LocaleProvider } from '../i18n';
 
 export default function LPPage() {
   return (
+    <LocaleProvider>
     <div className="min-h-screen">
       <LPHeader />
       <HeroSection />
@@ -21,6 +24,7 @@ export default function LPPage() {
       <PhilosophySection />
       <SolutionSection />
       <FeaturesSection />
+      <AIIntegrationSection />
       <ComparisonSection />
       <WorkflowSection />
       <PricingSection />
@@ -29,5 +33,6 @@ export default function LPPage() {
       <LPFooter />
       <StickyBottomCTA />
     </div>
+    </LocaleProvider>
   );
 }

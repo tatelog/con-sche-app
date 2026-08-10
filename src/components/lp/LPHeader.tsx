@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-import { NAV_LINKS, APP_URL } from '../../data/lpContent';
+import { APP_URL } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 import CTAButton from './shared/CTAButton';
+import LanguageToggle from './LanguageToggle';
 
 export default function LPHeader() {
+  const { NAV_LINKS, HERO } = useLP();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,7 +41,8 @@ export default function LPHeader() {
               {link.label}
             </a>
           ))}
-          <CTAButton text="無料で使う" href={APP_URL.app} />
+          <LanguageToggle />
+          <CTAButton text={HERO.cta1} href={APP_URL.app} />
         </div>
 
         {/* Mobile menu toggle */}
@@ -60,7 +64,8 @@ export default function LPHeader() {
               {link.label}
             </a>
           ))}
-          <CTAButton text="無料で使う" href={APP_URL.app} />
+          <LanguageToggle className="my-2" />
+          <CTAButton text={HERO.cta1} href={APP_URL.app} />
         </div>
       )}
     </header>

@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import { FOOTER } from '../../data/lpContent';
+import { useLP } from '../../i18n';
 
 export default function LPFooter() {
+  const { FOOTER } = useLP();
   return (
     <footer className="bg-slate-800 text-white px-6 py-8">
       <div className="max-w-7xl mx-auto">

@@ -30,6 +30,7 @@ const sidebars: SidebarsConfig = {
       label: 'API・AI連携',
       items: [
         'api/easy-start',
+        'api/webmcp',
         'api/overview',
         'api/ai-recipes',
       ],

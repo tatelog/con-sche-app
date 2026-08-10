@@ -40,23 +40,58 @@ interface AuthInfo {
 // 認証・計測
 // ======================================
 
+/**
+ * 認証失敗を記録する。usage_logs は key_id を必須とするため、認証前の失敗はここに残す。
+ * 「APIコードを持っているのに使われていない」が、未着手なのか入口で詰まったのかを見分けるため。
+ * 記録に失敗してもAPI応答は妨げない。
+ */
+async function recordAuthFailure(
+  env: Env,
+  reason: 'missing_header' | 'invalid_code' | 'suspended',
+  endpoint: string,
+  keyPrefix: string | null,
+  request: Request
+): Promise<void> {
+  try {
+    await env.DB.prepare(
+      'INSERT INTO auth_failures (id, reason, endpoint, key_prefix, ip, user_agent, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)'
+    ).bind(
+      crypto.randomUUID(),
+      reason,
+      endpoint,
+      keyPrefix,
+      request.headers.get('CF-Connecting-IP') ?? '',
+      (request.headers.get('User-Agent') ?? '').slice(0, 200),
+      new Date().toISOString()
+    ).run()
+  } catch {
+    // 計測の失敗で本来の応答を壊さない
+  }
+}
+
 async function authenticate(request: Request, env: Env): Promise<AuthInfo | Response> {
+  const endpoint = new URL(request.url).pathname
   const header = request.headers.get('Authorization') ?? ''
   const match = header.match(/^Bearer\s+(cs_live_[0-9a-f]+)$/i)
   if (!match) {
+    await recordAuthFailure(env, 'missing_header', endpoint, null, request)
     return json(env, 401, {
       error: 'APIコードが必要です。Authorization: Bearer cs_live_... の形式で指定してください。',
     })
   }
+  // コード全体は保存しない。再試行の同一性が分かる程度の先頭のみ
+  const keyPrefix = match[1].slice(0, 12)
   const keyHash = await sha256Hex(match[1])
   const row = await env.DB.prepare(
     'SELECT id, customer_id, plan, status FROM api_keys WHERE key_hash = ?1'
   ).bind(keyHash).first<{ id: string; customer_id: string; plan: string; status: string }>()
 
   if (!row) {
+    await recordAuthFailure(env, 'invalid_code', endpoint, keyPrefix, request)
     return json(env, 401, { error: 'APIコードが無効です。' })
   }
   if (row.status !== 'active') {
+    await recordAuthFailure(env, 'suspended', endpoint, keyPrefix, request)
     return json(env, 403, { error: 'このAPIコードは停止されています。お問い合わせください。' })
   }
   return { keyId: row.id, customerId: row.customer_id, plan: row.plan }

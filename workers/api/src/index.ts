@@ -22,6 +22,7 @@
  */
 
 import { handleV1 } from './v1';
+import { handleWebmcpEvent } from './webmcpEvent';
 import { extractToken, safeEqual } from './adminAuth';
 import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
 import {
@@ -773,6 +774,10 @@ export default {
 
     if (url.pathname === '/api/ping' && request.method === 'POST') {
       return handlePing(request, env, ctx);
+    }
+
+    if (url.pathname === '/api/webmcp-event' && request.method === 'POST') {
+      return handleWebmcpEvent(request, env, ctx);
     }
 
     if (url.pathname !== '/api/register' || request.method !== 'POST') {
