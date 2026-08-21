@@ -15,6 +15,7 @@ import { IfcMappingPanel } from '@/components/panels/IfcMappingPanel'
 import { useADMStore } from '@/stores/admStore'
 import { useUIStore } from '@/stores/uiStore'
 import { PanelRightOpen, X } from 'lucide-react'
+import { sendActivePing } from '@/activePing'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -27,7 +28,6 @@ function useIsMobile() {
 }
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
-const REGISTRATION_KEY = 'consche_registration'
 
 function App() {
   const isMobile = useIsMobile()
@@ -35,34 +35,12 @@ function App() {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const pingedRef = useRef(false)
 
-  // 起動時ping: アクティブユーザーを記録する
-  // customerId が無い端末（メール確認方式の登録）は登録時メールで照合し、
-  // サーバーが返した customerId を保存して次回から自己修復する
+  // 起動時ping: アクティブ状況を記録する。
+  // 身元が分からなくても人数だけは数えられるよう、匿名でも送る（詳細は activePing.ts）
   useEffect(() => {
     if (pingedRef.current) return
     pingedRef.current = true
-    try {
-      const raw = localStorage.getItem(REGISTRATION_KEY)
-      const state = raw ? (JSON.parse(raw) as { customerId?: string; email?: string }) : {}
-      const headers: Record<string, string> = {}
-      if (state.customerId) {
-        headers['X-Consche-Id'] = state.customerId
-      } else if (state.email) {
-        headers['X-Consche-Email'] = state.email
-      } else {
-        return
-      }
-      fetch(`${API_BASE}/api/ping`, { method: 'POST', headers })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((body: { customerId?: string } | null) => {
-          if (body?.customerId && !state.customerId) {
-            localStorage.setItem(REGISTRATION_KEY, JSON.stringify({ ...state, customerId: body.customerId }))
-          }
-        })
-        .catch(() => {})
-    } catch {
-      // localStorageアクセス失敗は無視
-    }
+    void sendActivePing(API_BASE)
   }, [])
 
   // 自動保存 + 起動時復元

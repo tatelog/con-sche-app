@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS customers (
   created_at TEXT NOT NULL,
   ip TEXT,
   deleted_at TEXT,  -- 論理削除（NULL=有効）。削除時はapi_keysもstatus='suspended'にすること
-  opt_out_at TEXT  -- 案内メール配信停止の申し出日時（NULL=配信可。宛先抽出時にWHERE除外）
+  opt_out_at TEXT,  -- 案内メール配信停止の申し出日時（NULL=配信可。宛先抽出時にWHERE除外）
+  last_seen_at TEXT  -- アプリを最後に開いた日時。/api/ping で更新（NULL=一度も記録されていない）
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -133,3 +134,18 @@ CREATE TABLE IF NOT EXISTS auth_failures (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_auth_failures_created ON auth_failures(created_at);
+
+-- アプリ起動の日次ユニーク訪問。
+-- last_seen_at だけでは「登録者の身元が分かる端末」しか数えられず、2026-08-21 時点で
+-- 85人中1人しか記録されていなかった。誰か分からなくても人数だけは取れるようにする。
+-- visitor_id: 身元が分かるときは customers.id、分からないときはサーバー発行の匿名ID。
+CREATE TABLE IF NOT EXISTS app_pings (
+  day TEXT NOT NULL,          -- YYYY-MM-DD（UTC）
+  visitor_id TEXT NOT NULL,
+  customer_id TEXT,           -- 身元が判明している場合のみ入る
+  first_at TEXT NOT NULL,
+  last_at TEXT NOT NULL,
+  PRIMARY KEY (day, visitor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_app_pings_day ON app_pings(day);
+CREATE INDEX IF NOT EXISTS idx_app_pings_customer ON app_pings(customer_id, day);
