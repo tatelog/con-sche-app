@@ -199,40 +199,72 @@ async function issueCustomerKey(
 }
 
 /**
- * アプリ起動ping: last_seen_at を更新してアクティブ状況を記録する
+ * アプリ起動ping: アクティブ状況を記録する
  * - X-Consche-Id（customerId）があればそれで記録
  * - 無ければ X-Consche-Email（登録メール）で照合して記録し、customerId を返す。
  *   メール確認方式の登録では端末に customerId が残らないため、この応答で
  *   フロントが localStorage に保存して自己修復する（既存ユーザー救済）。
+ * - どちらも無い場合も 400 にせず匿名として数える（2026-08-21 変更）。
+ *   旧実装はここで弾いていたため、別端末・履歴削除・customerId 保存前に登録した人が
+ *   まるごと計測から抜け、85人中1人しか last_seen_at が付いていなかった。
+ *   匿名IDはサーバーが発行して返し、次回以降は同じ人として数える。
  */
 async function handlePing(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const now = new Date().toISOString();
+  const day = now.slice(0, 10);
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-  const customerId = (request.headers.get('X-Consche-Id') ?? '').trim();
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(customerId)) {
-    ctx.waitUntil(
-      env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
-        .bind(now, customerId).run().catch(() => {})
-    );
-    return json(env, 200, {});
-  }
+  let customerId = (request.headers.get('X-Consche-Id') ?? '').trim();
+  if (!UUID_RE.test(customerId)) customerId = '';
 
-  const email = (request.headers.get('X-Consche-Email') ?? '').trim().toLowerCase();
-  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    const customer = await env.DB.prepare(
-      'SELECT id FROM customers WHERE email = ?1 AND deleted_at IS NULL'
-    ).bind(email).first<{ id: string }>();
-    if (customer) {
-      ctx.waitUntil(
-        env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
-          .bind(now, customer.id).run().catch(() => {})
-      );
-      return json(env, 200, { customerId: customer.id });
+  // メールから身元を引き当てられた場合だけ、応答で customerId を返して端末に覚えさせる
+  let resolvedFromEmail = false;
+  if (!customerId) {
+    const email = (request.headers.get('X-Consche-Email') ?? '').trim().toLowerCase();
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      const customer = await env.DB.prepare(
+        'SELECT id FROM customers WHERE email = ?1 AND deleted_at IS NULL'
+      ).bind(email).first<{ id: string }>();
+      if (customer) {
+        customerId = customer.id;
+        resolvedFromEmail = true;
+      }
     }
-    return json(env, 200, {});
   }
 
-  return json(env, 400, { error: 'invalid id' });
+  // 身元が分からないときの数え上げ用。端末が持っていなければ発行して返す
+  let anonId = (request.headers.get('X-Consche-Anon') ?? '').trim();
+  if (!/^anon-[0-9a-f-]{8,64}$/.test(anonId)) anonId = '';
+  let issuedAnonId = '';
+  if (!customerId && !anonId) {
+    issuedAnonId = `anon-${crypto.randomUUID()}`;
+    anonId = issuedAnonId;
+  }
+
+  const visitorId = customerId || anonId;
+
+  ctx.waitUntil((async () => {
+    try {
+      if (customerId) {
+        await env.DB.prepare('UPDATE customers SET last_seen_at = ?1 WHERE id = ?2')
+          .bind(now, customerId).run();
+      }
+      await env.DB.prepare(
+        `INSERT INTO app_pings (day, visitor_id, customer_id, first_at, last_at)
+         VALUES (?1, ?2, ?3, ?4, ?4)
+         ON CONFLICT(day, visitor_id) DO UPDATE SET
+           last_at = ?4,
+           customer_id = COALESCE(excluded.customer_id, app_pings.customer_id)`
+      ).bind(day, visitorId, customerId || null, now).run();
+    } catch {
+      // 計測の失敗でアプリ側を巻き込まない
+    }
+  })());
+
+  const body: { customerId?: string; anonId?: string } = {};
+  if (resolvedFromEmail) body.customerId = customerId;
+  if (issuedAnonId) body.anonId = issuedAnonId;
+  return json(env, 200, body);
 }
 
 /** メール確認リンクの検証 → 本登録（キー発行） */
