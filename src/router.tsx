@@ -5,7 +5,6 @@ import { lazyWithReload as lazy } from '@/utils/lazyWithReload';
 const PublicLayout = lazy(() => import('@/layouts/PublicLayout'));
 
 const LPPage = lazy(() => import('@/pages/LPPage'));
-const CompanyPage = lazy(() => import('@/pages/public/CompanyPage'));
 const TermsPage = lazy(() => import('@/pages/public/TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/public/PrivacyPolicyPage'));
 const ApiDocsPage = lazy(() => import('@/pages/public/ApiDocsPage'));
@@ -35,7 +34,6 @@ export const router = createBrowserRouter([
     element: <PublicLayout />,
     errorElement: <RouteError />,
     children: [
-      { path: '/company', element: <CompanyPage /> },
       { path: '/terms', element: <TermsPage /> },
       { path: '/privacy', element: <PrivacyPolicyPage /> },
       { path: '/api-docs', element: <ApiDocsPage /> },

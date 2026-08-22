@@ -324,9 +324,8 @@ export const AI_INTEGRATION = {
 
 export const FOOTER = {
   links: [
-    { label: '運営会社', href: '/company' },
     { label: '利用規約', href: '/terms' },
-    { label: 'プライバシーポリシー', href: '/privacy' },
+    { label: 'プライバシーポリシー', href: 'https://tatelog.biz/privacy' },
     { label: 'APIドキュメント', href: '/api-docs' },
     { label: '使い方マニュアル', href: 'https://con-sche-docs.pages.dev' },
     { label: 'GitHub', href: 'https://github.com/tatelog/con-sche-app' },
