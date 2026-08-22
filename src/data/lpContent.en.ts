@@ -421,9 +421,8 @@ export const EN: Partial<LPContent> = {
 
   FOOTER: {
     links: [
-      { label: 'Company', href: '/company' },
       { label: 'Terms', href: '/terms' },
-      { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Privacy Policy', href: 'https://tatelog.biz/privacy' },
       { label: 'API Documentation', href: '/api-docs' },
       { label: 'User Manual', href: 'https://con-sche-docs.pages.dev' },
       { label: 'GitHub', href: 'https://github.com/tatelog/con-sche-app' },
