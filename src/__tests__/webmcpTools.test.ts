@@ -180,6 +180,75 @@ describe('shift_activity', () => {
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('範囲')
   })
+
+  // シフトで動かした作業は、元の結合点から切り離して専用の結合点に付け替える。
+  // このとき先行と繋ぎ直さないと、その結合点は工程の起点と同じ扱いになり、
+  // CPM の値が丸ごと壊れる。座標しか見ていないと気づけない。
+  it('シフトした作業は先行との繋がりを保つ（起点ノードが孤立しない）', async () => {
+    loadFixture()
+
+    await shiftActivityTool.execute({ activityId: 'a2', shiftDays: 1 })
+
+    const a2 = useADMStore.getState().getActivity('a2')!
+    const incoming = useADMStore.getState().getActivitiesToNode(a2.fromNodeId)
+    expect(incoming.length).toBeGreaterThan(0)
+  })
+
+  it('シフトしても先行のある作業の es が工程の先頭に落ちない', async () => {
+    loadFixture()
+    // a2 は a1(5日) の後続なので es=5。ここが 0 に落ちるのが元のバグ
+    expect(useADMStore.getState().getActivity('a2')!.es).toBe(5)
+
+    await shiftActivityTool.execute({ activityId: 'a2', shiftDays: 1 })
+
+    expect(useADMStore.getState().getActivity('a2')!.es).toBe(5)
+  })
+
+  it('シフトしても先行作業自体の日程は動かない', async () => {
+    loadFixture()
+    await shiftActivityTool.execute({ activityId: 'a3', shiftDays: 2 })
+
+    const a1 = useADMStore.getState().getActivity('a1')!
+    expect(a1.es).toBe(0)
+    expect(a1.ef).toBe(5)
+  })
+
+  it('フロート内のシフトでは工期が伸びない', async () => {
+    loadFixture()
+    const before = useADMStore.getState().projectDuration
+
+    await shiftActivityTool.execute({ activityId: 'a3', shiftDays: 2 })
+
+    expect(useADMStore.getState().projectDuration).toBe(before)
+  })
+
+  // 日付は結合点の x 座標から引く（xToDate）。ちょうど N 日ぶん動いていること。
+  it('右に2日シフトすると起点が2日ぶん（dayWidth×2）右へ動く', async () => {
+    loadFixture()
+    const dayWidth = useADMStore.getState().projectSettings.dayWidth
+    const before = useADMStore.getState().getNode('n1')!.position.x
+
+    await shiftActivityTool.execute({ activityId: 'a3', shiftDays: 2 })
+
+    const a3 = useADMStore.getState().getActivity('a3')!
+    const after = useADMStore.getState().getNode(a3.fromNodeId)!.position.x
+    expect(after - before).toBe(dayWidth * 2)
+  })
+
+  it('undo で構造も位置も元に戻る', async () => {
+    loadFixture()
+    const beforeX = useADMStore.getState().getNode('n1')!.position.x
+    const beforeActs = useADMStore.getState().activities.size
+    const beforeNodes = useADMStore.getState().nodes.size
+
+    await shiftActivityTool.execute({ activityId: 'a3', shiftDays: 2 })
+    useADMStore.getState().undo()
+
+    const a3 = useADMStore.getState().getActivity('a3')!
+    expect(useADMStore.getState().getNode(a3.fromNodeId)!.position.x).toBe(beforeX)
+    expect(useADMStore.getState().activities.size).toBe(beforeActs)
+    expect(useADMStore.getState().nodes.size).toBe(beforeNodes)
+  })
 })
 
 // --------------------------------------------------
