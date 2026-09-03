@@ -131,7 +131,12 @@ export function corsHeaders(env: Env): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    // 実際に受け取って読んでいるヘッダーはここに全部載せる。
+    // 載っていないものが1つでも混ざるとプリフライトで弾かれ、本体のリクエストが飛ばない。
+    // handleActivePing が X-Consche-Id / X-Consche-Email / X-Consche-Anon を、
+    // handleWebmcpEvent が X-Consche-Id を読む。
+    'Access-Control-Allow-Headers':
+      'Content-Type, Authorization, X-Consche-Id, X-Consche-Email, X-Consche-Anon',
   };
 }
 
