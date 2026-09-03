@@ -252,7 +252,7 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
                   登録により
                   <a href="/terms" target="_blank" className="underline hover:text-slate-600">利用規約</a>
                   および
-                  <a href="https://tatelog.biz/privacy" target="_blank" rel="noreferrer" className="underline hover:text-slate-600">プライバシーポリシー</a>
+                  <a href="https://tatelog.biz/privacy/" target="_blank" rel="noreferrer" className="underline hover:text-slate-600">プライバシーポリシー</a>
                   に同意したものとみなします。
                 </p>
               </form>

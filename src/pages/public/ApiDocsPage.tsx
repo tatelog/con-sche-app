@@ -120,7 +120,7 @@ curl -X POST ${API_BASE}/api/v1/convert \\
             <p className="text-sm text-slate-500 leading-relaxed mt-3">
               APIの利用はすべてリクエストログに記録されます。詳細は
               <Link to="/terms" className="underline">利用規約</Link>・
-              <a href="https://tatelog.biz/privacy" target="_blank" rel="noreferrer" className="underline">プライバシーポリシー</a>をご覧ください。
+              <a href="https://tatelog.biz/privacy/" target="_blank" rel="noreferrer" className="underline">プライバシーポリシー</a>をご覧ください。
             </p>
           </section>
         </div>
