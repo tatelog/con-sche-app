@@ -2358,9 +2358,13 @@ export const useADMStore = create<ADMState>((set, get) => ({
           })
           nodeRemap.set(startAct.fromNodeId, newNodeId)
           cascadeNodeIds.delete(startAct.fromNodeId)
-          if (outgoingNonCascade.length === 0) {
-            get().addDummyActivity(startAct.fromNodeId, newNodeId)
-          }
+
+          // 分割した新ノードは、繋ぎ直さないと先行を一つも持たない。
+          // 先行が無いノードは CPM の前進計算で最早時刻 0 になり、
+          // そこから出る作業の es・totalFloat・isCritical が揃って壊れる
+          // （x 座標だけは動くので、位置しか見ないテストでは気づけない）。
+          // toNode 側は下で無条件にダミーを張っている。ここだけ抜けていた。
+          get().addDummyActivity(startAct.fromNodeId, newNodeId)
         }
       }
 
