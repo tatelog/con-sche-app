@@ -9,7 +9,7 @@ import LPFooter from '@/components/lp/LPFooter';
  * 既存のリンクやブックマーク、検索結果から /privacy に来る人がいるため、
  * ルート自体は残し、このページから会社サイトへ案内する。
  */
-const COMPANY_PRIVACY_URL = 'https://tatelog.biz/privacy';
+const COMPANY_PRIVACY_URL = 'https://tatelog.biz/privacy/';
 
 export default function PrivacyPolicyPage() {
   return (
