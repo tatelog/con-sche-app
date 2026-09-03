@@ -16,6 +16,7 @@ import { useADMStore } from '@/stores/admStore'
 import { useUIStore } from '@/stores/uiStore'
 import { PanelRightOpen, X } from 'lucide-react'
 import { sendActivePing } from '@/activePing'
+import { createSampleScheduleAdm } from '@/data/sampleScheduleAdm'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -49,12 +50,32 @@ function App() {
   const exportFullData = useADMStore((state) => state.exportFullData)
   const importFullData = useADMStore((state) => state.importFullData)
   const loadProjectFromDB = useADMStore((state) => state.loadProjectFromDB)
+  const importLiteData = useADMStore((state) => state.importLiteData)
 
   const DRAFT_KEY = 'consche_draft'
   const LAST_PROJECT_KEY = 'consche_last_project_id'
 
   // 起動時復元（マウント時1回）
   useEffect(() => {
+    // ?sample=1 で英語のサンプル工程表を読み込む。
+    // 初見の相手（人でもエージェントでも）が空のキャンバスではなく、
+    // 実物の工程表から始められるようにするための入口。
+    // このURLを開いた意図はサンプルを見ることなので、保存済みの復元より優先する。
+    if (new URLSearchParams(window.location.search).get('sample') === '1') {
+      // 現在のエクスポート結果を土台にして、工程だけサンプルに差し替える。
+      // version/exportedAt/calendar といった付帯情報を自前で組み立てずに済む。
+      const base = useADMStore.getState().exportLiteData()
+      const sample = createSampleScheduleAdm()
+      importLiteData({
+        ...base,
+        projectSettings: { ...base.projectSettings, ...sample.projectSettings },
+        nodes: sample.nodes,
+        activities: sample.activities,
+        textboxes: [],
+      })
+      return
+    }
+
     const lastProjectId = localStorage.getItem(LAST_PROJECT_KEY)
     if (lastProjectId) {
       loadProjectFromDB(lastProjectId).catch(() => {
