@@ -15,6 +15,7 @@ import {
   Redo2,
   HelpCircle,
   FolderOpen,
+  FilePlus2,
   Save,
   SaveAll,
   Printer,
@@ -260,6 +261,19 @@ export function Toolbar({ isMobile = false }: { isMobile?: boolean }) {
 
   // フォルダメニュー項目
   const projectMenuItems = [
+    {
+      icon: <FilePlus2 size={16} />,
+      label: '新規作成',
+      onClick: () => {
+        closeAllMenus()
+        if (isDirty && !confirm('未保存の変更があります。必要な場合はキャンセルして保存してください。変更を破棄して新しい工程表を作成しますか？')) return
+        useADMStore.getState().newProject()
+        localStorage.removeItem('consche_last_project_id')
+        localStorage.removeItem('consche_draft')
+        handleResetView()
+        useUIStore.setState({ currentPage: 0, showProjectSettingsDialog: true })
+      },
+    },
     {
       icon: <Save size={16} />,
       label: '上書き保存',

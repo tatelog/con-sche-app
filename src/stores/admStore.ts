@@ -296,6 +296,7 @@ interface ADMState {
 
   // データ操作
   clearAll: () => void
+  newProject: () => void
   importData: (data: { nodes: EventNode[]; activities: Activity[] }) => void
   exportData: () => { nodes: EventNode[]; activities: Activity[]; projectSettings: ProjectSettings }
   exportFullData: () => ADMExportData
@@ -1540,6 +1541,14 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // ======================================
   // データ操作
   // ======================================
+
+  newProject: () => {
+    const projectSettings = createProjectSettings({ id: uuidv4(), name: '新規プロジェクト' })
+    // 保存先・履歴も初期化し、以前の工程表を上書きしない。
+    set({ ...useADMStore.getInitialState(), projectSettings })
+    useTextBoxStore.setState({ textboxes: new Map(), selectedTextBoxId: null })
+    useCalendarStore.getState().initCalendar(projectSettings.id, projectSettings.startDate)
+  },
 
   clearAll: () => {
     set({
