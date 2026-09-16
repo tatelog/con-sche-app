@@ -175,3 +175,16 @@ CREATE TABLE IF NOT EXISTS client_errors (
 );
 CREATE INDEX IF NOT EXISTS idx_client_errors_last ON client_errors(last_at);
 CREATE INDEX IF NOT EXISTS idx_client_errors_fingerprint ON client_errors(fingerprint, last_at);
+
+-- 別端末から入り直すときの「登録済み照合」の試行記録。
+-- 記録: POST /api/lookup（フロントの「すでに登録済みの方はこちら」）
+-- 目的は2つ。IP単位のレート制限（総当たりで名簿の当たり判定をさせない）と、
+-- 「登録したはずなのに入れない」という問い合わせが来たときに追えるようにすること。
+-- メールアドレスは保存しない（照合のためだけに使い、記録には残さない）。
+CREATE TABLE IF NOT EXISTS lookup_attempts (
+  id TEXT PRIMARY KEY,
+  ip TEXT,
+  found INTEGER NOT NULL,  -- 1=登録が見つかった / 0=見つからなかった
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lookup_attempts_ip ON lookup_attempts(ip, created_at);

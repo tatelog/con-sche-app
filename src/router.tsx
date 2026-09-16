@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 // チャンク取得失敗（旧SW×新デプロイの狭間）で白画面にせず自動リロードで自己回復させる
 import { lazyWithReload as lazy } from '@/utils/lazyWithReload';
+import { StartupError } from '@/components/StartupError';
 
 const PublicLayout = lazy(() => import('@/layouts/PublicLayout'));
 
@@ -28,11 +29,13 @@ function RouteError() {
   );
 }
 
+// 読み込みに失敗したとき、React Router の既定の英語エラー画面を利用者に見せない。
+// 「Unexpected Application Error!」が実際に出てしまった（2026-09-16）
 export const router = createBrowserRouter([
-  { path: '/', element: <LPPage /> },
+  { path: '/', element: <LPPage />, errorElement: <StartupError /> },
   {
     element: <PublicLayout />,
-    errorElement: <RouteError />,
+    errorElement: <StartupError />,
     children: [
       { path: '/terms', element: <TermsPage /> },
       { path: '/privacy', element: <PrivacyPolicyPage /> },
@@ -40,8 +43,8 @@ export const router = createBrowserRouter([
     ],
   },
   // エディタ本体（データはローカル保存）
-  { path: '/app', element: <AppPage /> },
+  { path: '/app', element: <AppPage />, errorElement: <StartupError /> },
   // メール確認リンクの着地ページ
-  { path: '/verify', element: <VerifyPage /> },
+  { path: '/verify', element: <VerifyPage />, errorElement: <StartupError /> },
   { path: '*', element: <RouteError /> },
 ]);

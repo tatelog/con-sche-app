@@ -16,6 +16,10 @@
  * POST /api/client-error { message, stack?, source?, pageUrl?, userAgent?, appVersion?, swState? }
  *   → 200 {} ブラウザ側で起きたエラーを client_errors に記録（実装は clientError.ts）
  *
+ * POST /api/lookup { email }
+ *   → 200 { found: true, customerId } / { found: false } 別端末から入り直すための照合。
+ *     APIキーは返さない（実装は lookup.ts）
+ *
  * GET /api/admin/errors?days=7&limit=50
  *   → 200 { summary, recent } 記録したエラーの確認（ADMIN_STATS_TOKEN で保護）
  *
@@ -30,6 +34,7 @@
 import { handleV1 } from './v1';
 import { handleWebmcpEvent } from './webmcpEvent';
 import { handleClientError, handleAdminErrors } from './clientError';
+import { handleLookup } from './lookup';
 import { extractToken, safeEqual } from './adminAuth';
 import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
 import {
@@ -826,6 +831,10 @@ export default {
 
     if (url.pathname === '/api/client-error' && request.method === 'POST') {
       return handleClientError(request, env, ctx);
+    }
+
+    if (url.pathname === '/api/lookup' && request.method === 'POST') {
+      return handleLookup(request, env, ctx);
     }
 
     // 運営用のエラー確認。stats と同じく未設定・不一致とも404で存在を隠す

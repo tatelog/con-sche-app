@@ -3,3 +3,27 @@
   Cache-Control: no-cache
 /manifest.webmanifest
   Cache-Control: no-cache
+
+# HTMLも毎回再検証させる。
+# HTMLには「どのJSを読むか」しか書いていないので、古いHTMLが端末に残ると
+# すでに入れ替わったJSを読みにいって失敗し、画面が真っ白になる。
+# 2026-09-16、利用者の端末で実際にこれが起きた（Failed to fetch dynamically imported module）。
+# ファイル本体はハッシュ付きの名前なので、HTMLさえ新しければ正しい組み合わせで読み込まれる。
+/
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/app
+  Cache-Control: no-cache
+/verify
+  Cache-Control: no-cache
+/terms
+  Cache-Control: no-cache
+/privacy
+  Cache-Control: no-cache
+/api-docs
+  Cache-Control: no-cache
+
+# ファイル名にハッシュが入っているものは中身が変われば名前も変わるので、長く持たせてよい
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

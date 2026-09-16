@@ -8,6 +8,7 @@
  */
 import { lazy, type ComponentType } from 'react';
 import { reportError } from '@/lib/errorReporter';
+import { clearSiteCaches } from '@/lib/staleCache';
 
 const RELOAD_FLAG = 'consche_chunk_reload';
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
@@ -26,11 +27,11 @@ export function lazyWithReload<T extends ComponentType<unknown>>(
       reportError(e, 'window.onerror', API_BASE);
       if (!sessionStorage.getItem(RELOAD_FLAG)) {
         sessionStorage.setItem(RELOAD_FLAG, '1');
-        // 古いSWのキャッシュを一掃してから取り直す
-        if ('serviceWorker' in navigator) {
-          const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
-          await Promise.all(regs.map((r) => r.update().catch(() => undefined)));
-        }
+        // 端末に残った古いファイルを実際に消してから取り直す。
+        // 以前は Service Worker の update() を呼ぶだけで、保存済みのファイルが残ったまま
+        // リロードしていた。それだと同じものを掴み続けて、何度更新しても直らない
+        // （2026-09-16、利用者の画面で実際にこの状態が起きた）
+        await clearSiteCaches();
         window.location.reload();
         // リロードが走るまでレンダリングを保留
         await new Promise(() => undefined);

@@ -7,6 +7,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { isBlockedDomain } from '@/config/blockedDomains';
+import { lookupRegistration } from '@/lib/registrationLookup';
 
 export const REGISTRATION_STORAGE_KEY = 'consche_registration';
 const STORAGE_KEY = REGISTRATION_STORAGE_KEY;
@@ -39,6 +40,11 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
   const [issuedKey, setIssuedKey] = useState<string | null>(null);
   const [pendingSent, setPendingSent] = useState(false);
   const [copied, setCopied] = useState(false);
+  // 別の端末から入り直す人向けの照合。端末が変わると登録画面が毎回出てしまうため
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
 
   const complete = () => {
     // 氏名・会社名・メールも保存しておく（アプリ内お問い合わせフォームの自動入力に使う。端末外には出ない）
@@ -119,6 +125,46 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
     }
   };
 
+  /** 別端末から入り直す: メールアドレスだけで登録の有無を確かめる */
+  const handleLookup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLookupError(null);
+
+    const target = lookupEmail.trim().toLowerCase();
+    if (!target) {
+      setLookupError('メールアドレスを入力してください。');
+      return;
+    }
+
+    setLookupBusy(true);
+    try {
+      const result = await lookupRegistration(target, API_BASE);
+      if (result === 'found') {
+        window.gtag?.('event', 'login', { method: 'email_lookup' });
+        setRegistered(true);
+        return;
+      }
+      if (result === 'not_found') {
+        // ご登録がまだの方。入力済みのアドレスを引き継いで登録フォームへ戻す
+        setEmail(target);
+        setLookupOpen(false);
+        setError('このメールアドレスのご登録は見つかりませんでした。お手数ですが、下記からご登録ください。');
+        return;
+      }
+      if (result === 'invalid') {
+        setLookupError('メールアドレスの形式が正しくありません。');
+        return;
+      }
+      if (result === 'rate_limited') {
+        setLookupError('確認の回数が上限に達しました。しばらく時間をおいてお試しください。');
+        return;
+      }
+      setLookupError('確認できませんでした。通信状況をご確認のうえ、再度お試しください。');
+    } finally {
+      setLookupBusy(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!issuedKey) return;
     try {
@@ -181,13 +227,77 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
                 エディタを使い始める
               </button>
             </>
+          ) : lookupOpen ? (
+            <>
+              <h2 className="text-xl font-black text-slate-800 mb-2">ご登録済みの方</h2>
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                ご登録時のメールアドレスを入力してください。確認できましたら、そのままご利用いただけます。
+                この端末に記録されますので、次回からは入力不要です。
+              </p>
+              <form onSubmit={handleLookup} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">メールアドレス</label>
+                  <input
+                    type="email"
+                    value={lookupEmail}
+                    onChange={(e) => setLookupEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="taro@example.co.jp"
+                    maxLength={254}
+                    autoFocus
+                  />
+                </div>
+                {lookupError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-600 leading-relaxed">
+                    {lookupError}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={lookupBusy}
+                  className="w-full rounded-xl px-4 py-3 text-sm font-bold bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:opacity-50"
+                >
+                  {lookupBusy ? '確認中...' : '確認して使い始める'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLookupOpen(false);
+                    setLookupError(null);
+                  }}
+                  className="w-full rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  新規登録に戻る
+                </button>
+              </form>
+            </>
           ) : (
             <>
               <h2 className="text-xl font-black text-slate-800 mb-2">はじめる前に</h2>
-              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              <p className="text-sm text-slate-600 mb-4 leading-relaxed">
                 Con-Scheは無料でご利用いただけます。どなたが利用されているかを把握するため、初回のみ登録をお願いしています。
                 工程表データはお使いの端末にのみ保存され、サーバーには送信されません。
               </p>
+              {/* 別の端末で開いた登録済みの方の逃げ道。フォームより先に目に入る位置に置く
+                  （下に置くとスクロールしないと見えず、結局また登録し直されてしまう） */}
+              <div className="mb-6 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-600 leading-relaxed">
+                  すでにご登録済みの方
+                  <br />
+                  （別の端末でご利用の場合）
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLookupEmail(email.trim());
+                    setLookupOpen(true);
+                    setError(null);
+                  }}
+                  className="shrink-0 rounded-lg border-2 border-primary-600 px-3 py-2 text-xs font-bold text-primary-600 hover:bg-primary-50 transition-colors"
+                >
+                  メールで確認
+                </button>
+              </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">氏名</label>
