@@ -1,9 +1,10 @@
 /**
- * WebMCP (document.modelContext) の型定義
+ * WebMCP (modelContext) の型定義
  *
  * WebMCPはブラウザ内AIエージェントにページがツールを公開するための実験的標準。
- * Chrome 146で実験実装、Cloudflare WebMCPブリッジ（tatelog.bizゾーンで有効化済み）が
- * document.modelContext を参照する。
+ * 仕様上の入口は navigator.modelContext。document.modelContext は一部のポリフィルが使う形。
+ * 2026-09-16、実験機能を有効にしたChromeで確認したところ、ブラウザが用意するのは
+ * navigator 側だけだった（document 側は存在しない）ため、両方を見るようにしてある。
  * 仕様: https://github.com/webmachinelearning/webmcp
  */
 
@@ -29,6 +30,11 @@ export interface ModelContext {
 }
 
 declare global {
+  /** W3C仕様の入口。実験機能を有効にしたChromeではこちらが生える */
+  interface Navigator {
+    modelContext?: ModelContext
+  }
+  /** 一部のポリフィルが生やす入口 */
   interface Document {
     modelContext?: ModelContext
   }
