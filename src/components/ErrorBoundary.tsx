@@ -1,5 +1,8 @@
 import { Component, ReactNode } from "react";
 import { showError } from "@/lib/toast";
+import { reportError } from "@/lib/errorReporter";
+
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "";
 
 interface Props {
   children: ReactNode;
@@ -19,6 +22,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error) {
     showError(error);
+    // 画面が落ちたことだけは必ず残す（利用者からの申告を待たない）
+    reportError(error, "react", API_BASE);
   }
 
   render() {

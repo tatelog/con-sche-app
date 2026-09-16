@@ -7,8 +7,10 @@
  * エラーページを見せる前に一度だけ試す（無限リロードはsessionStorageで防ぐ）。
  */
 import { lazy, type ComponentType } from 'react';
+import { reportError } from '@/lib/errorReporter';
 
 const RELOAD_FLAG = 'consche_chunk_reload';
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? '';
 
 export function lazyWithReload<T extends ComponentType<unknown>>(
   factory: () => Promise<{ default: T }>,
@@ -19,6 +21,9 @@ export function lazyWithReload<T extends ComponentType<unknown>>(
       sessionStorage.removeItem(RELOAD_FLAG);
       return mod;
     } catch (e) {
+      // 自動リロードで利用者には見えなくなるが、起きた事実は残す。
+      // keepalive付きで送るのでリロードに巻き込まれても届く
+      reportError(e, 'window.onerror', API_BASE);
       if (!sessionStorage.getItem(RELOAD_FLAG)) {
         sessionStorage.setItem(RELOAD_FLAG, '1');
         // 古いSWのキャッシュを一掃してから取り直す

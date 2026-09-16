@@ -149,3 +149,29 @@ CREATE TABLE IF NOT EXISTS app_pings (
 );
 CREATE INDEX IF NOT EXISTS idx_app_pings_day ON app_pings(day);
 CREATE INDEX IF NOT EXISTS idx_app_pings_customer ON app_pings(customer_id, day);
+
+-- ブラウザ側で起きたエラー。
+-- 「エラーが出ます」という問い合わせだけが届いて何も分からない状態をなくすための記録。
+-- 記録: POST /api/client-error（src/lib/errorReporter.ts が送る）／確認: GET /api/admin/errors
+-- 工程表の中身は受け取らない。同一端末×同一指紋×同一時間は1行にまとめ occurrences を増やす
+-- （エラーループに陥った端末1台でDBが埋まるのを防ぐ）。
+CREATE TABLE IF NOT EXISTS client_errors (
+  hour TEXT NOT NULL,            -- YYYY-MM-DDTHH（UTC）
+  fingerprint TEXT NOT NULL,     -- 可変部分を伏せたメッセージ×経路のハッシュ（同じ不具合を束ねる）
+  visitor_id TEXT NOT NULL,      -- customers.id / 匿名ID / 'unknown'
+  customer_id TEXT,              -- 身元が判明している場合のみ
+  source TEXT NOT NULL,          -- window.onerror | unhandledrejection | react | fetch | manual | unknown
+  message TEXT NOT NULL,
+  stack TEXT,
+  page_url TEXT,
+  app_version TEXT,              -- どのビルドで起きたか
+  sw_state TEXT,                 -- Service Workerの状態（旧SW×新デプロイの切り分け用）
+  user_agent TEXT,
+  ip TEXT,
+  occurrences INTEGER NOT NULL DEFAULT 1,
+  first_at TEXT NOT NULL,
+  last_at TEXT NOT NULL,
+  PRIMARY KEY (hour, fingerprint, visitor_id)
+);
+CREATE INDEX IF NOT EXISTS idx_client_errors_last ON client_errors(last_at);
+CREATE INDEX IF NOT EXISTS idx_client_errors_fingerprint ON client_errors(fingerprint, last_at);

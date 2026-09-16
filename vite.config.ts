@@ -3,7 +3,14 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+// どのビルドで起きたエラーかを特定するための識別子。
+// 旧SW×新デプロイの食い違いは、これが無いと切り分けられない
+const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ')
+
 export default defineConfig({
+  define: {
+    __APP_BUILD__: JSON.stringify(APP_BUILD),
+  },
   plugins: [
     react(),
     VitePWA({

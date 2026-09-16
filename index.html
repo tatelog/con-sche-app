@@ -37,5 +37,148 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!--
+      起動の見張り役。ここだけは絶対にバンドルへ入れない（index.html に直接書く）。
+
+      理由: デプロイでJSのファイル名が変わったあと、端末のキャッシュが一部だけ欠けると
+      「古いHTMLが、もう存在しない古いJSを読みにいく」状態になり、本体が404で真っ白になる。
+      本体が読めない以上、バンドル内の自動リロードもErrorBoundaryもエラー送信も一切動かない。
+      利用者にはスーパーリロード以外の逃げ道がなくなる（2026-09-16 に再現確認）。
+
+      この見張り役はHTMLの一部なので、本体が死んでいても必ず動く。ES5の範囲で書く
+      （古い端末でも確実に動かすため。ここが動かないと最後の砦が無くなる）。
+    -->
+    <script>
+      (function () {
+        var FLAG = 'consche_boot_recover';
+        var BOOT_TIMEOUT_MS = 8000;
+        var apiBase = '%VITE_API_BASE%';
+        // 置換されなかった場合（env未設定）は同一オリジンに送る
+        if (apiBase.charAt(0) === '%') apiBase = '';
+        var done = false;
+
+        function swState() {
+          try {
+            if (!navigator.serviceWorker) return 'unsupported';
+            var c = navigator.serviceWorker.controller;
+            return c ? c.state : 'none';
+          } catch (e) { return 'unknown'; }
+        }
+
+        function report(message) {
+          try {
+            if (location.protocol.indexOf('http') !== 0) return;
+            fetch(apiBase + '/api/client-error', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              keepalive: true,
+              body: JSON.stringify({
+                message: message,
+                source: 'boot',
+                pageUrl: location.href,
+                userAgent: navigator.userAgent,
+                swState: swState()
+              })
+            })['catch'](function () {});
+          } catch (e) {}
+        }
+
+        function showFailureNotice() {
+          var root = document.getElementById('root');
+          if (!root || root.children.length > 0) return;
+          root.innerHTML =
+            '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;' +
+            'font-family:system-ui,sans-serif;padding:24px;text-align:center;color:#334155">' +
+            '<div><h1 style="font-size:18px;font-weight:700;margin:0 0 8px">読み込めませんでした</h1>' +
+            '<p style="margin:0 0 16px;font-size:14px;line-height:1.7">' +
+            'お使いの端末に残っていた古いデータが原因の可能性があります。<br>' +
+            '下のボタンを押しても直らない場合は、お手数ですがブラウザを一度終了してから開き直してください。</p>' +
+            '<button id="consche-retry" style="padding:10px 20px;background:#1e3a8a;color:#fff;border:0;' +
+            'border-radius:8px;font-size:14px;cursor:pointer">データを消して再読み込み</button>' +
+            '<p style="margin:16px 0 0;font-size:12px;color:#64748b">' +
+            'それでも解決しない場合: ishikawa.yutaka@tatelog.biz</p></div></div>';
+          var btn = document.getElementById('consche-retry');
+          if (btn) {
+            btn.onclick = function () {
+              try { sessionStorage.removeItem(FLAG); } catch (e) {}
+              cleanup(function () { location.reload(); });
+            };
+          }
+        }
+
+        /** Service Workerとキャッシュを消してから done を呼ぶ（失敗しても必ず進む） */
+        function cleanup(done) {
+          var steps = 2;
+          var next = function () { if (--steps <= 0) done(); };
+          try {
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                var left = regs.length;
+                if (!left) return next();
+                for (var i = 0; i < regs.length; i++) {
+                  regs[i].unregister()['catch'](function () {}).then(function () {
+                    if (--left <= 0) next();
+                  });
+                }
+              })['catch'](next);
+            } else { next(); }
+          } catch (e) { next(); }
+          try {
+            if (window.caches && caches.keys) {
+              caches.keys().then(function (keys) {
+                var left = keys.length;
+                if (!left) return next();
+                for (var i = 0; i < keys.length; i++) {
+                  caches['delete'](keys[i])['catch'](function () {}).then(function () {
+                    if (--left <= 0) next();
+                  });
+                }
+              })['catch'](next);
+            } else { next(); }
+          } catch (e) { next(); }
+          // 消去が終わらなくても先に進む（永久に白いままにしない）
+          setTimeout(done, 3000);
+        }
+
+        function recover(reason) {
+          if (done) return;
+          done = true;
+          report(reason);
+          var already;
+          try { already = sessionStorage.getItem(FLAG); } catch (e) { already = null; }
+          if (already) {
+            // 1回やって直らなかった。無限リロードはせず、利用者に選択肢を見せる
+            showFailureNotice();
+            return;
+          }
+          try { sessionStorage.setItem(FLAG, '1'); } catch (e) {}
+          cleanup(function () { location.reload(); });
+        }
+
+        // JS・CSSの読み込み失敗を拾う（バブルしないのでキャプチャで取る）
+        window.addEventListener('error', function (e) {
+          var t = e.target;
+          if (!t || t === window) return;
+          var tag = t.tagName;
+          if (tag !== 'SCRIPT' && tag !== 'LINK') return;
+          var url = t.src || t.href || '';
+          if (url.indexOf('googletagmanager') >= 0) return; // 計測タグの失敗は起動と無関係
+          recover('起動に必要なファイルを読み込めませんでした: ' + url);
+        }, true);
+
+        // 読み込みは通ったが画面が出ない場合の保険
+        setTimeout(function () {
+          // すでに復旧処理へ入っている場合は触らない。
+          // 案内文を描画したせいで root が空でなくなり、起動成功と誤認するのを防ぐ
+          if (done) return;
+          var root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            try { sessionStorage.removeItem(FLAG); } catch (e) {}
+            return;
+          }
+          recover('アプリが起動しませんでした（画面が空のまま ' + BOOT_TIMEOUT_MS + 'ms 経過）');
+        }, BOOT_TIMEOUT_MS);
+      })();
+    </script>
   </body>
 </html>

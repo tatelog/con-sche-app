@@ -8,6 +8,11 @@ import './index.css'
 // beforeinstallpromptはページ読込直後に発火するため、エントリで確実に捕捉する（HeaderExtrasが後から参照）
 import '@/utils/installPrompt'
 import { registerConScheTools } from '@/webmcp/register'
+import { installErrorReporter } from '@/lib/errorReporter'
+
+// 画面が真っ白になった・エラーが出た、を利用者の申告に頼らず把握する。
+// ルーティングより先に入れて、初期化中に落ちたケースも拾う
+installErrorReporter((import.meta.env.VITE_API_BASE as string | undefined) ?? '')
 
 // WebMCP対応環境（Chrome 146実験機能 / Cloudflare WebMCPブリッジ）にだけ工程表ツールを公開
 registerConScheTools()

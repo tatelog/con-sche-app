@@ -13,6 +13,12 @@
  * GET /api/announcements
  *   → 200 { announcements: [{ id, title, body, created_at }] } 公開中のお知らせ（新しい順・最大20件）
  *
+ * POST /api/client-error { message, stack?, source?, pageUrl?, userAgent?, appVersion?, swState? }
+ *   → 200 {} ブラウザ側で起きたエラーを client_errors に記録（実装は clientError.ts）
+ *
+ * GET /api/admin/errors?days=7&limit=50
+ *   → 200 { summary, recent } 記録したエラーの確認（ADMIN_STATS_TOKEN で保護）
+ *
  * /api/v1/* → 連携API（要APIコード認証・従量カウント）。実装は v1.ts
  *
  * セキュリティ方針:
@@ -23,6 +29,7 @@
 
 import { handleV1 } from './v1';
 import { handleWebmcpEvent } from './webmcpEvent';
+import { handleClientError, handleAdminErrors } from './clientError';
 import { extractToken, safeEqual } from './adminAuth';
 import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
 import {
@@ -134,7 +141,7 @@ export function corsHeaders(env: Env): Record<string, string> {
     // 実際に受け取って読んでいるヘッダーはここに全部載せる。
     // 載っていないものが1つでも混ざるとプリフライトで弾かれ、本体のリクエストが飛ばない。
     // handleActivePing が X-Consche-Id / X-Consche-Email / X-Consche-Anon を、
-    // handleWebmcpEvent が X-Consche-Id を読む。
+    // handleWebmcpEvent と handleClientError が X-Consche-Id / X-Consche-Anon を読む。
     'Access-Control-Allow-Headers':
       'Content-Type, Authorization, X-Consche-Id, X-Consche-Email, X-Consche-Anon',
   };
@@ -815,6 +822,20 @@ export default {
 
     if (url.pathname === '/api/webmcp-event' && request.method === 'POST') {
       return handleWebmcpEvent(request, env, ctx);
+    }
+
+    if (url.pathname === '/api/client-error' && request.method === 'POST') {
+      return handleClientError(request, env, ctx);
+    }
+
+    // 運営用のエラー確認。stats と同じく未設定・不一致とも404で存在を隠す
+    if (url.pathname === '/api/admin/errors' && request.method === 'GET') {
+      const expected = env.ADMIN_STATS_TOKEN;
+      if (!expected) return json(env, 404, { error: 'Not found' });
+      if (!safeEqual(extractToken(request.headers.get('Authorization'), url), expected)) {
+        return json(env, 404, { error: 'Not found' });
+      }
+      return handleAdminErrors(env, url);
     }
 
     if (url.pathname !== '/api/register' || request.method !== 'POST') {
