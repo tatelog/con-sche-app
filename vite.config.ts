@@ -2,10 +2,31 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import fs from 'fs'
 
 // どのビルドで起きたエラーかを特定するための識別子。
 // 旧SW×新デプロイの食い違いは、これが無いと切り分けられない
 const APP_BUILD = new Date().toISOString().slice(0, 16).replace('T', ' ')
+
+/**
+ * 配信中の最新ビルドを示す version.json を書き出す。
+ * 端末は起動時にこれを見て、自分が古い版で動いていないかを確かめる
+ * （HTMLごとキャッシュされていると、古い版のまま気づけないため）。
+ */
+function emitVersionJson() {
+  return {
+    name: 'emit-version-json',
+    closeBundle() {
+      const dir = path.resolve(__dirname, 'dist')
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(
+        path.join(dir, 'version.json'),
+        JSON.stringify({ build: APP_BUILD }),
+        'utf-8',
+      )
+    },
+  }
+}
 
 export default defineConfig({
   define: {
@@ -13,6 +34,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    emitVersionJson(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {

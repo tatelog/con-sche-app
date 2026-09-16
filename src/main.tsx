@@ -9,10 +9,15 @@ import './index.css'
 import '@/utils/installPrompt'
 import { registerConScheTools } from '@/webmcp/register'
 import { installErrorReporter } from '@/lib/errorReporter'
+import { checkVersionOnStartup } from '@/lib/versionCheck'
 
 // 画面が真っ白になった・エラーが出た、を利用者の申告に頼らず把握する。
 // ルーティングより先に入れて、初期化中に落ちたケースも拾う
 installErrorReporter((import.meta.env.VITE_API_BASE as string | undefined) ?? '')
+
+// 古い版のまま動いていないかを起動時に確かめる。
+// 端末にHTMLごとキャッシュが残っていると、デプロイしても気づけないため
+void checkVersionOnStartup(__APP_BUILD__)
 
 // WebMCP対応環境（Chrome 146実験機能 / Cloudflare WebMCPブリッジ）にだけ工程表ツールを公開
 registerConScheTools()
