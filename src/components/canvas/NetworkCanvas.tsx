@@ -176,6 +176,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const getCustomMasterItems = useADMStore((state) => state.getCustomMasterItems)
   const addCustomMasterItem = useADMStore((state) => state.addCustomMasterItem)
   const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
+  const customColumnValues = useADMStore((state) => state.customColumnValues)
   const setCustomColumnValue = useADMStore((state) => state.setCustomColumnValue)
 
   // 行ヘッダー編集状態
@@ -1549,7 +1550,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     }
 
     return info
-  }, [visibleColumns, hierarchyRows])
+  }, [visibleColumns, hierarchyRows, customColumnValues])
 
   // 各列の左端位置を計算
   const columnLeftPositions = useMemo(() => {
@@ -2416,11 +2417,14 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
               return visibleColumns.map((col) => {
                 const leftPos = (columnLeftPositions.get(col.id) || 0) * canvasScale + HANDLE_COLUMN_WIDTH
+                const value = col.type === 'custom'
+                  ? customColumnValues.get(`${col.id}:${dataRowIndex}`) ?? ''
+                  : ''
 
                 return (
                   <div
                     key={`empty-${col.id}-${rowIndex}`}
-                    className="absolute border border-gray-200 bg-gray-50 hover:border-blue-300 cursor-pointer transition-colors"
+                    className="absolute flex items-center justify-start pl-1 border border-gray-200 bg-gray-50 hover:border-blue-300 cursor-pointer transition-colors"
                     style={{
                       left: leftPos,
                       top: rowIndex * scaledRowHeight + 1,
@@ -2431,14 +2435,16 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                     onClick={(e) => {
                       e.stopPropagation()
                       const rect = e.currentTarget.getBoundingClientRect()
-                      handleCellClick(dataRowIndex, col.type, '', {
+                      handleCellClick(dataRowIndex, col.type, value, {
                         left: rect.left,
                         top: rect.top,
                         width: rect.width,
                         height: rect.height,
                       }, col.id)
                     }}
-                  />
+                  >
+                    <span className="truncate px-1">{value}</span>
+                  </div>
                 )
               })
             })}
