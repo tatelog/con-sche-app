@@ -51,11 +51,38 @@
     <script>
       (function () {
         var FLAG = 'consche_boot_recover';
-        var BOOT_TIMEOUT_MS = 8000;
+        // 現場は電波が薄いことがある（作業所・現場監督が使う前提）。
+        // 「時間内に出ない＝壊れている」とは決めつけない。秒数をいくつにしても、
+        // 真面目に読み込んでいる人をどこかで切ることになるため。
+        var SLOW_NOTICE_MS = 8000;   // これを過ぎたら「読み込み中」を知らせる
+        var GIVE_UP_MS = 30000;      // これを過ぎたら案内へ。復旧するかは利用者が決める
         var apiBase = '%VITE_API_BASE%';
         // 置換されなかった場合（env未設定）は同一オリジンに送る
         if (apiBase.charAt(0) === '%') apiBase = '';
         var done = false;
+
+        /* isAppAsset:start */
+        // 起動に必要なファイルかどうか。自サイトから配っているJS・CSSだけを対象にする。
+        // 計測ビーコンのような外部配信のファイルは、広告ブロッカー等で落ちても
+        // アプリの起動には関係ない（2026-09-19、これを起動失敗と誤判定して
+        // 無事な利用者のキャッシュを消し、復旧案内まで見せてしまった）
+        function isAppAsset(url, origin) {
+          if (!url || !origin) return false;
+          return url.indexOf(origin + '/') === 0;
+        }
+        /* isAppAsset:end */
+
+        /* bootDecision:start */
+        // 経過時間と画面の状態から、次にやることを決める。
+        // 'ok' 起動できた / 'wait' まだ待つ / 'loading' 読み込み中を知らせる / 'giveup' 案内へ。
+        // ここではキャッシュを消す判断をしない。遅いだけの利用者から持ち物を奪わないため
+        function bootDecision(elapsedMs, hasContent, slowMs, giveUpMs) {
+          if (hasContent) return 'ok';
+          if (elapsedMs >= giveUpMs) return 'giveup';
+          if (elapsedMs >= slowMs) return 'loading';
+          return 'wait';
+        }
+        /* bootDecision:end */
 
         function swState() {
           try {
@@ -83,7 +110,36 @@
           } catch (e) {}
         }
 
+        function hasContent() {
+          var root = document.getElementById('root');
+          return !!(root && root.children.length > 0);
+        }
+
+        // 読み込み中の知らせ。root ではなく body 直下に出す。
+        // root に描くと「画面が出た」と誤認して起動判定が狂うため
+        function showLoading() {
+          if (document.getElementById('consche-loading')) return;
+          var d = document.createElement('div');
+          d.id = 'consche-loading';
+          d.setAttribute('style',
+            'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;' +
+            'justify-content:center;background:#fff;color:#334155;padding:24px;text-align:center;' +
+            'font-family:system-ui,sans-serif');
+          d.innerHTML =
+            '<div><p style="margin:0 0 8px;font-size:15px">読み込み中です…</p>' +
+            '<p style="margin:0;font-size:13px;line-height:1.7;color:#64748b">' +
+            '電波が弱い場所では時間がかかることがあります。<br>' +
+            'そのままお待ちください。</p></div>';
+          document.body.appendChild(d);
+        }
+
+        function hideLoading() {
+          var d = document.getElementById('consche-loading');
+          if (d && d.parentNode) d.parentNode.removeChild(d);
+        }
+
         function showFailureNotice() {
+          hideLoading();
           var root = document.getElementById('root');
           if (!root || root.children.length > 0) return;
           root.innerHTML =
@@ -162,22 +218,37 @@
           var tag = t.tagName;
           if (tag !== 'SCRIPT' && tag !== 'LINK') return;
           var url = t.src || t.href || '';
-          if (url.indexOf('googletagmanager') >= 0) return; // 計測タグの失敗は起動と無関係
+          // 外部配信のファイル（計測ビーコン等）が落ちてもアプリは動く。
+          // 名指しで除外する方式は配信元が増えるたびに漏れるので、自サイトのものだけ見る
+          if (!isAppAsset(url, location.origin)) return;
           recover('起動に必要なファイルを読み込めませんでした: ' + url);
         }, true);
 
-        // 読み込みは通ったが画面が出ない場合の保険
-        setTimeout(function () {
-          // すでに復旧処理へ入っている場合は触らない。
-          // 案内文を描画したせいで root が空でなくなり、起動成功と誤認するのを防ぐ
-          if (done) return;
-          var root = document.getElementById('root');
-          if (root && root.children.length > 0) {
+        // 読み込みは通ったが画面が出ない場合。
+        // ここではキャッシュを消さない。遅いだけかもしれないし、現場では持っている
+        // キャッシュこそが頼りだから（消すと6.9MBの読み直しになる）。
+        // 知らせて待ち、それでも駄目なら選択肢を見せて利用者に決めてもらう
+        var startedAt = Date.now();
+        var watch = setInterval(function () {
+          if (done) { clearInterval(watch); return; }
+          var phase = bootDecision(Date.now() - startedAt, hasContent(), SLOW_NOTICE_MS, GIVE_UP_MS);
+          if (phase === 'ok') {
+            clearInterval(watch);
+            hideLoading();
             try { sessionStorage.removeItem(FLAG); } catch (e) {}
             return;
           }
-          recover('アプリが起動しませんでした（画面が空のまま ' + BOOT_TIMEOUT_MS + 'ms 経過）');
-        }, BOOT_TIMEOUT_MS);
+          if (phase === 'loading') {
+            showLoading();
+            return;
+          }
+          if (phase === 'giveup') {
+            clearInterval(watch);
+            done = true;
+            report('アプリが起動しませんでした（画面が空のまま ' + GIVE_UP_MS + 'ms 経過）');
+            showFailureNotice();
+          }
+        }, 500);
       })();
     </script>
   </body>
