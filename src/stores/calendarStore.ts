@@ -172,17 +172,15 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     const calendar = get().calendar
     if (!calendar) return true
 
-    const dayOfWeek = date.getDay()
-    if (!calendar.workDays.includes(dayOfWeek)) return false
-
+    // 日付ごとの指定を曜日より優先する（土曜を個別に稼働日にできるように）
     const y = date.getFullYear()
     const m = String(date.getMonth() + 1).padStart(2, '0')
     const d = String(date.getDate()).padStart(2, '0')
     const dateStr = `${y}-${m}-${d}`
     const holiday = calendar.holidays.find(h => h.date === dateStr)
-    if (holiday && holiday.status !== 'workday') return false
+    if (holiday) return holiday.status === 'workday'
 
-    return true
+    return calendar.workDays.includes(date.getDay())
   },
 
   countWorkDays: (startDate, days) => {
