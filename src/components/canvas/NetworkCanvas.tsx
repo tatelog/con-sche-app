@@ -2624,15 +2624,18 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                   const isWorkdayHoliday = holidayObj != null && holidayObj.status === 'workday'
                   const holidayName = holidayObj?.name ?? null
 
+                  // 全休=青、個別に稼働日にした日=緑。見た目で区別できるようにする
                   let headerBg = HEADER_BG
-                  if (isHolidayDay || isWorkdayHoliday) {
+                  if (isWorkdayHoliday) {
+                    headerBg = '#DCFCE7'
+                  } else if (isHolidayDay) {
                     headerBg = '#DBEAFE'
                   } else if (weekend) {
                     headerBg = '#FEE2E2'
                   }
 
-                  const baseTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#374151'
-                  const subTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#6B7280'
+                  const baseTextColor = isWorkdayHoliday ? '#15803D' : isHolidayDay ? '#1D4ED8' : weekend ? '#DC2626' : '#374151'
+                  const subTextColor = isWorkdayHoliday ? '#15803D' : isHolidayDay ? '#1D4ED8' : weekend ? '#DC2626' : '#6B7280'
 
                   return (
                     <Group

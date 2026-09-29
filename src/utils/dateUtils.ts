@@ -61,13 +61,11 @@ export function isHoliday(date: Date, calendar: ProjectCalendar | null): boolean
  */
 export function isNonWorkday(date: Date, calendar: ProjectCalendar | null): boolean {
   if (!calendar) return isWeekend(date) // フォールバック
-  const dayOfWeek = date.getDay()
-  if (!calendar.workDays.includes(dayOfWeek)) return true // 非稼働曜日
-  // 祝日チェック: status === 'workday' の祝日は稼働日扱い
+  // 日付ごとの指定を曜日より優先する（土曜を個別に稼働日にできるように）
   const dateStr = toLocalDateStr(date)
   const holiday = calendar.holidays.find(h => h.date === dateStr)
-  if (holiday && holiday.status !== 'workday') return true
-  return false
+  if (holiday) return holiday.status !== 'workday'
+  return !calendar.workDays.includes(date.getDay()) // 非稼働曜日
 }
 
 /**

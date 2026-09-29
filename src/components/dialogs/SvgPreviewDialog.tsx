@@ -389,12 +389,14 @@ function generateSVG(
       const isHolidayDay = holidayObj != null && holidayObj.status !== 'workday'
       const isWorkdayHoliday = holidayObj != null && holidayObj.status === 'workday'
 
+      // 画面表示と揃える: 全休=青、個別に稼働日にした日=緑
       let bg = HEADER_BG
-      if (isHolidayDay || isWorkdayHoliday) bg = '#DBEAFE'
+      if (isWorkdayHoliday) bg = '#DCFCE7'
+      else if (isHolidayDay) bg = '#DBEAFE'
       else if (weekend) bg = '#FEE2E2'
 
-      const baseTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#374151'
-      const subTextColor = (isHolidayDay || isWorkdayHoliday) ? '#1D4ED8' : weekend ? '#DC2626' : '#6B7280'
+      const baseTextColor = isWorkdayHoliday ? '#15803D' : isHolidayDay ? '#1D4ED8' : weekend ? '#DC2626' : '#374151'
+      const subTextColor = isWorkdayHoliday ? '#15803D' : isHolidayDay ? '#1D4ED8' : weekend ? '#DC2626' : '#6B7280'
 
       parts.push(`<rect x="${x}" y="0" width="${DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${bg}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
 
