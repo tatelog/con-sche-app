@@ -35,6 +35,57 @@
     </script>
   </head>
   <body>
+    <!-- 再案内が必要なリリースでは data-revision を変更する。 -->
+    <dialog id="release-notice" data-revision="2026-10-15-1" aria-labelledby="release-notice-title" aria-describedby="release-notice-description">
+      <form method="dialog">
+        <header><h2 id="release-notice-title">Con-Sche 更新のお知らせ</h2></header>
+        <section>
+          <p id="release-notice-description">ご利用前に、画面を更新してください。</p>
+          <p>古い情報が残っていると、画面が真っ白になる場合があります。以下の操作で、最新の画面を読み込んでください。</p>
+          <dl><dt>Windows</dt><dd class="release-keys"><kbd>Ctrl</kbd><span>＋</span><kbd>Shift</kbd><span>＋</span><kbd>R</kbd></dd><dt>Mac</dt><dd class="release-keys"><kbd aria-label="Command">⌘</kbd><span>＋</span><kbd>Shift</kbd><span>＋</span><kbd>R</kbd></dd></dl>
+          <label><input id="release-notice-hide" type="checkbox">今後表示しない</label>
+          <small>今回の更新について、このブラウザーで非表示にします。次の案内更新時には再び表示します。</small>
+        </section>
+        <footer><button type="submit">確認しました</button></footer>
+      </form>
+    </dialog>
+    <style>
+      #release-notice { margin:auto; padding:0; width:min(480px,calc(100% - 32px)); max-height:calc(100% - 32px); border:0; border-radius:8px; background:#fff; color:#374151; font:14px/1.65 'Noto Sans JP','Hiragino Sans',sans-serif; box-shadow:0 20px 25px -5px #0003; }
+      #release-notice::backdrop { background:#0008; }
+      #release-notice header { padding:16px; border-bottom:1px solid #e5e7eb; }
+      #release-notice h2 { margin:0; font-size:18px; font-weight:700; color:#111827; }
+      #release-notice section { padding:16px; }
+      #release-notice p { margin:0 0 16px; }
+      #release-notice-description { font-weight:600; }
+      #release-notice dl { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:12px; padding:12px; margin:0 0 20px; background:#f9fafb; border-radius:4px; }
+      #release-notice dd { margin:0; }
+      #release-notice .release-keys { display:flex; align-items:center; gap:8px; }
+      #release-notice .release-keys kbd:first-child { min-width:44px; }
+      #release-notice kbd { display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box; min-width:32px; height:28px; padding:0 7px; border:1px solid #9ca3af; border-bottom-width:3px; border-radius:4px; background:#fff; color:#111827; font:500 13px/1 system-ui,sans-serif; }
+      #release-notice label { display:flex; align-items:center; gap:8px; cursor:pointer; }
+      #release-notice input { width:16px; height:16px; accent-color:#2563eb; }
+      #release-notice small { display:block; margin:6px 0 0 24px; font-size:12px; color:#6b7280; }
+      #release-notice footer { padding:16px; display:flex; justify-content:flex-end; border-top:1px solid #e5e7eb; background:#f9fafb; }
+      #release-notice button { padding:8px 16px; border:0; border-radius:6px; background:#2563eb; color:#fff; font:inherit; cursor:pointer; }
+      #release-notice button:hover { background:#1d4ed8; }
+      #release-notice :focus-visible { outline:2px solid #3b82f6; outline-offset:3px; }
+    </style>
+    <script>
+      // アプリ本体が読み込めない場合も案内できるよう、モジュールに依存させない。
+      (() => {
+        const notice = document.getElementById('release-notice');
+        const key = 'consche_release_notice_dismissed';
+        const revision = notice.dataset.revision;
+        let hidden = false;
+        try { hidden = localStorage.getItem(key) === revision; } catch {}
+        notice.querySelector('form').addEventListener('submit', () => {
+          if (document.getElementById('release-notice-hide').checked) {
+            try { localStorage.setItem(key, revision); } catch {}
+          }
+        });
+        if (!hidden && /^\/app\/?$/.test(location.pathname)) notice.showModal();
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!--
