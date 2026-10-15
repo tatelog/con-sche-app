@@ -76,14 +76,40 @@
         const notice = document.getElementById('release-notice');
         const key = 'consche_release_notice_dismissed';
         const revision = notice.dataset.revision;
+        const onceKey = key + ':confirmed-navigation';
+        let destination = null;
         let hidden = false;
         try { hidden = localStorage.getItem(key) === revision; } catch {}
         notice.querySelector('form').addEventListener('submit', () => {
           if (document.getElementById('release-notice-hide').checked) {
             try { localStorage.setItem(key, revision); } catch {}
           }
+          if (destination) {
+            try { sessionStorage.setItem(onceKey, revision); } catch {}
+            location.assign(destination);
+          }
         });
-        if (!hidden && /^\/app\/?$/.test(location.pathname)) notice.showModal();
+        notice.addEventListener('close', () => { destination = null; });
+        document.addEventListener('click', (event) => {
+          if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+          if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+          const url = new URL(link.href, location.href);
+          if (url.origin !== location.origin || !/^\/app\/?$/.test(url.pathname)) return;
+          try { if (localStorage.getItem(key) === revision) return; } catch {}
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          destination = url.href;
+          notice.showModal();
+        }, true);
+        let confirmedNavigation = false;
+        if (/^\/app\/?$/.test(location.pathname)) {
+          try {
+            confirmedNavigation = sessionStorage.getItem(onceKey) === revision;
+            sessionStorage.removeItem(onceKey);
+          } catch {}
+          if (!hidden && !confirmedNavigation) notice.showModal();
+        }
       })();
     </script>
     <div id="root"></div>
