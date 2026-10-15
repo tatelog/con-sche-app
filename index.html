@@ -80,6 +80,19 @@
         let destination = null;
         let hidden = false;
         try { hidden = localStorage.getItem(key) === revision; } catch {}
+        function registered() {
+          try {
+            const value = JSON.parse(localStorage.getItem('consche_registration') || 'null');
+            return !!(value && value.registeredAt);
+          } catch { return false; }
+        }
+        function enterApp() {
+          if (!registered()) { location.assign('/start'); return; }
+          try { if (localStorage.getItem(key) === revision) { location.assign('/app'); return; } } catch {}
+          destination = new URL('/app', location.href).href;
+          notice.showModal();
+        }
+        document.addEventListener('consche:registration-ready', enterApp);
         notice.querySelector('form').addEventListener('submit', () => {
           if (document.getElementById('release-notice-hide').checked) {
             try { localStorage.setItem(key, revision); } catch {}
@@ -96,11 +109,9 @@
           if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
           const url = new URL(link.href, location.href);
           if (url.origin !== location.origin || !/^\/app\/?$/.test(url.pathname)) return;
-          try { if (localStorage.getItem(key) === revision) return; } catch {}
           event.preventDefault();
           event.stopImmediatePropagation();
-          destination = url.href;
-          notice.showModal();
+          enterApp();
         }, true);
         let confirmedNavigation = false;
         if (/^\/app\/?$/.test(location.pathname)) {
@@ -108,7 +119,7 @@
             confirmedNavigation = sessionStorage.getItem(onceKey) === revision;
             sessionStorage.removeItem(onceKey);
           } catch {}
-          if (!hidden && !confirmedNavigation) notice.showModal();
+          if (registered() && !hidden && !confirmedNavigation) notice.showModal();
         }
       })();
     </script>

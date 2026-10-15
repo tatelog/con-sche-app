@@ -179,7 +179,6 @@ export function RegistrationGate({ children }: { children: ReactNode }) {
 
   return (
     <div className="h-screen">
-      {children}
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 max-h-[90vh] overflow-y-auto">
           {pendingSent ? (
