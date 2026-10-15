@@ -10,6 +10,7 @@ const TermsPage = lazy(() => import('@/pages/public/TermsPage'));
 const PrivacyPolicyPage = lazy(() => import('@/pages/public/PrivacyPolicyPage'));
 const ApiDocsPage = lazy(() => import('@/pages/public/ApiDocsPage'));
 const AppPage = lazy(() => import('@/pages/AppPage'));
+const StartPage = lazy(() => import('@/pages/StartPage'));
 const VerifyPage = lazy(() => import('@/pages/VerifyPage'));
 
 function RouteError() {
@@ -33,6 +34,7 @@ function RouteError() {
 // 「Unexpected Application Error!」が実際に出てしまった（2026-09-16）
 export const router = createBrowserRouter([
   { path: '/', element: <LPPage />, errorElement: <StartupError /> },
+  { path: '/start', element: <StartPage />, errorElement: <StartupError /> },
   {
     element: <PublicLayout />,
     errorElement: <StartupError />,
