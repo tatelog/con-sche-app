@@ -1,6 +1,18 @@
 import type { HeaderColumn, HierarchyRow } from '@/types/adm'
 
 /**
+ * 階層(棟>工区>階>細目)に属さず、値を自前で持つ列かどうか。
+ *
+ * 「通り」とカスタム列は図面の通り芯や職種のような自由入力で、階層の
+ * どこにも属さない。値は admStore の customColumnValues に
+ * 「列ID:行番号」で入る。この判定を使う側に書くと、列を増やしたときに
+ * 片方だけ直して食い違う（通り列を空行で保存し忘れたのがこれ）。
+ */
+export function isFreeTextColumn(type: string): boolean {
+  return type === 'grid' || type === 'custom'
+}
+
+/**
  * ヘッダー列のセルに出す文字列を決める。
  *
  * 編集画面（NetworkCanvas）とPDF・印刷（SvgPreviewDialog）で同じ値を出すために
@@ -17,6 +29,11 @@ export function resolveHeaderCellValue(
   rowIndex: number,
   getCustomValue: (columnId: string, rowIndex: number) => string,
 ): string {
+  // 自由入力列は階層行に紐付かないので、行データが無い余白行でも値を返す。
+  // 階層列(棟・工区・階・細目)を全部非表示にして使うと階層行が1つも作られず
+  // 全行が余白行になる。ここで打ち切っていたため、入力した値が
+  // 画面にもPDFにも出なかった（Issue #26）。
+  if (isFreeTextColumn(col.type)) return getCustomValue(col.id, rowIndex)
   if (!row) return ''
   switch (col.type) {
     case 'building':
@@ -27,11 +44,6 @@ export function resolveHeaderCellValue(
       return row.roomName
     case 'detail':
       return row.detailName
-    // 「通り」はカスタム列と同じ自由入力列として扱う。階層(工区>階>細目)には
-    // 属さず、値は customColumnValues に「列ID:行番号」で入る。
-    case 'grid':
-    case 'custom':
-      return getCustomValue(col.id, rowIndex)
     default:
       return ''
   }
