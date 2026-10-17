@@ -127,6 +127,36 @@ describe('fitWithinBox', () => {
   })
 })
 
+// 2026-10-17 社内検証で見つけた不具合:
+// スライダーを動かすとパネルには 115×75mm と出るのに、PDFは 59.9×39.0mm のままだった。
+// PDF側はフッターからはみ出さないよう縮めるため、フッターに収まらない大きさを
+// 指定できてしまうと表示と出力が食い違う。
+// 大きさの指定は「フッターに収まる最大」を上限にする。
+describe('フッターに収まる範囲でしか大きくできない', () => {
+  it('収まる最大を100%としたとき、どの割合でもフッターからはみ出さない', () => {
+    const boxW = 174
+    const boxH = 39
+    const max = fitWithinBox(719, 468, boxW, boxH)
+    for (const percent of [10, 25, 50, 75, 100]) {
+      const w = (max.width * percent) / 100
+      const h = (max.height * percent) / 100
+      expect(w).toBeLessThanOrEqual(boxW + 1e-9)
+      expect(h).toBeLessThanOrEqual(boxH + 1e-9)
+    }
+  })
+
+  it('100%はフッターの高さいっぱいになる（横長の画像）', () => {
+    const max = fitWithinBox(719, 468, 174, 39)
+    expect(max.height).toBeCloseTo(39, 5)
+  })
+
+  it('縦横比は割合を変えても保たれる', () => {
+    const max = fitWithinBox(719, 468, 174, 39)
+    const half = { width: max.width / 2, height: max.height / 2 }
+    expect(half.width / half.height).toBeCloseTo(719 / 468, 5)
+  })
+})
+
 describe('scaledSize', () => {
   it('倍率をかけた大きさを返す', () => {
     expect(scaledSize(40, 20, 1)).toEqual({ width: 40, height: 20 })

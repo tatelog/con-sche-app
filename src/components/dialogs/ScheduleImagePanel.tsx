@@ -10,9 +10,9 @@ import { useADMStore } from '@/stores/admStore'
 import {
   canAddImage,
   createScheduleImage,
+  fitWithinBox,
   MAX_IMAGE_BYTES,
   MAX_IMAGE_COUNT,
-  scaledSize,
   validateImageSource,
   type ScheduleImage,
 } from '@/utils/scheduleImage'
@@ -143,6 +143,7 @@ export function ScheduleImagePanel({ boxWidthMm, boxHeightMm }: Props) {
               key={img.id}
               image={img}
               boxWidthMm={boxWidthMm}
+              boxHeightMm={boxHeightMm}
               onChange={(updates) => updateImage(img.id, updates)}
               onRemove={() => removeImage(img.id)}
             />
@@ -156,21 +157,24 @@ export function ScheduleImagePanel({ boxWidthMm, boxHeightMm }: Props) {
 function ImageRow({
   image,
   boxWidthMm,
+  boxHeightMm,
   onChange,
   onRemove,
 }: {
   image: ScheduleImage
   boxWidthMm: number
+  boxHeightMm: number
   onChange: (updates: Partial<ScheduleImage>) => void
   onRemove: () => void
 }) {
-  // 元の画素数に対する現在の倍率（スライダーの値）
-  const baseWidth = image.naturalWidth || 1
-  const percent = Math.round((image.widthMm / baseWidth) * 1000) / 10
+  // フッターに収まる最大の大きさを 100% として割合で指定する。
+  // 元画素数に対する倍率にすると、フッターからはみ出る値まで指定できてしまい、
+  // 画面の表示（115×75mm など）とPDFの出力（はみ出さないよう縮む）が食い違う。
+  const max = fitWithinBox(image.naturalWidth, image.naturalHeight, boxWidthMm, boxHeightMm)
+  const percent = max.width > 0 ? Math.round((image.widthMm / max.width) * 100) : 100
 
   const setPercent = (p: number) => {
-    const next = scaledSize(image.naturalWidth, image.naturalHeight, p / 100)
-    onChange({ widthMm: next.width, heightMm: next.height })
+    onChange({ widthMm: (max.width * p) / 100, heightMm: (max.height * p) / 100 })
   }
 
   return (
@@ -186,23 +190,20 @@ function ImageRow({
         </div>
         <input
           type="range"
-          min={1}
+          min={10}
           max={100}
           step={1}
-          value={Math.min(100, Math.max(1, percent))}
+          value={Math.min(100, Math.max(10, percent))}
           onChange={(e) => setPercent(Number(e.target.value))}
           className="w-full"
           aria-label="画像の大きさ"
         />
         <div className="flex items-center gap-2 mt-1">
           <button
-            onClick={() => {
-              const fit = scaledSize(image.naturalWidth, image.naturalHeight, boxWidthMm / baseWidth)
-              onChange({ widthMm: fit.width, heightMm: fit.height })
-            }}
+            onClick={() => setPercent(100)}
             className="text-[11px] px-1.5 py-0.5 border rounded text-gray-600 hover:bg-gray-50"
           >
-            幅に合わせる
+            最大
           </button>
           <button onClick={onRemove} className="text-[11px] text-red-600 hover:underline ml-auto">
             削除
