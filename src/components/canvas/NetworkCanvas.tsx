@@ -25,6 +25,7 @@ import { SCurveOverlay } from './SCurveOverlay'
 import { CanvasScrollbars } from './CanvasScrollbars'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
+import { isFreeTextColumn, resolveHeaderCellValue } from '@/utils/headerColumnValue'
 import type { Activity } from '@/types/adm'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -1610,7 +1611,16 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     // 変更前の行順序をスナップショット（ノード追従計算用）
     const beforeRows = [...allHierarchyRows]
 
-    if (row) {
+    if (isFreeTextColumn(columnType)) {
+      // 通り列・カスタム列は階層に属さず、値を「列ID:行番号」で自前に持つ。
+      // 行があるときも空行のときも保存の仕方は同じなので、行の有無で
+      // 分かれる前にここで片付ける。以前は既存行用と空行用に分岐が
+      // 2つあり、通り列を空行側に入れ忘れていたため、新規作成直後
+      // （全行が空行）の最初の入力が必ず消えていた。
+      if (editingCell.columnId != null) {
+        setCustomColumnValue(editingCell.columnId, rowIndex, selectedName)
+      }
+    } else if (row) {
       // 既存行の更新（選択行のみ変更、グループの他の行は変わらない）
       switch (columnType) {
         case 'building': {
@@ -1669,14 +1679,6 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         }
         case 'detail':
           updateDetailCategory(row.detailId, { name: selectedName })
-          break
-        // 「通り」もカスタム列と同じ入れ物に保存する。
-        // 以前は分岐が無く、入力してもどこにも残らないまま閉じていた
-        case 'grid':
-        case 'custom':
-          if (editingCell.columnId != null) {
-            setCustomColumnValue(editingCell.columnId, rowIndex, selectedName)
-          }
           break
       }
 
@@ -1746,11 +1748,6 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           addDetailCategory(roomId, selectedName)
           break
         }
-        case 'custom':
-          if (editingCell.columnId != null) {
-            setCustomColumnValue(editingCell.columnId, rowIndex, selectedName)
-          }
-          break
       }
     }
 
@@ -2420,11 +2417,15 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
               return visibleColumns.map((col) => {
                 const leftPos = (columnLeftPositions.get(col.id) || 0) * canvasScale + HANDLE_COLUMN_WIDTH
+                // 空行でも、通り列・カスタム列には入力された値が残っている。
+                // ここを空のままにしていたため、入力しても画面に出ず、
+                // 開き直しても空で出ていた（Issue #26）。PDF側と同じ関数で解決する
+                const value = resolveHeaderCellValue(col, undefined, dataRowIndex, getCustomColumnValue)
 
                 return (
                   <div
                     key={`empty-${col.id}-${rowIndex}`}
-                    className="absolute border border-gray-200 bg-gray-50 hover:border-blue-300 cursor-pointer transition-colors"
+                    className="absolute flex items-center justify-start pl-1 border border-gray-200 bg-gray-50 hover:border-blue-300 cursor-pointer transition-colors"
                     style={{
                       left: leftPos,
                       top: rowIndex * scaledRowHeight + 1,
@@ -2435,14 +2436,16 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                     onClick={(e) => {
                       e.stopPropagation()
                       const rect = e.currentTarget.getBoundingClientRect()
-                      handleCellClick(dataRowIndex, col.type, '', {
+                      handleCellClick(dataRowIndex, col.type, value, {
                         left: rect.left,
                         top: rect.top,
                         width: rect.width,
                         height: rect.height,
                       }, col.id)
                     }}
-                  />
+                  >
+                    <span className="truncate px-1">{value}</span>
+                  </div>
                 )
               })
             })}
