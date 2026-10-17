@@ -8,7 +8,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useADMStore } from '@/stores/admStore'
 import {
+  canAddImage,
   createScheduleImage,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_COUNT,
   scaledSize,
   validateImageSource,
   type ScheduleImage,
@@ -48,7 +51,7 @@ export function ScheduleImagePanel({ boxWidthMm, boxHeightMm }: Props) {
 
   const accept = useCallback(
     async (blob: Blob) => {
-      const reason = validateImageSource(blob.type, blob.size)
+      const reason = validateImageSource(blob.type, blob.size) ?? canAddImage(images, blob.size)
       if (reason) {
         setError(reason)
         return
@@ -61,7 +64,7 @@ export function ScheduleImagePanel({ boxWidthMm, boxHeightMm }: Props) {
         setError('画像を読み込めませんでした')
       }
     },
-    [addImage, boxWidthMm, boxHeightMm],
+    [addImage, images, boxWidthMm, boxHeightMm],
   )
 
   // クリップボードからの貼り付け（このパネルにフォーカスがあるとき）
@@ -126,7 +129,10 @@ export function ScheduleImagePanel({ boxWidthMm, boxHeightMm }: Props) {
           }}
         />
       </div>
-      <p className="text-[11px] text-gray-400 mt-1">PNG と JPEG に対応しています</p>
+      <p className="text-[11px] text-gray-400 mt-1">
+        PNG と JPEG（1枚 {Math.round(MAX_IMAGE_BYTES / 1024 / 1024)}MB まで）・
+        あと {Math.max(0, MAX_IMAGE_COUNT - images.length)} 枚
+      </p>
 
       {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
 

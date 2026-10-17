@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   isSupportedImageType,
   MAX_IMAGE_BYTES,
+  MAX_IMAGE_COUNT,
+  MAX_TOTAL_BYTES,
+  canAddImage,
   validateImageSource,
   fitWithinBox,
   scaledSize,
@@ -56,6 +59,50 @@ describe('validateImageSource', () => {
 
   it('ちょうど上限なら通す', () => {
     expect(validateImageSource('image/png', MAX_IMAGE_BYTES)).toBeNull()
+  })
+})
+
+// 2026-10-17 社内検証での指示:
+// 「1枚あたりの最大容量と貼り付けられる枚数決めれば」
+// 画像はブラウザの中に持つため、際限なく貼れると保存できなくなる。
+// 1枚あたり・枚数・合計の3つで上限を決める。
+describe('canAddImage', () => {
+  const img = (bytes: number) => ({
+    id: 'x',
+    dataUrl: 'data:image/png;base64,' + 'A'.repeat(Math.ceil((bytes * 4) / 3)),
+    mimeType: 'image/png',
+    naturalWidth: 10,
+    naturalHeight: 10,
+    widthMm: 10,
+    heightMm: 10,
+  })
+
+  it('何も貼っていなければ追加できる', () => {
+    expect(canAddImage([], 1024)).toBeNull()
+  })
+
+  it('枚数が上限に達していたら追加できない', () => {
+    const full = Array.from({ length: MAX_IMAGE_COUNT }, () => img(1024))
+    const reason = canAddImage(full, 1024)
+    expect(reason).not.toBeNull()
+    expect(reason).toContain(String(MAX_IMAGE_COUNT))
+  })
+
+  it('上限の1枚手前なら追加できる', () => {
+    const almost = Array.from({ length: MAX_IMAGE_COUNT - 1 }, () => img(1024))
+    expect(canAddImage(almost, 1024)).toBeNull()
+  })
+
+  it('合計が上限を超えるなら追加できない', () => {
+    const heavy = [img(MAX_TOTAL_BYTES - 1000)]
+    const reason = canAddImage(heavy, 5000)
+    expect(reason).not.toBeNull()
+    expect(reason).toContain('合計')
+  })
+
+  it('合計が上限内なら追加できる', () => {
+    const some = [img(1024 * 100)]
+    expect(canAddImage(some, 1024 * 100)).toBeNull()
   })
 })
 

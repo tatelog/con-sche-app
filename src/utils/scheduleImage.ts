@@ -15,6 +15,12 @@ const SUPPORTED_TYPES = ['image/png', 'image/jpeg', 'image/jpg']
 /** 1枚あたりの上限。これを超えるとファイルが重くなりすぎる */
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
+/** 貼れる枚数の上限 */
+export const MAX_IMAGE_COUNT = 10
+
+/** 全部あわせた容量の上限。ブラウザの中に持つので際限なくは置けない */
+export const MAX_TOTAL_BYTES = 12 * 1024 * 1024
+
 /**
  * フッターの内側に取る余白(mm)。
  * 画面で見える大きさとPDFに出る大きさを合わせるため、設定パネルと
@@ -51,6 +57,29 @@ export function validateImageSource(mimeType: string, byteSize: number): string 
   if (byteSize > MAX_IMAGE_BYTES) {
     const mb = Math.round((MAX_IMAGE_BYTES / 1024 / 1024) * 10) / 10
     return `画像が大きすぎます（${mb}MB までにしてください）`
+  }
+  return null
+}
+
+/** データURLが占めるおおよそのバイト数 */
+function dataUrlBytes(dataUrl: string): number {
+  const comma = dataUrl.indexOf(',')
+  const body = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl
+  return Math.floor((body.length * 3) / 4)
+}
+
+function formatMb(bytes: number): string {
+  return String(Math.round((bytes / 1024 / 1024) * 10) / 10)
+}
+
+/** もう1枚追加できるか。できないなら理由を返す */
+export function canAddImage(current: ScheduleImage[], newByteSize: number): string | null {
+  if (current.length >= MAX_IMAGE_COUNT) {
+    return `画像は ${MAX_IMAGE_COUNT} 枚までです`
+  }
+  const used = current.reduce((sum, img) => sum + dataUrlBytes(img.dataUrl), 0)
+  if (used + newByteSize > MAX_TOTAL_BYTES) {
+    return `画像の合計が大きすぎます（合計 ${formatMb(MAX_TOTAL_BYTES)}MB までです）`
   }
   return null
 }
