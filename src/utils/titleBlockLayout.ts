@@ -28,3 +28,21 @@ export function sealLabelHeight(headerHeight: number, infoRowCount: number): num
   }
   return Math.min(best, headerHeight)
 }
+
+/**
+ * フッターに空ける高さ(mm)。
+ *
+ * フッターの文字を出すときだけでなく、画像（キープラン・凡例）を貼ったときも
+ * 場所が要る。ここを一箇所にまとめないと、作図領域を決める側と
+ * フッターを描く側で食い違い、工程表の下端がフッターに隠れる。
+ */
+export function footerAreaHeight(
+  showFooterText: boolean,
+  imageCount: number,
+  footerHeight: number,
+  hasPageNumbers: boolean,
+  pageNumberHeight: number,
+): number {
+  if (showFooterText || imageCount > 0) return footerHeight
+  return hasPageNumbers ? pageNumberHeight : 0
+}

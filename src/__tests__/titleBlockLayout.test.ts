@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sealLabelHeight } from '@/utils/titleBlockLayout'
+import { sealLabelHeight, footerAreaHeight } from '@/utils/titleBlockLayout'
 
 // 2026-10-17 利用者からのお問い合わせ:
 // 「どうしてのここの枠線のズレが気になってしまいます」（表題欄の右上を指して）
@@ -46,5 +46,41 @@ describe('sealLabelHeight', () => {
     // min(8, ヘッダー高 * 0.3)
     expect(sealLabelHeight(30, 0)).toBeCloseTo(8, 5)
     expect(sealLabelHeight(20, 0)).toBeCloseTo(6, 5)
+  })
+})
+
+// 2026-10-18 社内検証で見つけた不具合:
+// 画像だけを貼って「フッター」のチェックを外したままにすると、
+// 作図領域がフッターのぶん縮まないまま工程表が描かれ、
+// あとから重ねて描くフッターに下端が隠れていた。
+// （印刷プレビューのSVGが高さ1010のまま。フッターONなら930になる）
+//
+// フッター領域の高さは次の順で決まる:
+//   フッター文字あり → フッターの高さ
+//   画像が1枚以上あり → フッターの高さ（文字が無くても要る）
+//   どちらも無くページ番号あり → ページ番号ぶん
+//   どれも無い → 0
+describe('footerAreaHeight', () => {
+  const FOOTER = 25
+  const PAGE_NUM = 10
+
+  it('フッター文字を出すときはフッターの高さ', () => {
+    expect(footerAreaHeight(true, 0, FOOTER, false, PAGE_NUM)).toBe(FOOTER)
+  })
+
+  it('画像を貼っていれば、フッター文字が無くてもフッターの高さ', () => {
+    expect(footerAreaHeight(false, 1, FOOTER, false, PAGE_NUM)).toBe(FOOTER)
+  })
+
+  it('フッター文字と画像の両方があってもフッターの高さは変わらない', () => {
+    expect(footerAreaHeight(true, 3, FOOTER, true, PAGE_NUM)).toBe(FOOTER)
+  })
+
+  it('どちらも無く複数ページならページ番号ぶんだけ空ける', () => {
+    expect(footerAreaHeight(false, 0, FOOTER, true, PAGE_NUM)).toBe(PAGE_NUM)
+  })
+
+  it('どれも無ければ空けない', () => {
+    expect(footerAreaHeight(false, 0, FOOTER, false, PAGE_NUM)).toBe(0)
   })
 })
