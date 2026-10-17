@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useADMStore } from '@/stores/admStore'
 import { PAPER_ROW_DEFAULTS } from '@/types/adm'
 import type { LayoutPaperSize, HeaderColumnType, CalendarHeaderRowType } from '@/types/adm'
+import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 
 interface ProjectSettingsDialogProps {
   isOpen: boolean
@@ -453,8 +454,19 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                                     const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
                                     const fill = rowType === 'holiday' ? '#1D4ED8' : (rowType === 'weekday' ? (isWE ? '#DC2626' : '#6B7280') : (isWE ? '#DC2626' : '#374151'))
                                     const fs = Math.max(5.5, Math.min(9, rowH * 0.55))
+                                    // 年・月の寄せ方は実際の描画と同じ計算を使う（ここで見た通りに出る）
+                                    const place = isSpanLabel
+                                      ? spanLabelPlacement(samples, si, rowType, spanLabelAlign, DAY_W)
+                                      : null
                                     return (
-                                      <text key={ri} x={isSpanLabel ? 2 : DAY_W / 2} y={ty} fontSize={fs} textAnchor={isSpanLabel ? 'start' : 'middle'} fill={fill}>{label}</text>
+                                      <text
+                                        key={ri}
+                                        x={place ? place.offsetX : DAY_W / 2}
+                                        y={ty}
+                                        fontSize={fs}
+                                        textAnchor={place ? place.anchor : 'middle'}
+                                        fill={fill}
+                                      >{label}</text>
                                     )
                                   })}
                                 </g>
