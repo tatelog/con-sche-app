@@ -17,6 +17,7 @@ import { computeViewStartDate } from '@/utils/dateUtils'
 import { generateAllPageSVGs } from './SvgPreviewDialog'
 import { ScheduleImagePanel } from './ScheduleImagePanel'
 import { FOOTER_PADDING_MM } from '@/utils/scheduleImage'
+import { footerAreaHeight } from '@/utils/titleBlockLayout'
 
 
 interface PrintPreviewDialogProps {
@@ -95,7 +96,14 @@ export function PrintPreviewDialog({
     const rowHeaderWidth = visibleColumns.reduce((sum, col) => sum + col.width, 0)
     const svgWidth = rowHeaderWidth + effectiveTotalDays * 30
     const contentWidthMm = paperWidth - settings.margin.left - settings.margin.right
-    const effectiveFooterH = (settings.titleBlock.showFooterText ?? false) ? settings.layout.footerHeight : 0
+    // 画像だけ貼ったときもフッターの場所が要る（PDF側と条件を揃える）
+    const effectiveFooterH = footerAreaHeight(
+      settings.titleBlock.showFooterText ?? false,
+      images.length,
+      settings.layout.footerHeight,
+      false,
+      0,
+    )
     const drawAreaHeightMm = paperHeight - settings.margin.top - settings.margin.bottom
       - settings.layout.headerHeight - effectiveFooterH
     const svgHeightLimit = drawAreaHeightMm * svgWidth / contentWidthMm
@@ -110,7 +118,7 @@ export function PrintPreviewDialog({
     )
     const svgHeight = 50 + printRowsPerPage * rowH // HEADER_HEIGHT + rows
     return { svgPages: pages, svgTotalPages: pages.length, svgWidth, svgHeight }
-  }, [projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
+  }, [projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, images.length, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
 
   // 工期をprojectSettingsから同期
   useEffect(() => {
@@ -323,7 +331,7 @@ export function PrintPreviewDialog({
 
               {/* 描画エリア */}
               <div className="absolute border border-gray-300 bg-white overflow-hidden"
-                style={{ left: m.left, top: m.top + headerH, width: innerW, height: innerH - headerH - (tb.showFooterText ? footerH : 0) }}>
+                style={{ left: m.left, top: m.top + headerH, width: innerW, height: innerH - headerH - (hasFooterArea ? footerH : 0) }}>
                 {svgPages.length > 0 ? (
                   <div dangerouslySetInnerHTML={{ __html: svgPages[previewPage] || '' }}
                     style={{ width: '100%', height: '100%' }}
@@ -366,7 +374,8 @@ export function PrintPreviewDialog({
                 onMouseDown={(e) => handleMouseDown('headerBottom', e)}
                 title={`ヘッダー高: ${layout.headerHeight}mm`} />
               {/* ドラッグハンドル: フッター上端（水平） */}
-              {tb.showFooterText && (
+              {/* 画像だけ貼ったときも高さを変えられるようにする */}
+              {hasFooterArea && (
               <div className="absolute bg-green-500 hover:bg-green-600 rounded-full z-10"
                 style={{ left: m.left + innerW * 0.3, top: m.top + innerH - footerH - 3, width: innerW * 0.4, height: 6, cursor: 'ns-resize' }}
                 onMouseDown={(e) => handleMouseDown('footerTop', e)}
@@ -403,7 +412,7 @@ export function PrintPreviewDialog({
 
             <div className="mt-2 text-xs text-gray-500 flex gap-4 flex-wrap">
               <span>ヘッダー: {layout.headerHeight}mm</span>
-              {tb.showFooterText && <span>フッター: {layout.footerHeight}mm</span>}
+              {hasFooterArea && <span>フッター: {layout.footerHeight}mm</span>}
               {showInfo && <span>情報欄: {layout.infoBlockWidth}mm</span>}
               {sealW > 0 && <span>押印欄: {layout.sealBlockWidth}mm</span>}
             </div>

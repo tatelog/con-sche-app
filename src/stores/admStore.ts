@@ -628,18 +628,24 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // 画像（キープラン・凡例など）
   // ======================================
 
+  // 画像の増減・大きさの変更も工程表の変更として扱う。
+  // 自動保存は未保存フラグでしか走らないため、ここで立てないと
+  // キープランを貼っただけで閉じたときに消えてしまう。
   addImage: (image) => {
     set((state) => ({ images: [...state.images, image] }))
+    get().markDirty()
   },
 
   updateImage: (id, updates) => {
     set((state) => ({
       images: state.images.map((img) => (img.id === id ? { ...img, ...updates } : img)),
     }))
+    get().markDirty()
   },
 
   removeImage: (id) => {
     set((state) => ({ images: state.images.filter((img) => img.id !== id) }))
+    get().markDirty()
   },
 
   // ======================================

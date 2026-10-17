@@ -3,7 +3,7 @@ import { svg2pdf } from 'svg2pdf.js'
 import type { PrintSettings, PaperSize } from '@/types/print'
 import type { ProjectSettings } from '@/types/adm'
 import { registerJapaneseFont } from './pdfFont'
-import { sealLabelHeight } from './titleBlockLayout'
+import { footerAreaHeight, sealLabelHeight } from './titleBlockLayout'
 import { FOOTER_PADDING_MM, type ScheduleImage } from './scheduleImage'
 
 const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
@@ -90,11 +90,14 @@ function drawPageFrame(
 
   const outerWidth = width - margin.left - margin.right
   const outerHeight = height - margin.top - margin.bottom
-  // 画像を置くときもフッターの場所が要る
-  const hasFooter = titleBlock.showFooterText === true || images.length > 0
-  const hasPageNumbers = totalPages > 1
   const pageNumberH = 10
-  const effectiveFooterH = hasFooter ? layout.footerHeight : hasPageNumbers ? pageNumberH : 0
+  const effectiveFooterH = footerAreaHeight(
+    titleBlock.showFooterText === true,
+    images.length,
+    layout.footerHeight,
+    totalPages > 1,
+    pageNumberH,
+  )
   const footerY = margin.top + outerHeight - effectiveFooterH
 
   // ヘッダー・フッター領域の白背景（SVGコンテンツを覆う）
@@ -201,9 +204,15 @@ export async function exportToPDF(options: ExportOptions): Promise<Blob> {
   const { margin, layout } = settings
   const outerWidth = width - margin.left - margin.right
   const outerHeight = height - margin.top - margin.bottom
-  const hasMultiPages = svgPages.length > 1
   const pageNumberH = 10
-  const effectiveFooterH = settings.titleBlock.showFooterText ? layout.footerHeight : hasMultiPages ? pageNumberH : 0
+  // 作図領域とフッターの描画で条件を揃える。ずれると工程表の下端がフッターに隠れる
+  const effectiveFooterH = footerAreaHeight(
+    settings.titleBlock.showFooterText === true,
+    images.length,
+    layout.footerHeight,
+    svgPages.length > 1,
+    pageNumberH,
+  )
   const contentHeight = outerHeight - layout.headerHeight - effectiveFooterH
   const drawingArea = {
     x: margin.left,
