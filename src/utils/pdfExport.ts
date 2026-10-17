@@ -3,6 +3,7 @@ import { svg2pdf } from 'svg2pdf.js'
 import type { PrintSettings, PaperSize } from '@/types/print'
 import type { ProjectSettings } from '@/types/adm'
 import { registerJapaneseFont } from './pdfFont'
+import { sealLabelHeight } from './titleBlockLayout'
 
 const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
   A4: { width: 210, height: 297 },
@@ -135,7 +136,7 @@ function drawPageFrame(
       y: margin.top,
       width: sealBlockWidth,
       height: layout.headerHeight,
-    })
+    }, infoRows.length)
   }
 
   // 情報テーブル
@@ -285,7 +286,8 @@ function drawFooter(
 function drawSealBlock(
   doc: jsPDF,
   sealBlock: PrintSettings['sealBlock'],
-  rect: { x: number; y: number; width: number; height: number }
+  rect: { x: number; y: number; width: number; height: number },
+  infoRowCount = 0
 ) {
   if (sealBlock.slots.length === 0) return
 
@@ -295,7 +297,8 @@ function drawSealBlock(
   doc.rect(rect.x, rect.y, rect.width, rect.height)
 
   // 横の区切り線（組織名ラベルと押印スペースの境界）
-  const labelHeight = Math.min(8, rect.height * 0.3)
+  // 情報欄の罫線と高さを揃える。別々に計算していたため段差になっていた
+  const labelHeight = sealLabelHeight(rect.height, infoRowCount)
   doc.line(rect.x, rect.y + labelHeight, rect.x + rect.width, rect.y + labelHeight)
 
   sealBlock.slots.forEach((slot, i) => {

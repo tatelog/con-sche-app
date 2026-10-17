@@ -409,7 +409,10 @@ function generateSVG(
       parts.push(`<rect x="${x}" y="0" width="${DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${bg}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
 
       headerRows.forEach((rowType, rowIdx) => {
-        const cy = rowIdx * rowH + rowH / 2
+        // 文字のベースライン。dominant-baseline="middle" はPDF変換で効かず、
+        // 行の中央より上にずれて枠線に重なるため、座標で中央に合わせる。
+        // 係数0.4は、同じヘッダー内の列見出し（font-size 10 で +4）と同じ。
+        const cy = rowIdx * rowH + rowH / 2 + calFs * 0.4
         const isWeeklyHidden = showWeeklyLabel && (rowType === 'day' || rowType === 'weekday') && i % 7 !== 0
 
         let text = ''
@@ -451,22 +454,24 @@ function generateSVG(
 
         const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
         if (isSpanLabel) {
-          parts.push(`<text x="${x + 2}" y="${cy}" dominant-baseline="middle" text-anchor="start" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
+          parts.push(`<text x="${x + 2}" y="${cy}" text-anchor="start" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
         } else {
-          parts.push(`<text x="${x + DAY_WIDTH / 2}" y="${cy}" dominant-baseline="middle" text-anchor="middle" font-size="${calFs}" fill="${color}">${escapeXml(text)}</text>`)
+          parts.push(`<text x="${x + DAY_WIDTH / 2}" y="${cy}" text-anchor="middle" font-size="${calFs}" fill="${color}">${escapeXml(text)}</text>`)
         }
       })
     })
   }
 
-  parts.push(`<line x1="${rowHeaderWidth}" y1="${HEADER_HEIGHT}" x2="${svgWidth}" y2="${HEADER_HEIGHT}" stroke="#9CA3AF" stroke-width="1"/>`)
-
   // ── グリッド背景（非稼働日の塗り）──
+  // ヘッダー下端の罫線より先に塗る。あとから塗ると、塗りの上端と罫線の位置が
+  // 同じため線の下半分が潰れ、土日・祝日の列だけ線が消えたように見える
   dates.forEach((date, i) => {
     if (isNonWorkdayUtil(date, calendar)) {
       parts.push(`<rect x="${gridOffsetX + i * DAY_WIDTH}" y="${gridOffsetY}" width="${DAY_WIDTH}" height="${totalRows * ROW_HEIGHT}" fill="${NON_WORKDAY_BG}"/>`)
     }
   })
+
+  parts.push(`<line x1="${rowHeaderWidth}" y1="${HEADER_HEIGHT}" x2="${svgWidth}" y2="${HEADER_HEIGHT}" stroke="#9CA3AF" stroke-width="1"/>`)
 
   // ── 行ヘッダー ──
   // 連続する同じ値はひとつのセルにまとめる。編集画面(NetworkCanvas)は結合して

@@ -127,6 +127,57 @@ describe('PDF・印刷の行ヘッダー', () => {
   })
 })
 
+// 2026-10-17 利用者からのお問い合わせ:
+// 「日曜日の下の下線部が消えてしまっている。土曜日も同様？？」
+//
+// 出力PDFを8倍に拡大して画素を確認したところ、平日の列は罫線の色が線幅ぶん
+// 出ているのに対し、土日の列は線の下半分が非稼働日の塗りで覆われていた。
+// ヘッダー下端の線を描いたあとに、同じ高さから非稼働日の塗りを描いているため。
+describe('ヘッダー下端の罫線', () => {
+  it('非稼働日の塗りより後に罫線を描く（土日で線が欠けない）', () => {
+    // dates は 2026-10-05 から10日間。10/10(土) と 10/11(日) を含む。
+    // ヘッダーの高さは50固定。下端の罫線と非稼働日の塗りがどちらも y=50 から始まる。
+    // 塗りが後だと線の下半分が潰れるので、塗り→線の順で描かれていること。
+    const svg = render([row({ detailId: 'd1' })], [zoneCol])
+    const ruleIndex = svg.search(/<line x1="[\d.]+" y1="50" x2="[\d.]+" y2="50" stroke="#9CA3AF"/)
+    const fillIndex = svg.search(/<rect x="[\d.]+" y="50" width="[\d.]+" height="[\d.]+" fill="#F3F4F6"\/>/)
+    expect(ruleIndex).toBeGreaterThanOrEqual(0)
+    expect(fillIndex).toBeGreaterThanOrEqual(0)
+    expect(fillIndex).toBeLessThan(ruleIndex)
+  })
+})
+
+// 2026-10-17 利用者からのお問い合わせ:
+// 「日にちが枠線に近い気がします」
+//
+// 実測すると「近い」のではなく、日付の文字がヘッダー上端の罫線をまたいでいた。
+// 日付・曜日・月の3行とも行の中央より一律に上へずれている。原因は縦位置に
+// dominant-baseline="middle" を使っていること。これはPDF変換で効かない。
+// 同じヘッダー内でも列見出しは dominant-baseline を使わず y に手で
+// オフセットを足しており、そちらは行の中央に収まっていた。
+describe('カレンダーヘッダーの文字の縦位置', () => {
+  it('dominant-baseline に頼らない（PDF変換で効かないため）', () => {
+    const svg = render([row({ detailId: 'd1' })], [zoneCol])
+    expect(svg).not.toContain('dominant-baseline')
+  })
+
+  it('文字のベースラインが行の中央より下に置かれている', () => {
+    const svg = render([row({ detailId: 'd1' })], [zoneCol])
+    // ヘッダーは day / weekday の2行。1行目（日付）の中央は 50/2/2 = 12.5。
+    // dates の先頭は 2026-10-05 なので、文字が "5" の text を見る
+    // （列見出しも text-anchor=middle なので、中身で日付を特定する）
+    const dayText = svg.match(/<text x="[\d.]+" y="([\d.]+)" text-anchor="middle" font-size="([\d.]+)" fill="[^"]*">5<\/text>/)
+    expect(dayText).not.toBeNull()
+    const y = Number(dayText![1])
+    const fontSize = Number(dayText![2])
+    // 2行ヘッダーなら1行の高さは25、その中央は12.5
+    const rowCenter = 12.5
+    expect(y).toBeGreaterThan(rowCenter)
+    // 下げ幅は文字の高さの半分より小さい（行からはみ出さない）
+    expect(y - rowCenter).toBeLessThan(fontSize / 2)
+  })
+})
+
 describe('作図エリアのクリップ', () => {
   it('作図レイヤーに行ヘッダーを避けるクリップがかかっている', () => {
     const svg = render([row({ detailId: 'd1' })], [zoneCol, gridCol])
