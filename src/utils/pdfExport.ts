@@ -4,6 +4,7 @@ import type { PrintSettings, PaperSize } from '@/types/print'
 import type { ProjectSettings } from '@/types/adm'
 import { registerJapaneseFont } from './pdfFont'
 import { sealLabelHeight } from './titleBlockLayout'
+import { FOOTER_PADDING_MM, type ScheduleImage } from './scheduleImage'
 
 const PAPER_DIMENSIONS: Record<PaperSize, { width: number; height: number }> = {
   A4: { width: 210, height: 297 },
@@ -16,6 +17,8 @@ interface ExportOptions {
   settings: PrintSettings
   svgPages: string[]
   projectSettings: ProjectSettings
+  /** フッターに置く画像（キープラン・凡例など） */
+  images?: ScheduleImage[]
 }
 
 /** displayModeに応じたヘッダー表示名 */
@@ -81,12 +84,14 @@ function drawPageFrame(
   height: number,
   pageIndex: number,
   totalPages: number,
+  images: ScheduleImage[] = [],
 ) {
   const { margin, titleBlock, sealBlock, layout } = settings
 
   const outerWidth = width - margin.left - margin.right
   const outerHeight = height - margin.top - margin.bottom
-  const hasFooter = titleBlock.showFooterText === true
+  // 画像を置くときもフッターの場所が要る
+  const hasFooter = titleBlock.showFooterText === true || images.length > 0
   const hasPageNumbers = totalPages > 1
   const pageNumberH = 10
   const effectiveFooterH = hasFooter ? layout.footerHeight : hasPageNumbers ? pageNumberH : 0
@@ -169,12 +174,12 @@ function drawPageFrame(
   // ── フッター描画 ──
   if (effectiveFooterH > 0) {
     const footerArea = { x: margin.left, y: footerY, width: outerWidth, height: effectiveFooterH }
-    drawFooter(doc, titleBlock, footerArea, pageIndex, totalPages)
+    drawFooter(doc, titleBlock, footerArea, pageIndex, totalPages, images)
   }
 }
 
 export async function exportToPDF(options: ExportOptions): Promise<Blob> {
-  const { settings, svgPages, projectSettings } = options
+  const { settings, svgPages, projectSettings, images = [] } = options
 
   // 用紙サイズをProjectSettingsから取得
   const paperKey = (projectSettings.paperSize === 'custom' ? 'A3' : projectSettings.paperSize) as PaperSize
@@ -214,7 +219,7 @@ export async function exportToPDF(options: ExportOptions): Promise<Blob> {
     await renderSvgToPdf(doc, svgPages[i], drawingArea)
 
     // 枠線・ヘッダー・フッターをSVGの上に描画（最前面）
-    drawPageFrame(doc, settings, projectSettings, width, height, i, svgPages.length)
+    drawPageFrame(doc, settings, projectSettings, width, height, i, svgPages.length, images)
 
   }
 
@@ -260,6 +265,7 @@ function drawFooter(
   rect: { x: number; y: number; width: number; height: number },
   pageIndex: number,
   totalPages: number,
+  images: ScheduleImage[] = [],
 ) {
   doc.setLineWidth(0.3)
 
@@ -274,6 +280,31 @@ function drawFooter(
         doc.text(line, rect.x + 3, startY + i * lineHeight)
       }
     })
+  }
+
+  // 画像（キープラン・凡例など）。右端から順に並べる
+  if (images.length > 0) {
+    const PAD = FOOTER_PADDING_MM
+    const GAP = 2
+    const pageNumberW = totalPages > 1 ? 12 : 0
+    let right = rect.x + rect.width - PAD - pageNumberW
+    for (const img of images) {
+      if (img.widthMm <= 0 || img.heightMm <= 0) continue
+      // フッターの高さを超える画像は、はみ出さないよう縮める
+      const scale = Math.min(1, (rect.height - PAD * 2) / img.heightMm)
+      const w = img.widthMm * scale
+      const h = img.heightMm * scale
+      const x = right - w
+      if (x < rect.x + PAD) break // 入りきらない分は描かない
+      const y = rect.y + (rect.height - h) / 2
+      const format = img.mimeType.toLowerCase().includes('png') ? 'PNG' : 'JPEG'
+      try {
+        doc.addImage(img.dataUrl, format, x, y, w, h)
+      } catch {
+        // 壊れた画像データは飛ばす（PDF全体を落とさない）
+      }
+      right = x - GAP
+    }
   }
 
   // ページ番号（右下）
