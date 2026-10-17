@@ -1457,10 +1457,11 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         return row.zoneName
       case 'floor':
         return row.roomName
-      case 'grid':
-        return ''
       case 'detail':
         return row.detailName
+      // 「通り」はカスタム列と同じ自由入力列。階層には属さず、値は
+      // customColumnValues に「列ID:行番号」で入る（utils/headerColumnValue と揃える）
+      case 'grid':
       case 'custom':
         if (columnId != null && rowIndex != null) {
           return getCustomColumnValue(columnId, rowIndex)
@@ -1482,10 +1483,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         return row.zoneId
       case 'floor':
         return row.roomId
-      case 'grid':
-        return row.detailId
       case 'detail':
         return `${row.zoneId}/${row.roomId}/${row.detailName || row.detailId}`
+      case 'grid':
       case 'custom':
         if (columnId != null && rowIndex != null) {
           const val = getCustomColumnValue(columnId, rowIndex)
@@ -1669,6 +1669,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         case 'detail':
           updateDetailCategory(row.detailId, { name: selectedName })
           break
+        // 「通り」もカスタム列と同じ入れ物に保存する。
+        // 以前は分岐が無く、入力してもどこにも残らないまま閉じていた
+        case 'grid':
         case 'custom':
           if (editingCell.columnId != null) {
             setCustomColumnValue(editingCell.columnId, rowIndex, selectedName)
@@ -1848,7 +1851,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     if (columnType === 'floor' && !prevRow?.zoneId && zones.size === 0 && zoneVisible) {
       return '先にこの行の「工区」を設定してください。階は工区の中に作られます。'
     }
-    if ((columnType === 'detail' || columnType === 'custom') && !prevRow?.roomId && (zoneVisible || floorVisible)) {
+    if ((columnType === 'detail' || columnType === 'custom' || columnType === 'grid') && !prevRow?.roomId && (zoneVisible || floorVisible)) {
       const parentLabel = floorVisible && !zoneVisible ? '階数' : '工区'
       return `先にこの行の「${parentLabel}」を設定してください（上の階層から順に作られます）。`
     }
