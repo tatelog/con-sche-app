@@ -16,6 +16,7 @@ import type { TextBox } from '@/types/textbox'
 import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
+import { resolveHeaderCellValue } from '@/utils/headerColumnValue'
 import {
   isWeekend,
   isNonWorkday as isNonWorkdayUtil,
@@ -329,6 +330,7 @@ function generateSVG(
   nodesMap: Map<string, EventNode>,
   visibleColumns: ProjectSettings['headerColumns'],
   viewStartDayOffset: number,
+  getCustomValue: (columnId: string, rowIndex: number) => string,
   pageIndex: number = 0,
   rowsPerPage?: number,
   textboxes: TextBox[] = [],
@@ -468,15 +470,10 @@ function generateSVG(
     for (const col of visibleColumns) {
       const cy = HEADER_HEIGHT + displayIdx * ROW_HEIGHT
       parts.push(`<rect x="${cx}" y="${cy}" width="${col.width}" height="${ROW_HEIGHT}" fill="white" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
-      if (row) {
-        let value = ''
-        switch (col.type) {
-          case 'zone': value = row.zoneName; break
-          case 'floor': value = row.roomName; break
-          case 'detail': value = row.detailName; break
-        }
-        if (value) parts.push(`<text x="${cx + 4}" y="${cy + ROW_HEIGHT / 2 + 4}" font-size="9" fill="#374151">${escapeXml(value)}</text>`)
-      }
+      // 行番号はページ内の位置ではなくデータ全体の通し番号(dataIdx)で渡す。
+      // カスタム列の値は "列ID:行番号" で持っているため、2ページ目以降でズレる
+      const value = resolveHeaderCellValue(col, row, dataIdx, getCustomValue)
+      if (value) parts.push(`<text x="${cx + 4}" y="${cy + ROW_HEIGHT / 2 + 4}" font-size="9" fill="#374151">${escapeXml(value)}</text>`)
       cx += col.width
     }
   }
@@ -1101,6 +1098,7 @@ export function generateAllPageSVGs(
   nodesMap: Map<string, EventNode>,
   visibleColumns: ProjectSettings['headerColumns'],
   viewStartDayOffset: number,
+  getCustomValue: (columnId: string, rowIndex: number) => string,
   rowsPerPageOverride?: number,
   textboxes: TextBox[] = [],
   progressLines: ProgressLine[] = [],
@@ -1115,7 +1113,7 @@ export function generateAllPageSVGs(
   const svgPages: string[] = []
   for (let i = 0; i < totalPages; i++) {
     const isLastPage = i === totalPages - 1
-    svgPages.push(generateSVG(projectSettings, hierarchyRows, nodes, activities, dates, calendar, nodesMap, visibleColumns, viewStartDayOffset, i, rowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, showLegend && isLastPage))
+    svgPages.push(generateSVG(projectSettings, hierarchyRows, nodes, activities, dates, calendar, nodesMap, visibleColumns, viewStartDayOffset, getCustomValue, i, rowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, showLegend && isLastPage))
   }
   return svgPages
 }
@@ -1134,6 +1132,10 @@ export function SvgPreviewDialog({ isOpen, onClose, projectSettings }: SvgPrevie
   const activeProgressLineId = useADMStore((state) => state.activeProgressLineId)
   const projectDuration = useADMStore((state) => state.projectDuration)
   const showSCurve = useUIStore((state) => state.showSCurve)
+  // カスタム列の値（編集画面と同じものをPDF・印刷にも出すため）。
+  // Map 自体も購読する。取得関数は参照が変わらないので、値を直しても再描画されない
+  const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
+  const customColumnValues = useADMStore((state) => state.customColumnValues)
 
   const textboxesMap = useTextBoxStore((state) => state.textboxes)
 
@@ -1200,8 +1202,8 @@ export function SvgPreviewDialog({ isOpen, onClose, projectSettings }: SvgPrevie
 
   const isLastPage = previewPage === svgTotalPages - 1
   const svgContent = useMemo(() => {
-    return generateSVG(projectSettings, hierarchyRows, nodes, activities, dates, calendar, nodesMap, visibleColumns, viewStartDayOffset, previewPage, printRowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, printSettings.showLegend && isLastPage)
-  }, [projectSettings, hierarchyRows, nodes, activities, dates, calendar, nodesMap, visibleColumns, viewStartDayOffset, previewPage, printRowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, printSettings.showLegend, isLastPage])
+    return generateSVG(projectSettings, hierarchyRows, nodes, activities, dates, calendar, nodesMap, visibleColumns, viewStartDayOffset, getCustomColumnValue, previewPage, printRowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, printSettings.showLegend && isLastPage)
+  }, [projectSettings, hierarchyRows, nodes, activities, dates, calendar, nodesMap, visibleColumns, viewStartDayOffset, getCustomColumnValue, customColumnValues, previewPage, printRowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, printSettings.showLegend, isLastPage])
 
   const previewScale = useMemo(() => {
     return Math.min(800 / paperWidth, 600 / paperHeight)

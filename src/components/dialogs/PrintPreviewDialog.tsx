@@ -43,6 +43,10 @@ export function PrintPreviewDialog({
   const zones = useADMStore((state) => state.zones)
   const rooms = useADMStore((state) => state.rooms)
   const detailCategories = useADMStore((state) => state.detailCategories)
+  // カスタム列の値（編集画面と同じものをPDF・印刷にも出すため）。
+  // Map 自体も購読する。取得関数は参照が変わらないので、値を直しても再描画されない
+  const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
+  const customColumnValues = useADMStore((state) => state.customColumnValues)
   const admCalendar = useCalendarStore((state) => state.calendar)
   const textboxesMap = useTextBoxStore((state) => state.textboxes)
   const progressLines = useADMStore((state) => state.progressLines)
@@ -97,12 +101,12 @@ export function PrintPreviewDialog({
     const textboxes = Array.from(textboxesMap.values())
     const pages = generateAllPageSVGs(
       projectSettings, hierarchyRows, nodes, activities,
-      dates, admCalendar, nodesMap, visibleColumns, viewStartDayOffset,
+      dates, admCalendar, nodesMap, visibleColumns, viewStartDayOffset, getCustomColumnValue,
       printRowsPerPage, textboxes, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend,
     )
     const svgHeight = 50 + printRowsPerPage * rowH // HEADER_HEIGHT + rows
     return { svgPages: pages, svgTotalPages: pages.length, svgWidth, svgHeight }
-  }, [projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
+  }, [projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
 
   // 工期をprojectSettingsから同期
   useEffect(() => {
