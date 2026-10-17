@@ -15,6 +15,8 @@ import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
 import { computeViewStartDate } from '@/utils/dateUtils'
 import { generateAllPageSVGs } from './SvgPreviewDialog'
+import { ScheduleImagePanel } from './ScheduleImagePanel'
+import { FOOTER_PADDING_MM } from '@/utils/scheduleImage'
 
 
 interface PrintPreviewDialogProps {
@@ -46,6 +48,8 @@ export function PrintPreviewDialog({
   // カスタム列の値（編集画面と同じものをPDF・印刷にも出すため）。
   // Map 自体も購読する。取得関数は参照が変わらないので、値を直しても再描画されない
   const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
+  // フッターに置く画像（キープラン・凡例など）
+  const images = useADMStore((state) => state.images)
   const customColumnValues = useADMStore((state) => state.customColumnValues)
   const admCalendar = useCalendarStore((state) => state.calendar)
   const textboxesMap = useTextBoxStore((state) => state.textboxes)
@@ -209,6 +213,8 @@ export function PrintPreviewDialog({
   const innerH = scaledH - m.top - m.bottom
   const headerH = layout.headerHeight * previewScale
   const footerH = layout.footerHeight * previewScale
+  // 画像を置くときもフッターの場所が要る（PDF側と条件を揃える）
+  const hasFooterArea = (settings.titleBlock.showFooterText ?? false) || images.length > 0
   const sealSlotCount = settings.sealBlock.slots.length
   const sealMm = settings.titleBlock.showSealBlock && sealSlotCount > 0
     ? layout.sealBlockWidth : 0
@@ -220,7 +226,7 @@ export function PrintPreviewDialog({
   const handleExportPDF = async () => {
     setIsExporting(true)
     try {
-      const blob = await exportToPDF({ settings, svgPages, projectSettings })
+      const blob = await exportToPDF({ settings, svgPages, projectSettings, images })
       const filename = `${projectSettings.workplaceName || '工程表'}_第${settings.titleBlock.revisionNumber || 1}版.pdf`
       downloadPDF(blob, filename)
     } catch (err) {
@@ -327,13 +333,30 @@ export function PrintPreviewDialog({
                 )}
               </div>
 
-              {/* フッター */}
-              {tb.showFooterText && (
+              {/* フッター（テキストか画像があるとき） */}
+              {hasFooterArea && (
               <div className="absolute border border-green-400 bg-green-50/40"
                 style={{ left: m.left, top: m.top + innerH - footerH, width: innerW, height: footerH }}>
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] text-green-600 font-medium select-none">
-                  フッター
-                </span>
+                {images.length === 0 && (
+                  <span className="absolute inset-0 flex items-center justify-center text-[10px] text-green-600 font-medium select-none">
+                    フッター
+                  </span>
+                )}
+                {/* 画像は右端から順に並ぶ（PDFと同じ並び） */}
+                <div className="absolute inset-0 flex items-center justify-end gap-1 px-1 overflow-hidden">
+                  {images.map((img) => (
+                    <img
+                      key={img.id}
+                      src={img.dataUrl}
+                      alt=""
+                      style={{
+                        width: img.widthMm * previewScale,
+                        height: img.heightMm * previewScale,
+                        objectFit: 'contain',
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
               )}
 
@@ -514,6 +537,12 @@ export function PrintPreviewDialog({
                     placeholder="フッターに表示するテキスト" />
                 )}
               </div>
+
+              {/* 画像（キープラン・凡例） */}
+              <ScheduleImagePanel
+                boxWidthMm={paperWidth - settings.margin.left - settings.margin.right - FOOTER_PADDING_MM * 2}
+                boxHeightMm={settings.layout.footerHeight - FOOTER_PADDING_MM * 2}
+              />
             </div>
           </div>
         </div>

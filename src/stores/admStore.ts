@@ -28,6 +28,7 @@ import type {
 import { createEventNode, createActivity, createProjectSettings, createProgressLine } from '@/types/adm'
 import { calculateADMCPM, detectCycle } from '@/utils/admCpm'
 import { xToDate, getWorkdaysBetween, getCalendarDaysForWorkdays } from '@/utils/dateUtils'
+import type { ScheduleImage } from '@/utils/scheduleImage'
 import { useCalendarStore } from './calendarStore'
 import { useTextBoxStore } from './textboxStore'
 import type { TextBox } from '@/types'
@@ -77,6 +78,7 @@ export interface ADMExportData {
   customColumnValues?: Record<string, string>    // "columnId:rowIndex" → value
   progressLines?: ProgressLine[]
   progressLine?: ProgressLine  // v3.0互換（単一進捗線）
+  images?: ScheduleImage[]  // フッターに置く画像（キープラン・凡例など）
 }
 
 // ライトエクスポート用の型（マスタ・階層なし）
@@ -161,6 +163,7 @@ interface ADMState {
   // カスタム列データ
   customMasters: Map<string, Map<string, MasterItem>> // columnId → masterItems
   customColumnValues: Map<string, string> // "columnId:rowIndex" → value
+  images: ScheduleImage[] // フッターに置く画像（キープラン・凡例など）
 
   // CPM計算結果
   criticalPath: string[]
@@ -218,6 +221,9 @@ interface ADMState {
   deleteCustomMasterItem: (columnId: string, itemId: string) => void
   getCustomMasterItems: (columnId: string) => MasterItem[]
   setCustomColumnValue: (columnId: string, rowIndex: number, value: string) => void
+  addImage: (image: ScheduleImage) => void
+  updateImage: (id: string, updates: Partial<ScheduleImage>) => void
+  removeImage: (id: string) => void
   getCustomColumnValue: (columnId: string, rowIndex: number) => string
 
   // アクション - 棟
@@ -344,6 +350,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // カスタム列データ
   customMasters: new Map(),
   customColumnValues: new Map(),
+  images: [],
 
   criticalPath: [],
   projectDuration: 0,
@@ -615,6 +622,24 @@ export const useADMStore = create<ADMState>((set, get) => ({
 
   getCustomColumnValue: (columnId, rowIndex) => {
     return get().customColumnValues.get(`${columnId}:${rowIndex}`) || ''
+  },
+
+  // ======================================
+  // 画像（キープラン・凡例など）
+  // ======================================
+
+  addImage: (image) => {
+    set((state) => ({ images: [...state.images, image] }))
+  },
+
+  updateImage: (id, updates) => {
+    set((state) => ({
+      images: state.images.map((img) => (img.id === id ? { ...img, ...updates } : img)),
+    }))
+  },
+
+  removeImage: (id) => {
+    set((state) => ({ images: state.images.filter((img) => img.id !== id) }))
   },
 
   // ======================================
@@ -1683,6 +1708,8 @@ export const useADMStore = create<ADMState>((set, get) => ({
       customColumnValues: Object.fromEntries(state.customColumnValues),
       // v3: 進捗線
       progressLines: state.progressLines.length > 0 ? state.progressLines : undefined,
+      // 画像（キープラン・凡例など）。無いときは書き出さない
+      images: state.images.length > 0 ? state.images : undefined,
     }
   },
 
@@ -1842,6 +1869,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
       gridMaster: newGridMaster,
       customMasters: newCustomMasters,
       customColumnValues: newCustomColumnValues,
+      images: data.images ?? [],
       nextNodeNumber: maxNumber + 1,
       selectedNodeId: null,
       selectedActivityId: null,

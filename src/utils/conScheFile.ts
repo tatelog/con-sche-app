@@ -29,6 +29,8 @@ export async function exportFullPackage(data: ADMExportData): Promise<Blob> {
     customColumnValues: data.customColumnValues ?? {},
   }, null, 2))
   zip.file('textboxes.json', JSON.stringify(data.textboxes ?? [], null, 2))
+  // 画像（キープラン・凡例など）。ZIPなので画像を入れてもかさばりにくい
+  zip.file('images.json', JSON.stringify(data.images ?? [], null, 2))
 
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } })
 }
@@ -70,6 +72,17 @@ export async function importPackage(file: File): Promise<ImportResult> {
     return JSON.parse(await f.async('text')) as T
   }
 
+  // 古いファイルには無いので、見つからなければ既定値を返す
+  async function readJsonOptional<T>(name: string, fallback: T): Promise<T> {
+    const f = zip.file(name)
+    if (!f) return fallback
+    try {
+      return JSON.parse(await f.async('text')) as T
+    } catch {
+      return fallback
+    }
+  }
+
   const projectSettings = await readJson<ADMExportData['projectSettings']>('project.json')
   const schedule = await readJson<{ nodes: ADMExportData['nodes']; activities: ADMExportData['activities'] }>('schedule.json')
   const calendar = await readJson<ADMExportData['calendar']>('calendar.json')
@@ -98,6 +111,7 @@ export async function importPackage(file: File): Promise<ImportResult> {
       textboxes,
       customMasters: mastersRaw.customMasters,
       customColumnValues: mastersRaw.customColumnValues,
+      images: await readJsonOptional<NonNullable<ADMExportData['images']>>('images.json', []),
     }
     return { type: 'full', data }
   }

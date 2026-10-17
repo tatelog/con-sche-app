@@ -330,6 +330,9 @@ export interface ProjectSettings {
   // カレンダーヘッダー行設定
   calendarHeaderRows?: CalendarHeaderRowType[] // 表示する行（上から順）
   monthlyWeeklyLabel?: boolean // 月次モード時に週次ラベル（7日おき）表示
+  // 年・年度・月のラベルの置き方。
+  // start=期間の先頭に左寄せ（既定） / cell=先頭の列の中で中央 / span=期間全体の中央
+  spanLabelAlign?: 'start' | 'cell' | 'span'
 
   // フォントサイズ設定
   activityLabelFontSize?: number // 作業パス上のラベル（作業名・日数）
@@ -376,6 +379,7 @@ export function createProjectSettings(
     },
     calendarHeaderRows: ['day', 'weekday'],
     monthlyWeeklyLabel: false,
+    spanLabelAlign: 'start',
     activityLabelFontSize: 9,
     headerFontSize: 10,
     calendarFontSize: 9,

@@ -16,7 +16,8 @@ import type { TextBox } from '@/types/textbox'
 import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
-import { resolveHeaderCellValue } from '@/utils/headerColumnValue'
+import { resolveHeaderCellValue, buildRowGroups } from '@/utils/headerColumnValue'
+import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import {
   isWeekend,
   isNonWorkday as isNonWorkdayUtil,
@@ -361,6 +362,12 @@ function generateSVG(
   parts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMinYMin meet" style="font-family: 'NotoSansJP', sans-serif;">`)
   parts.push(`<rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="white"/>`)
 
+  // 作図エリアの切り抜き。表示期間より前から始まる作業は矢印の左端が
+  // マイナスになるため、クリップが無いと行ヘッダーの上を走ってしまう。
+  // ページごとにidを分ける（印刷プレビューは複数ページを同じDOMに並べる）
+  const clipId = `plot-area-${pageIndex}`
+  parts.push(`<defs><clipPath id="${clipId}"><rect x="${gridOffsetX}" y="0" width="${svgWidth - gridOffsetX}" height="${svgHeight}"/></clipPath></defs>`)
+
   // ── レイヤー: 背景（ヘッダー、非稼働日、行ヘッダー） ──
   parts.push('<g id="layer-bg">')
 
@@ -382,6 +389,7 @@ function generateSVG(
     const displayMode = projectSettings.displayMode
     const showWeeklyLabel = (projectSettings.monthlyWeeklyLabel ?? false) && (displayMode === 'monthly' || displayMode === 'master')
     const calFs = Math.min(projectSettings.calendarFontSize ?? 9, rowH * 0.55)
+    const spanLabelAlign = projectSettings.spanLabelAlign ?? 'start'
     const DAY_NAMES = ['\u65E5', '\u6708', '\u706B', '\u6C34', '\u6728', '\u91D1', '\u571F']
 
     dates.forEach((date, i) => {
@@ -403,7 +411,10 @@ function generateSVG(
       parts.push(`<rect x="${x}" y="0" width="${DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${bg}" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
 
       headerRows.forEach((rowType, rowIdx) => {
-        const cy = rowIdx * rowH + rowH / 2
+        // 文字のベースライン。dominant-baseline="middle" はPDF変換で効かず、
+        // 行の中央より上にずれて枠線に重なるため、座標で中央に合わせる。
+        // 係数0.4は、同じヘッダー内の列見出し（font-size 10 で +4）と同じ。
+        const cy = rowIdx * rowH + rowH / 2 + calFs * 0.4
         const isWeeklyHidden = showWeeklyLabel && (rowType === 'day' || rowType === 'weekday') && i % 7 !== 0
 
         let text = ''
@@ -445,37 +456,55 @@ function generateSVG(
 
         const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
         if (isSpanLabel) {
-          parts.push(`<text x="${x + 2}" y="${cy}" dominant-baseline="middle" text-anchor="start" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
+          // 期間のまとまりに対する置き方（左寄せ＝従来 / 中央）
+          const place = spanLabelPlacement(dates, i, rowType, spanLabelAlign, DAY_WIDTH)
+          parts.push(`<text x="${x + place.offsetX}" y="${cy}" text-anchor="${place.anchor}" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
         } else {
-          parts.push(`<text x="${x + DAY_WIDTH / 2}" y="${cy}" dominant-baseline="middle" text-anchor="middle" font-size="${calFs}" fill="${color}">${escapeXml(text)}</text>`)
+          parts.push(`<text x="${x + DAY_WIDTH / 2}" y="${cy}" text-anchor="middle" font-size="${calFs}" fill="${color}">${escapeXml(text)}</text>`)
         }
       })
     })
   }
 
-  parts.push(`<line x1="${rowHeaderWidth}" y1="${HEADER_HEIGHT}" x2="${svgWidth}" y2="${HEADER_HEIGHT}" stroke="#9CA3AF" stroke-width="1"/>`)
-
   // ── グリッド背景（非稼働日の塗り）──
+  // ヘッダー下端の罫線より先に塗る。あとから塗ると、塗りの上端と罫線の位置が
+  // 同じため線の下半分が潰れ、土日・祝日の列だけ線が消えたように見える
   dates.forEach((date, i) => {
     if (isNonWorkdayUtil(date, calendar)) {
       parts.push(`<rect x="${gridOffsetX + i * DAY_WIDTH}" y="${gridOffsetY}" width="${DAY_WIDTH}" height="${totalRows * ROW_HEIGHT}" fill="${NON_WORKDAY_BG}"/>`)
     }
   })
 
+  parts.push(`<line x1="${rowHeaderWidth}" y1="${HEADER_HEIGHT}" x2="${svgWidth}" y2="${HEADER_HEIGHT}" stroke="#9CA3AF" stroke-width="1"/>`)
+
   // ── 行ヘッダー ──
+  // 連続する同じ値はひとつのセルにまとめる。編集画面(NetworkCanvas)は結合して
+  // 見せているのに、ここで全行ベタ描きしていたため同じ工区・棟が行の数だけ
+  // 繰り返されていた。結合の計算は編集画面と同じ buildRowGroups を使う。
+  const pageRows: (HierarchyRow | undefined)[] = []
   for (let displayIdx = 0; displayIdx < totalRows; displayIdx++) {
     const dataIdx = pageStartRow + displayIdx
-    const row = dataIdx < hierarchyRows.length ? hierarchyRows[dataIdx] : undefined
-    let cx = 0
-    for (const col of visibleColumns) {
+    pageRows.push(dataIdx < hierarchyRows.length ? hierarchyRows[dataIdx] : undefined)
+  }
+  // 行番号はページ内の位置ではなくデータ全体の通し番号で渡す。
+  // カスタム列・通り列の値は "列ID:行番号" で持っているため、2ページ目以降でズレる
+  const rowGroups = buildRowGroups(visibleColumns, pageRows, getCustomValue, pageStartRow)
+
+  let headerCellX = 0
+  for (const col of visibleColumns) {
+    const cells = rowGroups.get(col.id) ?? []
+    for (let displayIdx = 0; displayIdx < totalRows; displayIdx++) {
+      const cell = cells[displayIdx]
+      // まとめられた2行目以降は、枠線も値も描かない（1つのセルに見せる）
+      if (!cell?.isFirst) continue
       const cy = HEADER_HEIGHT + displayIdx * ROW_HEIGHT
-      parts.push(`<rect x="${cx}" y="${cy}" width="${col.width}" height="${ROW_HEIGHT}" fill="white" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
-      // 行番号はページ内の位置ではなくデータ全体の通し番号(dataIdx)で渡す。
-      // カスタム列の値は "列ID:行番号" で持っているため、2ページ目以降でズレる
-      const value = resolveHeaderCellValue(col, row, dataIdx, getCustomValue)
-      if (value) parts.push(`<text x="${cx + 4}" y="${cy + ROW_HEIGHT / 2 + 4}" font-size="9" fill="#374151">${escapeXml(value)}</text>`)
-      cx += col.width
+      const cellHeight = ROW_HEIGHT * cell.rowSpan
+      parts.push(`<rect x="${headerCellX}" y="${cy}" width="${col.width}" height="${cellHeight}" fill="white" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
+      const value = resolveHeaderCellValue(col, pageRows[displayIdx], pageStartRow + displayIdx, getCustomValue)
+      // まとめたセルでは縦の中央に置く
+      if (value) parts.push(`<text x="${headerCellX + 4}" y="${cy + cellHeight / 2 + 4}" font-size="9" fill="#374151">${escapeXml(value)}</text>`)
     }
+    headerCellX += col.width
   }
   parts.push(`<line x1="${rowHeaderWidth}" y1="0" x2="${rowHeaderWidth}" y2="${svgHeight}" stroke="#9CA3AF" stroke-width="1"/>`)
   parts.push('</g>') // layer-bg
@@ -497,7 +526,7 @@ function generateSVG(
   parts.push('</g>') // layer-grid
 
   // ── レイヤー: アクティビティ（最前面） ──
-  parts.push('<g id="layer-activities">')
+  parts.push(`<g id="layer-activities" clip-path="url(#${clipId})">`)
   const pageTopY = pageStartRow * ROW_HEIGHT
   const pageBottomY = pageEndRow * ROW_HEIGHT
 
@@ -795,7 +824,7 @@ function generateSVG(
     }
   })
 
-  parts.push('<g id="layer-nodes">')
+  parts.push(`<g id="layer-nodes" clip-path="url(#${clipId})">`)
   nodes.forEach((node) => {
     if (bannerOnlyNodeIds.has(node.id)) return
 
@@ -833,7 +862,7 @@ function generateSVG(
 
   // ── レイヤー: テキストボックス ──
   if (textboxes.length > 0) {
-    parts.push('<g id="layer-textboxes">')
+    parts.push(`<g id="layer-textboxes" clip-path="url(#${clipId})">`)
     const pad = 2
     textboxes.forEach((tb) => {
       const isVertical = tb.writingDirection === 'vertical'
@@ -904,6 +933,9 @@ function generateSVG(
   // ── レイヤー: 進捗線（雷線） ──
   const visiblePLs = progressLines.filter(pl => pl.baseDate && pl.visible)
   if (visiblePLs.length > 0) {
+    // クリップは transform の外側にかける。同じ要素に clip-path と transform を
+    // 置くと、切り抜く矩形まで一緒にずれてしまうため
+    parts.push(`<g clip-path="url(#${clipId})">`)
     parts.push(`<g id="layer-progress-lines" transform="translate(${gridOffsetX}, ${gridOffsetY})">`)
     for (const pl of visiblePLs) {
       const isActive = pl.id === activeProgressLineId
@@ -943,7 +975,8 @@ function generateSVG(
         }
       }
     }
-    parts.push('</g>')
+    parts.push('</g>') // layer-progress-lines
+    parts.push('</g>') // クリップ用
   }
 
   // ── レイヤー: S字カーブ ──

@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { useADMStore } from '@/stores/admStore'
 import { PAPER_ROW_DEFAULTS } from '@/types/adm'
 import type { LayoutPaperSize, HeaderColumnType, CalendarHeaderRowType } from '@/types/adm'
+import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 
 interface ProjectSettingsDialogProps {
   isOpen: boolean
@@ -107,6 +108,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
   const [headerDragIdx, setHeaderDragIdx] = useState<number | null>(null)
   const currentHeaderRows = projectSettings.calendarHeaderRows ?? ['day', 'weekday']
   const monthlyWeeklyLabel = projectSettings.monthlyWeeklyLabel ?? false
+  const spanLabelAlign = projectSettings.spanLabelAlign ?? 'start'
 
   const removeHeaderRow = (idx: number) => {
     updateProjectSettings({ calendarHeaderRows: currentHeaderRows.filter((_, i) => i !== idx) })
@@ -385,6 +387,24 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                     />
                     月次・マスター表示時：日付・曜日を7日おきで表示
                   </label>
+                  {/* 年・年度・月のラベルの置き方。既定は従来どおり期間の先頭 */}
+                  <div className="flex items-center gap-2 text-xs text-gray-600 mt-3">
+                    <span>年・月の表示位置</span>
+                    <div className="flex rounded border border-gray-300 overflow-hidden">
+                      {([
+                        ['start', '左寄せ'],
+                        ['cell', '中央'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          onClick={() => updateProjectSettings({ spanLabelAlign: value })}
+                          className={`px-2 py-0.5 ${spanLabelAlign === value ? 'bg-blue-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 {/* プレビュー */}
                 <div className="shrink-0">
@@ -434,8 +454,19 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                                     const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
                                     const fill = rowType === 'holiday' ? '#1D4ED8' : (rowType === 'weekday' ? (isWE ? '#DC2626' : '#6B7280') : (isWE ? '#DC2626' : '#374151'))
                                     const fs = Math.max(5.5, Math.min(9, rowH * 0.55))
+                                    // 年・月の寄せ方は実際の描画と同じ計算を使う（ここで見た通りに出る）
+                                    const place = isSpanLabel
+                                      ? spanLabelPlacement(samples, si, rowType, spanLabelAlign, DAY_W)
+                                      : null
                                     return (
-                                      <text key={ri} x={isSpanLabel ? 2 : DAY_W / 2} y={ty} fontSize={fs} textAnchor={isSpanLabel ? 'start' : 'middle'} fill={fill}>{label}</text>
+                                      <text
+                                        key={ri}
+                                        x={place ? place.offsetX : DAY_W / 2}
+                                        y={ty}
+                                        fontSize={fs}
+                                        textAnchor={place ? place.anchor : 'middle'}
+                                        fill={fill}
+                                      >{label}</text>
                                     )
                                   })}
                                 </g>

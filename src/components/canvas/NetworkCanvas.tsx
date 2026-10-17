@@ -24,6 +24,7 @@ import { ProgressLineLayer } from './ProgressLineLayer'
 import { SCurveOverlay } from './SCurveOverlay'
 import { CanvasScrollbars } from './CanvasScrollbars'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
+import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import type { Activity } from '@/types/adm'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -1457,10 +1458,11 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         return row.zoneName
       case 'floor':
         return row.roomName
-      case 'grid':
-        return ''
       case 'detail':
         return row.detailName
+      // 「通り」はカスタム列と同じ自由入力列。階層には属さず、値は
+      // customColumnValues に「列ID:行番号」で入る（utils/headerColumnValue と揃える）
+      case 'grid':
       case 'custom':
         if (columnId != null && rowIndex != null) {
           return getCustomColumnValue(columnId, rowIndex)
@@ -1482,10 +1484,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         return row.zoneId
       case 'floor':
         return row.roomId
-      case 'grid':
-        return row.detailId
       case 'detail':
         return `${row.zoneId}/${row.roomId}/${row.detailName || row.detailId}`
+      case 'grid':
       case 'custom':
         if (columnId != null && rowIndex != null) {
           const val = getCustomColumnValue(columnId, rowIndex)
@@ -1669,6 +1670,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         case 'detail':
           updateDetailCategory(row.detailId, { name: selectedName })
           break
+        // 「通り」もカスタム列と同じ入れ物に保存する。
+        // 以前は分岐が無く、入力してもどこにも残らないまま閉じていた
+        case 'grid':
         case 'custom':
           if (editingCell.columnId != null) {
             setCustomColumnValue(editingCell.columnId, rowIndex, selectedName)
@@ -1848,7 +1852,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     if (columnType === 'floor' && !prevRow?.zoneId && zones.size === 0 && zoneVisible) {
       return '先にこの行の「工区」を設定してください。階は工区の中に作られます。'
     }
-    if ((columnType === 'detail' || columnType === 'custom') && !prevRow?.roomId && (zoneVisible || floorVisible)) {
+    if ((columnType === 'detail' || columnType === 'custom' || columnType === 'grid') && !prevRow?.roomId && (zoneVisible || floorVisible)) {
       const parentLabel = floorVisible && !zoneVisible ? '階数' : '工区'
       return `先にこの行の「${parentLabel}」を設定してください（上の階層から順に作られます）。`
     }
@@ -2704,15 +2708,19 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
                         if (!text) return null
                         const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
+                        // 期間ラベル（年・年度・月）の置き方はPDF・印刷と同じ計算を使う
+                        const place = isSpanLabel
+                          ? spanLabelPlacement(dates, i, rowType, projectSettings.spanLabelAlign ?? 'start', DAY_WIDTH)
+                          : null
                         return (
                           <Text
                             key={rowIdx}
                             text={text}
                             fontSize={fs * canvasScale}
                             fill={color}
-                            align={isSpanLabel ? 'left' : 'center'}
-                            x={isSpanLabel ? 2 : 0}
-                            width={isSpanLabel ? DAY_WIDTH * 8 * canvasScale : DAY_WIDTH * canvasScale}
+                            align={place ? (place.anchor === 'middle' ? 'center' : 'left') : 'center'}
+                            x={place ? (place.anchor === 'middle' ? (place.offsetX - place.width / 2) * canvasScale : place.offsetX) : 0}
+                            width={place ? place.width * canvasScale : DAY_WIDTH * canvasScale}
                             wrap="none"
                             y={textY}
                           />
