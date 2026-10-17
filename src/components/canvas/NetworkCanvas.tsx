@@ -24,6 +24,7 @@ import { ProgressLineLayer } from './ProgressLineLayer'
 import { SCurveOverlay } from './SCurveOverlay'
 import { CanvasScrollbars } from './CanvasScrollbars'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
+import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import type { Activity } from '@/types/adm'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -2707,15 +2708,19 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
                         if (!text) return null
                         const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
+                        // 期間ラベル（年・年度・月）の置き方はPDF・印刷と同じ計算を使う
+                        const place = isSpanLabel
+                          ? spanLabelPlacement(dates, i, rowType, projectSettings.spanLabelAlign ?? 'start', DAY_WIDTH)
+                          : null
                         return (
                           <Text
                             key={rowIdx}
                             text={text}
                             fontSize={fs * canvasScale}
                             fill={color}
-                            align={isSpanLabel ? 'left' : 'center'}
-                            x={isSpanLabel ? 2 : 0}
-                            width={isSpanLabel ? DAY_WIDTH * 8 * canvasScale : DAY_WIDTH * canvasScale}
+                            align={place ? (place.anchor === 'middle' ? 'center' : 'left') : 'center'}
+                            x={place ? (place.anchor === 'middle' ? (place.offsetX - place.width / 2) * canvasScale : place.offsetX) : 0}
+                            width={place ? place.width * canvasScale : DAY_WIDTH * canvasScale}
                             wrap="none"
                             y={textY}
                           />

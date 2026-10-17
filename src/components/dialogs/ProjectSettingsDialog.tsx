@@ -107,6 +107,7 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
   const [headerDragIdx, setHeaderDragIdx] = useState<number | null>(null)
   const currentHeaderRows = projectSettings.calendarHeaderRows ?? ['day', 'weekday']
   const monthlyWeeklyLabel = projectSettings.monthlyWeeklyLabel ?? false
+  const spanLabelAlign = projectSettings.spanLabelAlign ?? 'start'
 
   const removeHeaderRow = (idx: number) => {
     updateProjectSettings({ calendarHeaderRows: currentHeaderRows.filter((_, i) => i !== idx) })
@@ -385,6 +386,24 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                     />
                     月次・マスター表示時：日付・曜日を7日おきで表示
                   </label>
+                  {/* 年・年度・月のラベルの置き方。既定は従来どおり期間の先頭 */}
+                  <div className="flex items-center gap-2 text-xs text-gray-600 mt-3">
+                    <span>年・月の表示位置</span>
+                    <div className="flex rounded border border-gray-300 overflow-hidden">
+                      {([
+                        ['start', '左寄せ'],
+                        ['cell', '中央'],
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          onClick={() => updateProjectSettings({ spanLabelAlign: value })}
+                          className={`px-2 py-0.5 ${spanLabelAlign === value ? 'bg-blue-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 {/* プレビュー */}
                 <div className="shrink-0">

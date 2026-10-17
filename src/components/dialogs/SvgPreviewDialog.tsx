@@ -17,6 +17,7 @@ import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import { resolveHeaderCellValue, buildRowGroups } from '@/utils/headerColumnValue'
+import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import {
   isWeekend,
   isNonWorkday as isNonWorkdayUtil,
@@ -388,6 +389,7 @@ function generateSVG(
     const displayMode = projectSettings.displayMode
     const showWeeklyLabel = (projectSettings.monthlyWeeklyLabel ?? false) && (displayMode === 'monthly' || displayMode === 'master')
     const calFs = Math.min(projectSettings.calendarFontSize ?? 9, rowH * 0.55)
+    const spanLabelAlign = projectSettings.spanLabelAlign ?? 'start'
     const DAY_NAMES = ['\u65E5', '\u6708', '\u706B', '\u6C34', '\u6728', '\u91D1', '\u571F']
 
     dates.forEach((date, i) => {
@@ -454,7 +456,9 @@ function generateSVG(
 
         const isSpanLabel = rowType === 'year' || rowType === 'fiscalYear' || rowType === 'month'
         if (isSpanLabel) {
-          parts.push(`<text x="${x + 2}" y="${cy}" text-anchor="start" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
+          // 期間のまとまりに対する置き方（左寄せ＝従来 / 中央）
+          const place = spanLabelPlacement(dates, i, rowType, spanLabelAlign, DAY_WIDTH)
+          parts.push(`<text x="${x + place.offsetX}" y="${cy}" text-anchor="${place.anchor}" font-size="${calFs}" fill="${color}" clip-path="none" style="overflow:visible">${escapeXml(text)}</text>`)
         } else {
           parts.push(`<text x="${x + DAY_WIDTH / 2}" y="${cy}" text-anchor="middle" font-size="${calFs}" fill="${color}">${escapeXml(text)}</text>`)
         }
