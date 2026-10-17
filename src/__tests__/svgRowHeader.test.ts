@@ -3,7 +3,7 @@ import { generateAllPageSVGs } from '@/components/dialogs/SvgPreviewDialog'
 import { DEFAULT_HEADER_COLUMNS } from '@/types/adm'
 import type { HeaderColumn, HierarchyRow, ProjectSettings, EventNode, Activity } from '@/types/adm'
 
-// 2026-10-17 ゆたかの指摘（本番の画面写真つき）:
+// 2026-10-17 社内検証での指摘（本番画面の確認）:
 //  ・「同一工区や棟の場合はマージする必要があるけどそれが崩れてる」
 //  ・「カスタム列を追加して工程表を作ったら工程が貫通してる」
 //
@@ -63,9 +63,10 @@ function render(
   getCustomValue: GetCustomValue = noCustom,
   nodes: EventNode[] = [],
   activities: Activity[] = [],
+  settingsOverride: Partial<ProjectSettings> = {},
 ): string {
   return generateAllPageSVGs(
-    settings(),
+    settings(settingsOverride),
     rows,
     nodes,
     activities,
@@ -175,6 +176,71 @@ describe('カレンダーヘッダーの文字の縦位置', () => {
     expect(y).toBeGreaterThan(rowCenter)
     // 下げ幅は文字の高さの半分より小さい（行からはみ出さない）
     expect(y - rowCenter).toBeLessThan(fontSize / 2)
+  })
+})
+
+// 2026-10-17 社内検証での指摘:
+// 「日付のパターンを変えても大丈夫か」
+// カレンダーヘッダーの行構成（日 / 曜日 / 月 / 年 / 年度 / 祝日名）は設定で
+// 最大3行まで組み替えられ、文字の大きさも変えられる。どの組み合わせでも
+// 文字が行の内側に収まることを確かめる。
+describe('ヘッダーの行構成を変えても文字が行に収まる', () => {
+  const HEADER_HEIGHT = 50
+
+  /** 指定した文字の <text> の y とフォントサイズを拾う */
+  function textOf(svg: string, label: string) {
+    const m = svg.match(
+      new RegExp(`<text x="[\\d.]+" y="([\\d.]+)" text-anchor="middle" font-size="([\\d.]+)" fill="[^"]*">${label}</text>`),
+    )
+    return m ? { y: Number(m[1]), fontSize: Number(m[2]) } : null
+  }
+
+  /** 文字がその行の上下からはみ出していないか（ベースライン基準のざっくり判定） */
+  function withinRow(y: number, fontSize: number, rowIndex: number, rowCount: number) {
+    const rowH = HEADER_HEIGHT / rowCount
+    const top = rowIndex * rowH
+    const bottom = top + rowH
+    const glyphTop = y - fontSize * 0.8
+    const glyphBottom = y + fontSize * 0.2
+    return glyphTop >= top && glyphBottom <= bottom
+  }
+
+  const cases: { name: string; rows: string[]; dayRowIndex: number }[] = [
+    { name: '日付だけの1行', rows: ['day'], dayRowIndex: 0 },
+    { name: '日付と曜日の2行', rows: ['day', 'weekday'], dayRowIndex: 0 },
+    { name: '月・日付・曜日の3行', rows: ['month', 'day', 'weekday'], dayRowIndex: 1 },
+    { name: '年・月・日付の3行', rows: ['year', 'month', 'day'], dayRowIndex: 2 },
+    { name: '日付・曜日・祝日名の3行', rows: ['day', 'weekday', 'holiday'], dayRowIndex: 0 },
+  ]
+
+  for (const c of cases) {
+    it(`${c.name}でも日付が行の内側に収まる`, () => {
+      const svg = render([row({ detailId: 'd1' })], [zoneCol], noCustom, [], [], {
+        calendarHeaderRows: c.rows as ProjectSettings['calendarHeaderRows'],
+      })
+      const t = textOf(svg, '5') // dates の先頭は 2026-10-05
+      expect(t).not.toBeNull()
+      expect(withinRow(t!.y, t!.fontSize, c.dayRowIndex, c.rows.length)).toBe(true)
+    })
+  }
+
+  it('文字を大きくしても行からはみ出さない（行高に合わせて抑えられる）', () => {
+    const svg = render([row({ detailId: 'd1' })], [zoneCol], noCustom, [], [], {
+      calendarHeaderRows: ['month', 'day', 'weekday'] as ProjectSettings['calendarHeaderRows'],
+      calendarFontSize: 20,
+    })
+    const t = textOf(svg, '5')
+    expect(t).not.toBeNull()
+    expect(withinRow(t!.y, t!.fontSize, 1, 3)).toBe(true)
+  })
+
+  it('曜日も行の内側に収まる', () => {
+    const svg = render([row({ detailId: 'd1' })], [zoneCol], noCustom, [], [], {
+      calendarHeaderRows: ['month', 'day', 'weekday'] as ProjectSettings['calendarHeaderRows'],
+    })
+    const t = textOf(svg, '月') // 2026-10-05 は月曜
+    expect(t).not.toBeNull()
+    expect(withinRow(t!.y, t!.fontSize, 2, 3)).toBe(true)
   })
 })
 

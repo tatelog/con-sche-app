@@ -88,12 +88,12 @@ describe('resolveHeaderCellValue', () => {
     expect(resolveHeaderCellValue(c, undefined, 0, getCustomValue)).toBe('')
   })
 
-  // 2026-10-17 ゆたかの指摘:
+  // 2026-10-17 社内検証での指摘:
   // 「レコードヘッダーの通りに数値やテキスト入れても反応が無い」
   // 「通り」列は設定でONにでき見出しも出るのに、入力しても値が出ない。
   // マスタには登録されるので選択肢には並ぶが、選んでも空のまま。
   // 値を持つ仕組みが作られていなかったため、カスタム列と同じ
-  // 「列ID:行番号」の入れ物を使う方針にした（ゆたかの選択: A）。
+  // 「列ID:行番号」の入れ物を使う方針にした。
   it('通り列はその列・その行に入力された値を返す', () => {
     const c = col({ id: 'col-grid', type: 'grid', label: '通り' })
     const vals = new Map([['col-grid:0', 'X1']])

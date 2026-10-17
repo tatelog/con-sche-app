@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRowGroups } from '@/utils/headerColumnValue'
 import type { HeaderColumn, HierarchyRow } from '@/types/adm'
 
-// 2026-10-17 ゆたかの指摘:
+// 2026-10-17 社内検証での指摘:
 // 「同一工区や棟の場合はマージする必要があるけどそれが崩れてる」
 //
 // 編集画面(NetworkCanvas)は rowGroupInfo で連続する同じ値をまとめて
