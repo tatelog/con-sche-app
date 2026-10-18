@@ -710,6 +710,20 @@ async function handleContact(request: Request, env: Env, ctx: ExecutionContext):
     return json(env, 400, { error: '恐れ入りますが、このドメインからのお問い合わせは受け付けておりません。' });
   }
 
+  // 登録不可の会社名（登録と同じ blocked_companies。部分一致・大小文字無視）
+  // ドメインだけ見ていると、登録を塞がれた会社が問い合わせから入ってくる。
+  // 登録側に会社名の網を足したとき、この経路を忘れていた（2026-10-18 追加）。
+  const contactCompanyRows = await env.DB.prepare(
+    'SELECT keyword, note FROM blocked_companies'
+  ).all<BlockedCompanyRow>();
+  const blockedContactCompany = matchBlockedCompany(company, contactCompanyRows.results ?? []);
+  if (blockedContactCompany) {
+    ctx.waitUntil(notifySlack(env,
+      `:no_entry: *問い合わせブロック（会社名）*\nリスト: ${blockedContactCompany.note ?? blockedContactCompany.keyword}\nメール: ${email}\n会社: ${company} / 氏名: ${name}\nIP: ${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`
+    ));
+    return json(env, 400, { error: '恐れ入りますが、このお問い合わせは受け付けておりません。' });
+  }
+
   // domain-gate スパムスコアリング（失敗してもお問い合わせはスルー）
   if (env.DOMAIN_GATE_URL) {
     try {
