@@ -36,6 +36,7 @@ import { handleWebmcpEvent } from './webmcpEvent';
 import { handleClientError, handleAdminErrors } from './clientError';
 import { handleLookup } from './lookup';
 import { extractToken, safeEqual } from './adminAuth';
+import { matchBlockedCompany, type BlockedCompanyRow } from './blockedCompany';
 import { buildUnsubUrl, unsubSignature, verifyUnsubSignature } from './unsub';
 import {
   validateReissueToken,
@@ -889,6 +890,21 @@ export default {
       ));
       return json(env, 400, {
         error: '恐れ入りますが、このドメインからのご登録は現在受け付けておりません。ご不明な点はお問い合わせください。',
+      });
+    }
+
+    // 運営管理の登録不可の会社名（D1の blocked_companies テーブル。部分一致・大小文字無視）
+    // ドメインを変えて登録してくるケースへの二重の網（2026-10-04 追加）
+    const companyRows = await env.DB.prepare(
+      'SELECT keyword, note FROM blocked_companies'
+    ).all<BlockedCompanyRow>();
+    const blockedCompany = matchBlockedCompany(company, companyRows.results ?? []);
+    if (blockedCompany) {
+      ctx.waitUntil(notifySlack(env,
+        `:no_entry: *登録ブロック（会社名）*\nリスト: ${blockedCompany.note ?? blockedCompany.keyword}\nメール: ${email}\n会社: ${company} / 氏名: ${name}\nIP: ${request.headers.get('CF-Connecting-IP') ?? 'unknown'}`
+      ));
+      return json(env, 400, {
+        error: '恐れ入りますが、このご登録は現在受け付けておりません。ご不明な点はお問い合わせください。',
       });
     }
 

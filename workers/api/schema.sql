@@ -53,6 +53,16 @@ CREATE TABLE IF NOT EXISTS blocked_domains (
   created_at TEXT NOT NULL
 );
 
+-- 登録不可の会社名キーワード（部分一致・大小文字無視で customers.company と照合）
+-- ドメインを変えて登録してくるケースへの二重の網。
+-- ブロック済みドメインを持つ会社から別ドメインで登録された事例による（2026-10-04）。
+-- キーワードの中身はここには書かない（このリポジトリは公開）。運用でD1に入れる。
+CREATE TABLE IF NOT EXISTS blocked_companies (
+  keyword TEXT PRIMARY KEY,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
 -- メール確認待ちの登録（RESEND_API_KEY設定時のみ使用。確認完了で customers へ移行）
 CREATE TABLE IF NOT EXISTS pending_registrations (
   token TEXT PRIMARY KEY,
