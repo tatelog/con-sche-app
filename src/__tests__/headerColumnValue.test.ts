@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { resolveHeaderCellValue } from '@/utils/headerColumnValue'
+import {
+  resolveHeaderCellValue,
+  resolveHeaderCellKey,
+  buildRowGroups,
+  isFreeTextColumn,
+} from '@/utils/headerColumnValue'
 import type { HeaderColumn, HierarchyRow } from '@/types/adm'
 
 // 2026-10-17 利用者からの指摘:
@@ -82,10 +87,22 @@ describe('resolveHeaderCellValue', () => {
     expect(resolveHeaderCellValue(c, row, 0, getCustomValue)).toBe('')
   })
 
-  it('行データがない余白行は、どの列でも空にする', () => {
+  // 2026-10-18 Issue #26 で仕様を見直した。
+  // 階層列(棟・工区・階数・細目)を全部非表示にしてカスタム列だけで使うと、
+  // 階層行が1つも作られないため全行が余白行になる。
+  // 余白行をまとめて空にしていたので、入力した値が画面にもPDFにも出なかった。
+  // 階層列は行データが無いので空のまま。自由入力列は余白行でも値を返す。
+  it('行データがない余白行では、階層列は空にする', () => {
     expect(resolveHeaderCellValue(col({ type: 'zone' }), undefined, 0, getCustomValue)).toBe('')
+    expect(resolveHeaderCellValue(col({ type: 'floor' }), undefined, 0, getCustomValue)).toBe('')
+    expect(resolveHeaderCellValue(col({ type: 'detail' }), undefined, 0, getCustomValue)).toBe('')
+    expect(resolveHeaderCellValue(col({ type: 'building' }), undefined, 0, getCustomValue)).toBe('')
+  })
+
+  it('行データがない余白行でも、カスタム列は入力された値を返す', () => {
     const c = col({ id: 'col-custom-1', type: 'custom', label: '職種' })
-    expect(resolveHeaderCellValue(c, undefined, 0, getCustomValue)).toBe('')
+    expect(resolveHeaderCellValue(c, undefined, 0, getCustomValue)).toBe('鉄筋')
+    expect(resolveHeaderCellValue(c, undefined, 7, getCustomValue)).toBe('型枠')
   })
 
   // 2026-10-17 社内検証での指摘:
@@ -114,10 +131,59 @@ describe('resolveHeaderCellValue', () => {
     expect(resolveHeaderCellValue(c, row, 0, getCustomValue)).toBe('')
   })
 
-  it('余白行では通り列も空にする', () => {
+  it('余白行でも通り列は入力された値を返す', () => {
     const c = col({ id: 'col-grid', type: 'grid', label: '通り' })
     const vals = new Map([['col-grid:0', 'X1']])
     const get = (columnId: string, rowIndex: number) => vals.get(`${columnId}:${rowIndex}`) ?? ''
-    expect(resolveHeaderCellValue(c, undefined, 0, get)).toBe('')
+    expect(resolveHeaderCellValue(c, undefined, 0, get)).toBe('X1')
+  })
+
+  it('値が入っていない余白行の自由入力列は空にする', () => {
+    const c = col({ id: 'col-grid', type: 'grid', label: '通り' })
+    expect(resolveHeaderCellValue(c, undefined, 3, getCustomValue)).toBe('')
+  })
+})
+
+// 2026-10-18 今夜の修正の穴:
+// 「通り」を空行に入力しても保存されなかった。NetworkCanvas の
+// handleCellSelectChange に「既存行」と「空行」で分岐が2つあり、
+// 通り列を既存行側にだけ足して空行側に入れ忘れていたため。
+// 新規作成直後は全行が空行なので、最初の入力が必ず消える。
+// 同じ判定を2箇所に書かないよう、列の性質をここで1つに決める。
+describe('isFreeTextColumn', () => {
+  it('通り列は階層に属さない自由入力列として扱う', () => {
+    expect(isFreeTextColumn('grid')).toBe(true)
+  })
+
+  it('カスタム列は階層に属さない自由入力列として扱う', () => {
+    expect(isFreeTextColumn('custom')).toBe(true)
+  })
+
+  it('棟・工区・階数・細目は階層列なので自由入力列ではない', () => {
+    expect(isFreeTextColumn('building')).toBe(false)
+    expect(isFreeTextColumn('zone')).toBe(false)
+    expect(isFreeTextColumn('floor')).toBe(false)
+    expect(isFreeTextColumn('detail')).toBe(false)
+  })
+})
+
+describe('余白行の結合', () => {
+  const gridCol = col({ id: 'col-grid', type: 'grid', label: '通り' })
+  const vals = new Map([
+    ['col-grid:0', 'X1'],
+    ['col-grid:1', 'X1'],
+  ])
+  const get = (columnId: string, rowIndex: number) => vals.get(`${columnId}:${rowIndex}`) ?? ''
+
+  it('余白行は同じ値が続いてもまとめない（1行ずつ独立したセルにする）', () => {
+    expect(resolveHeaderCellKey(gridCol, undefined, 0, get))
+      .not.toBe(resolveHeaderCellKey(gridCol, undefined, 1, get))
+  })
+
+  it('余白行だけの工程表でも、各行が rowSpan 1 のセルになる', () => {
+    const groups = buildRowGroups([gridCol], [undefined, undefined, undefined], get, 0)
+    const cells = groups.get('col-grid') ?? []
+    expect(cells.map((c) => c.isFirst)).toEqual([true, true, true])
+    expect(cells.map((c) => c.rowSpan)).toEqual([1, 1, 1])
   })
 })
