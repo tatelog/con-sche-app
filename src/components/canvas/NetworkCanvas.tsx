@@ -27,6 +27,7 @@ import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import { isFreeTextColumn, resolveHeaderCellValue } from '@/utils/headerColumnValue'
 import { buildRowOrderAfterMove } from '@/utils/rowValueShift'
+import { insertAfterRowIndexForGap, planRowInsert } from '@/utils/rowInsert'
 import type { Activity } from '@/types/adm'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -2165,26 +2166,21 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       const roomId = addRoom(zoneId, '')
       addDetailCategory(roomId, '')
     } else if (afterRowIndex < hierarchyRows.length) {
-      // 既存行の後に挿入
+      // 既存行の後に挿入。上の行と同じ階に、中身が空の1行を足す。
+      // 細目名を上の行からコピーすると、同名の連続行として上のセルに結合され
+      // 行が増えたように見えないため、空にする（utils/rowInsert 参照）
       const row = hierarchyRows[afterRowIndex]
-      const roomDetails = Array.from(detailCategories.values())
-        .filter(d => d.roomId === row.roomId)
-        .sort((a, b) => a.order - b.order)
+      const plan = planRowInsert({
+        rows: hierarchyRows,
+        afterRowIndex,
+        detailsInRoom: Array.from(detailCategories.values()).filter(d => d.roomId === row.roomId),
+        afterDetailId: row.detailId,
+      })
 
-      const currentDetail = detailCategories.get(row.detailId)
-      const currentIndex = roomDetails.findIndex(d => d.id === row.detailId)
-
-      let newOrder: number
-      if (currentIndex < roomDetails.length - 1) {
-        // 次の要素との間に挿入
-        newOrder = (currentDetail!.order + roomDetails[currentIndex + 1].order) / 2
-      } else {
-        // 最後の要素の後に挿入
-        newOrder = currentDetail!.order + 1
+      if (plan.kind === 'into-room') {
+        const newId = addDetailCategory(plan.roomId, plan.detailName)
+        updateDetailCategory(newId, { order: plan.order })
       }
-
-      const newId = addDetailCategory(row.roomId, row.detailName)
-      updateDetailCategory(newId, { order: newOrder })
     } else {
       // 空行エリアに挿入
       const zonesArray = Array.from(zones.values()).sort((a, b) => a.order - b.order)
@@ -2334,9 +2330,11 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md hover:bg-blue-600 transition-colors"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleInsertRowAt(gapIndex - 1)
+                        // ページ送りしているぶんを足して本当の行番号に直す。
+                        // これが無いと2ページ目以降で別の行の下に入る
+                        handleInsertRowAt(insertAfterRowIndexForGap(gapIndex, pageStartRow))
                       }}
-                      title="ここに行を挿入（この位置から下の行が1つ下がります）"
+                      title="上の行と同じ階に、空の行を1つ割り込ませる"
                     >
                       +
                     </button>
