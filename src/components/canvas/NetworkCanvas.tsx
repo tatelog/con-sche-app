@@ -2046,16 +2046,29 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     e.dataTransfer.effectAllowed = 'move'
   }, [])
 
+  // 行の並べ替えは同じ階(room)の中だけ。理由を出すときに使う列名
+  const floorColumnLabel = useMemo(
+    () => projectSettings.headerColumns.find(col => col.type === 'floor')?.label || '階数',
+    [projectSettings.headerColumns],
+  )
+  const crossRoomHint = `同じ${floorColumnLabel}の中でだけ並べ替えられます。${floorColumnLabel}を変えるときはそのセルから変えてください`
+
   // ドラッグオーバー
   const handleDragOver = useCallback((e: React.DragEvent, rowIndex: number) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    const fromRow = draggedRowIndex !== null ? hierarchyRows[draggedRowIndex] : undefined
+    const toRow = hierarchyRows[rowIndex]
+    // 落とせない組み合わせは、落とす前に理由を見せる
+    const blocked = !!fromRow && !!toRow && fromRow.roomId !== toRow.roomId
+    e.dataTransfer.dropEffect = blocked ? 'none' : 'move'
+    setCursorHint(blocked ? crossRoomHint : null)
     setDragOverRowIndex(rowIndex)
-  }, [])
+  }, [draggedRowIndex, hierarchyRows, crossRoomHint, setCursorHint])
 
   // ドラッグ終了（挿入方式: draggedRowをdragOverRow位置に挿入）
   const handleDragEnd = useCallback(() => {
     if (draggedRowIndex === null || dragOverRowIndex === null || draggedRowIndex === dragOverRowIndex) {
+      setCursorHint(null)
       setDraggedRowIndex(null)
       setDragOverRowIndex(null)
       return
@@ -2064,18 +2077,23 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     const fromRow = hierarchyRows[draggedRowIndex]
     const toRow = hierarchyRows[dragOverRowIndex]
     if (!fromRow || !toRow) {
+      setCursorHint(null)
       setDraggedRowIndex(null)
       setDragOverRowIndex(null)
       return
     }
 
     // 1. 階(room)をまたぐドラッグはキャンセル（floorセルから変更する）
+    //    黙って取り消すと不具合に見えるので、理由を出してから閉じる
     if (fromRow.roomId !== toRow.roomId) {
+      setCursorHint(crossRoomHint)
+      window.setTimeout(() => setCursorHint(null), 2200)
       setDraggedRowIndex(null)
       setDragOverRowIndex(null)
       return
     }
 
+    setCursorHint(null)
     saveHistory()
 
     // 2. 新しい並びを先に決める（挿入方式）
@@ -2112,7 +2130,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
     setDraggedRowIndex(null)
     setDragOverRowIndex(null)
-  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, moveCustomColumnValueRow, saveHistory])
+  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, moveCustomColumnValueRow, saveHistory, crossRoomHint, setCursorHint])
 
   // 指定行以降のノードを1行分下にシフト
   const shiftNodesDown = useCallback((fromRowIndex: number) => {
