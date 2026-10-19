@@ -162,8 +162,10 @@ export interface ActivityDisplaySettings {
   lineColor: string // 線色
   lineStyle: 'solid' | 'dashed' | 'dotted' // 線種
   lineWidth: number // 線幅
+  textColor?: string // 文字色（undefined = 線色に合わせる）
+  fontSize?: number // 文字サイズ（undefined = プロジェクトデフォルト使用）
   textAlign?: 'left' | 'center' | 'right' // テキスト配置（undefined = プロジェクトデフォルト使用）
-  leaderLineStyle?: 'line' | 'underline' // 引き出し線スタイル（undefined = プロジェクトデフォルト使用）
+  leaderLineStyle?: 'line' | 'underline' | 'none' // 引き出し線スタイル（undefined = プロジェクトデフォルト使用）
   edgeCornerRadius?: number // エッジ曲がり角R（px、undefined = プロジェクトデフォルト使用）
   displayType?: 'arrow' | 'banner' // 表示タイプ（デフォルト: 'arrow'）
 }
@@ -334,6 +336,9 @@ export interface ProjectSettings {
   // start=期間の先頭に左寄せ（既定） / cell=先頭の列の中で中央 / span=期間全体の中央
   spanLabelAlign?: 'start' | 'cell' | 'span'
 
+  // クリティカルパスを赤で示すか。切ると、赤を自分の強調（打設日など）に使える
+  highlightCriticalPath?: boolean
+
   // フォントサイズ設定
   activityLabelFontSize?: number // 作業パス上のラベル（作業名・日数）
   headerFontSize?: number // 行ヘッダー（工区/階数/部屋名）
@@ -381,6 +386,7 @@ export function createProjectSettings(
     monthlyWeeklyLabel: false,
     spanLabelAlign: 'start',
     activityLabelFontSize: 9,
+    highlightCriticalPath: true,
     headerFontSize: 10,
     calendarFontSize: 9,
     ...partial,

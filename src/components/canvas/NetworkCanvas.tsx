@@ -2957,6 +2957,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       defaultTextAlign={projectSettings.defaultActivityDisplay.textAlign ?? 'center'}
                       defaultLeaderLineStyle={projectSettings.defaultActivityDisplay.leaderLineStyle ?? 'line'}
                       activityLabelFontSize={projectSettings.activityLabelFontSize ?? 9}
+                      highlightCriticalPath={projectSettings.highlightCriticalPath !== false}
                       onLabelDragEnd={(offset) => updateActivity(activity.id, { labelOffset: offset })}
                     />
                   )
@@ -3092,7 +3093,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       key={node.id}
                       node={adjustedNode}
                       isSelected={selectedNodeId === node.id || selectedNodeIds.includes(node.id)}
-                      isOnCriticalPath={isNodeOnCriticalPath(node.id)}
+                      isOnCriticalPath={projectSettings.highlightCriticalPath !== false && isNodeOnCriticalPath(node.id)}
                       semiCircleDirection={semiCircleDir}
                       onClick={() => handleNodeClick(node.id)}
                       onContextMenu={(e) => {

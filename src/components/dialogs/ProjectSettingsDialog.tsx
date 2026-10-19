@@ -661,6 +661,22 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
               </div>
             </div>
 
+            {/* クリティカルパスの色分け */}
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={projectSettings.highlightCriticalPath !== false}
+                  onChange={(e) => updateProjectSettings({ highlightCriticalPath: e.target.checked })}
+                  className="rounded"
+                />
+                クリティカルパスを赤で示す
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                OFF: 画面もPDFも赤にしません。打設日など特定の作業を赤で強調したいときに外します
+              </p>
+            </div>
+
             {/* 棟セレクター表示 */}
             <div className="mb-4">
               <label className="flex items-center gap-2 text-sm text-gray-600">

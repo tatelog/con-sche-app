@@ -18,6 +18,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import { resolveHeaderCellValue, buildRowGroups } from '@/utils/headerColumnValue'
 import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
+import { resolveActivityAppearance } from '@/utils/activityAppearance'
 import {
   isWeekend,
   isNonWorkday as isNonWorkdayUtil,
@@ -530,10 +531,25 @@ function generateSVG(
   const pageTopY = pageStartRow * ROW_HEIGHT
   const pageBottomY = pageEndRow * ROW_HEIGHT
 
+  // クリティカルパスを色で示すか（切ると、赤を自分の強調に使える）
+  const highlightCritical = projectSettings.highlightCriticalPath !== false
+
   activities.forEach((activity) => {
     const fromNode = nodesMap.get(activity.fromNodeId)
     const toNode = nodesMap.get(activity.toNodeId)
     if (!fromNode || !toNode) return
+
+    // 線色・文字色・文字サイズ・引き出し線は画面側(ActivityArrow)と同じ判断を使う
+    const appearance = resolveActivityAppearance({
+      lineColor: activity.displaySettings.lineColor || '#374151',
+      textColor: activity.displaySettings.textColor,
+      fontSize: activity.displaySettings.fontSize,
+      leaderLineStyle: activity.displaySettings.leaderLineStyle,
+      isCritical: activity.isCritical,
+      highlightCritical,
+      defaultFontSize: projectSettings.activityLabelFontSize ?? 9,
+      defaultLeaderLineStyle: projectSettings.defaultActivityDisplay.leaderLineStyle,
+    })
 
     // ページ範囲外のアクティビティはスキップ
     const minNodeY = Math.min(fromNode.position.y, toNode.position.y)
@@ -563,8 +579,7 @@ function generateSVG(
       const cy = fromY // 水平前提
       const halfH = ROW_HEIGHT * 0.35
       const tipW = Math.min(halfH * 0.8, bannerWidth * 0.15)
-      let bannerColor = activity.displaySettings.lineColor || '#374151'
-      if (activity.isCritical) bannerColor = CRITICAL_COLOR
+      const bannerColor = appearance.lineColor
 
       const hexPoints = [
         `${leftX + tipW},${cy - halfH}`,
@@ -589,8 +604,7 @@ function generateSVG(
     }
 
     // 色
-    let strokeColor = activity.displaySettings.lineColor || '#374151'
-    if (activity.isCritical) strokeColor = CRITICAL_COLOR
+    const strokeColor = appearance.lineColor
     const strokeWidth = activity.displaySettings.lineWidth || 2
 
     // 基本線種
@@ -780,8 +794,10 @@ function generateSVG(
         default: textX = labelX + effTextWidth / 2; break
       }
 
-      // 引き出し線
-      if (autoLeader) {
+      // 引き出し線。「なし」を選んだら引かない
+      if (appearance.leaderLineStyle === 'none') {
+        // 何も引かない
+      } else if (autoLeader) {
         parts.push(`<line x1="${midInfo.x}" y1="${midInfo.y}" x2="${midInfo.x + LEADER_GAP}" y2="${midInfo.y}" stroke="#9CA3AF" stroke-width="0.5"/>`)
       } else if (userOffX !== 0 || userOffY !== 0) {
         const leaderTextX = midInfo.x < labelX + effTextWidth / 2 ? labelX : labelX + effTextWidth
@@ -800,9 +816,8 @@ function generateSVG(
         text = `${activity.duration}日`
       }
 
-      const textFill = activity.isCritical ? CRITICAL_COLOR : '#374151'
       if (text) {
-        parts.push(`<text x="${textX}" y="${labelY + 9}" text-anchor="${effectiveAlign}" font-size="9" fill="${textFill}">${escapeXml(text)}</text>`)
+        parts.push(`<text x="${textX}" y="${labelY + 9}" text-anchor="${effectiveAlign}" font-size="${appearance.fontSize}" fill="${appearance.textColor}">${escapeXml(text)}</text>`)
       }
 
       // 歩掛根拠テキスト
@@ -837,7 +852,7 @@ function generateSVG(
     const cx = gridOffsetX + adjustedX
     const cy = gridOffsetY + node.position.y - pageTopY
 
-    const isCritical = activities.some(a => a.isCritical && (a.fromNodeId === node.id || a.toNodeId === node.id))
+    const isCritical = highlightCritical && activities.some(a => a.isCritical && (a.fromNodeId === node.id || a.toNodeId === node.id))
     const nodeStroke = isCritical ? CRITICAL_COLOR : '#374151'
     const nodeSW = isCritical ? 2 : 1.5
 
