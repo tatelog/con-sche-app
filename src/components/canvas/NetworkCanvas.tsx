@@ -2753,8 +2753,12 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                             text={text}
                             fontSize={fs * canvasScale}
                             fill={color}
-                            align={place ? (place.anchor === 'middle' ? 'center' : 'left') : 'center'}
-                            x={place ? (place.anchor === 'middle' ? (place.offsetX - place.width / 2) * canvasScale : place.offsetX) : 0}
+                            align={place ? (place.anchor === 'middle' ? 'center' : place.anchor === 'end' ? 'right' : 'left') : 'center'}
+                            x={place
+                              ? place.anchor === 'start'
+                                ? place.offsetX
+                                : (place.offsetX - place.width / (place.anchor === 'end' ? 1 : 2)) * canvasScale
+                              : 0}
                             width={place ? place.width * canvasScale : DAY_WIDTH * canvasScale}
                             wrap="none"
                             y={textY}
@@ -2825,6 +2829,22 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                     listening={false}
                   />
                 ))}
+
+                {/* 月の変わり目の区切り線（設定でON） */}
+                {projectSettings.monthSeparatorLines && dates.map((date, i) => {
+                  const prev = dates[i - 1]
+                  if (!prev) return null
+                  if (prev.getMonth() === date.getMonth() && prev.getFullYear() === date.getFullYear()) return null
+                  return (
+                    <Line
+                      key={`month-sep-${i}`}
+                      points={[i * DAY_WIDTH, 0, i * DAY_WIDTH, totalRows * ROW_HEIGHT]}
+                      stroke="#6B7280"
+                      strokeWidth={1}
+                      listening={false}
+                    />
+                  )
+                })}
 
                 {/* 横線（行） */}
                 {Array.from({ length: totalRows + 1 }).map((_, i) => (

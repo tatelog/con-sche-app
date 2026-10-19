@@ -274,6 +274,7 @@ export type DisplayMode = 'weekly2' | 'weekly3' | 'monthly' | 'master' | 'custom
 
 // 用紙サイズ（print.tsから再エクスポートしつつcustomを追加）
 import type { PaperOrientation as PrintPaperOrientation } from './print'
+import type { SpanAlign } from '@/utils/calendarSpanLabel'
 export type LayoutPaperSize = 'A4' | 'A3' | 'A2' | 'A1' | 'custom'
 export type { PrintPaperOrientation as LayoutPaperOrientation }
 
@@ -333,8 +334,11 @@ export interface ProjectSettings {
   calendarHeaderRows?: CalendarHeaderRowType[] // 表示する行（上から順）
   monthlyWeeklyLabel?: boolean // 月次モード時に週次ラベル（7日おき）表示
   // 年・年度・月のラベルの置き方。
-  // start=期間の先頭に左寄せ（既定） / cell=先頭の列の中で中央 / span=期間全体の中央
-  spanLabelAlign?: 'start' | 'cell' | 'span'
+  // start=期間の先頭に左寄せ（既定） / cell=先頭の列の中で中央
+  // span=期間全体の中央 / spanEnd=期間全体の右端に右寄せ
+  spanLabelAlign?: SpanAlign
+  // 月の変わり目に縦の区切り線を引くか
+  monthSeparatorLines?: boolean
 
   // クリティカルパスを赤で示すか。切ると、赤を自分の強調（打設日など）に使える
   highlightCriticalPath?: boolean

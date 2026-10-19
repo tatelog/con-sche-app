@@ -393,7 +393,9 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                     <div className="flex rounded border border-gray-300 overflow-hidden">
                       {([
                         ['start', '左寄せ'],
-                        ['cell', '中央'],
+                        ['cell', 'セル中央'],
+                        ['span', '中央'],
+                        ['spanEnd', '右寄せ'],
                       ] as const).map(([value, label]) => (
                         <button
                           key={value}
@@ -405,6 +407,16 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                       ))}
                     </div>
                   </div>
+                  {/* 月の区切り線。どのラベルがどの月のものか分かるようにする */}
+                  <label className="flex items-center gap-2 text-xs text-gray-600 mt-2">
+                    <input
+                      type="checkbox"
+                      checked={projectSettings.monthSeparatorLines ?? false}
+                      onChange={(e) => updateProjectSettings({ monthSeparatorLines: e.target.checked })}
+                      className="rounded"
+                    />
+                    月の変わり目に区切り線を引く
+                  </label>
                 </div>
                 {/* プレビュー */}
                 <div className="shrink-0">

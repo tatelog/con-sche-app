@@ -521,6 +521,18 @@ function generateSVG(
     const y = gridOffsetY + i * ROW_HEIGHT
     parts.push(`<line x1="${gridOffsetX}" y1="${y}" x2="${svgWidth}" y2="${y}" stroke="#D1D5DB" stroke-width="1"/>`)
   }
+  // 月の変わり目の区切り線。カレンダーヘッダーの上端から下端まで通して、
+  // どのラベルがどの月のものか分かるようにする
+  if (projectSettings.monthSeparatorLines) {
+    for (let i = 1; i < effectiveTotalDays; i++) {
+      const prev = dates[i - 1]
+      const cur = dates[i]
+      if (!prev || !cur) continue
+      if (prev.getMonth() === cur.getMonth() && prev.getFullYear() === cur.getFullYear()) continue
+      const x = gridOffsetX + i * DAY_WIDTH
+      parts.push(`<line x1="${x}" y1="0" x2="${x}" y2="${gridOffsetY + totalRows * ROW_HEIGHT}" stroke="#6B7280" stroke-width="1"/>`)
+    }
+  }
   // 下端罫線（非稼働日グレー塗りの上に描画）
   const bottomY = gridOffsetY + totalRows * ROW_HEIGHT
   parts.push(`<line x1="${gridOffsetX}" y1="${bottomY}" x2="${svgWidth}" y2="${bottomY}" stroke="#9CA3AF" stroke-width="1"/>`)
