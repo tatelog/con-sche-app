@@ -26,6 +26,8 @@ import { CanvasScrollbars } from './CanvasScrollbars'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import { isFreeTextColumn, resolveHeaderCellValue } from '@/utils/headerColumnValue'
+import { buildRowOrderAfterMove } from '@/utils/rowValueShift'
+import { insertAfterRowIndexForGap, planRowInsert } from '@/utils/rowInsert'
 import type { Activity } from '@/types/adm'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -179,6 +181,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const addCustomMasterItem = useADMStore((state) => state.addCustomMasterItem)
   const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
   const setCustomColumnValue = useADMStore((state) => state.setCustomColumnValue)
+  const moveCustomColumnValueRow = useADMStore((state) => state.moveCustomColumnValueRow)
+  const deleteCustomColumnValueRow = useADMStore((state) => state.deleteCustomColumnValueRow)
+  const insertCustomColumnValueRow = useADMStore((state) => state.insertCustomColumnValueRow)
 
   // 行ヘッダー編集状態
   const [editingCell, setEditingCell] = useState<{
@@ -2018,17 +2023,23 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     const row = hierarchyRows[rowIndex]
     if (row) {
       // 削除する行より下のノードを上にシフト
+      // 行の判定は getNodesOnRow と同じく「行の上端以上・下端未満」。
+      // ここだけ > にしていたため、消した行のすぐ下の行の先頭にあるノードが
+      // 繰り上がらず、行ヘッダーと1行ぶんずれていた
       const deleteY = rowIndex * ROW_HEIGHT
       nodes.forEach(node => {
-        if (node.position.y > deleteY + ROW_HEIGHT) {
+        if (node.position.y >= deleteY + ROW_HEIGHT) {
           moveNode(node.id, { x: node.position.x, y: node.position.y - ROW_HEIGHT })
         }
       })
 
       deleteDetailCategory(row.detailId)
+      // 通り列・カスタム列の値は行番号で持っているので、ここで消さないと
+      // 行だけ消えて文字が残り、下の行の値が1つずつずれる
+      deleteCustomColumnValueRow(rowIndex)
     }
     closeRowActionMenu()
-  }, [rowActionMenu, hierarchyRows, nodes, moveNode, deleteDetailCategory, closeRowActionMenu])
+  }, [rowActionMenu, hierarchyRows, nodes, moveNode, deleteDetailCategory, deleteCustomColumnValueRow, closeRowActionMenu])
 
   // ドラッグ開始
   const handleDragStart = useCallback((e: React.DragEvent, rowIndex: number) => {
@@ -2036,16 +2047,29 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     e.dataTransfer.effectAllowed = 'move'
   }, [])
 
+  // 行の並べ替えは同じ階(room)の中だけ。理由を出すときに使う列名
+  const floorColumnLabel = useMemo(
+    () => projectSettings.headerColumns.find(col => col.type === 'floor')?.label || '階数',
+    [projectSettings.headerColumns],
+  )
+  const crossRoomHint = `同じ${floorColumnLabel}の中でだけ並べ替えられます。${floorColumnLabel}を変えるときはそのセルから変えてください`
+
   // ドラッグオーバー
   const handleDragOver = useCallback((e: React.DragEvent, rowIndex: number) => {
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    const fromRow = draggedRowIndex !== null ? hierarchyRows[draggedRowIndex] : undefined
+    const toRow = hierarchyRows[rowIndex]
+    // 落とせない組み合わせは、落とす前に理由を見せる
+    const blocked = !!fromRow && !!toRow && fromRow.roomId !== toRow.roomId
+    e.dataTransfer.dropEffect = blocked ? 'none' : 'move'
+    setCursorHint(blocked ? crossRoomHint : null)
     setDragOverRowIndex(rowIndex)
-  }, [])
+  }, [draggedRowIndex, hierarchyRows, crossRoomHint, setCursorHint])
 
   // ドラッグ終了（挿入方式: draggedRowをdragOverRow位置に挿入）
   const handleDragEnd = useCallback(() => {
     if (draggedRowIndex === null || dragOverRowIndex === null || draggedRowIndex === dragOverRowIndex) {
+      setCursorHint(null)
       setDraggedRowIndex(null)
       setDragOverRowIndex(null)
       return
@@ -2054,41 +2078,48 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     const fromRow = hierarchyRows[draggedRowIndex]
     const toRow = hierarchyRows[dragOverRowIndex]
     if (!fromRow || !toRow) {
+      setCursorHint(null)
       setDraggedRowIndex(null)
       setDragOverRowIndex(null)
       return
     }
 
     // 1. 階(room)をまたぐドラッグはキャンセル（floorセルから変更する）
+    //    黙って取り消すと不具合に見えるので、理由を出してから閉じる
     if (fromRow.roomId !== toRow.roomId) {
+      setCursorHint(crossRoomHint)
+      window.setTimeout(() => setCursorHint(null), 2200)
       setDraggedRowIndex(null)
       setDragOverRowIndex(null)
       return
     }
 
+    setCursorHint(null)
     saveHistory()
 
-    // 2. ノードY座標を入れ替え
-    const nodesOnFromRow = getNodesOnRow(draggedRowIndex)
-    const nodesOnToRow = getNodesOnRow(dragOverRowIndex)
-    const fromRowY = draggedRowIndex * ROW_HEIGHT
-    const toRowY = dragOverRowIndex * ROW_HEIGHT
+    // 2. 新しい並びを先に決める（挿入方式）
+    //    以前はノードだけ from と to で入れ替えていたため、間に挟まれた行の
+    //    ノードが行と一緒に動かず、工程の線と行ヘッダーがずれていた
+    const newOrder = buildRowOrderAfterMove(hierarchyRows.length, draggedRowIndex, dragOverRowIndex)
 
-    nodesOnFromRow.forEach(node => {
-      const offset = node.position.y - fromRowY
-      moveNode(node.id, { x: node.position.x, y: toRowY + offset })
+    // 3. ノードを行の移動量ぶんだけ動かす
+    //    動かしながら拾うと二重に動くので、先に全行のノードを拾っておく
+    const nodesByOldRow = hierarchyRows.map((_, rowIndex) => getNodesOnRow(rowIndex))
+    newOrder.forEach((oldIndex, newIndex) => {
+      if (oldIndex === newIndex) return
+      const deltaY = (newIndex - oldIndex) * ROW_HEIGHT
+      nodesByOldRow[oldIndex].forEach(node => {
+        moveNode(node.id, { x: node.position.x, y: node.position.y + deltaY })
+      })
     })
-    nodesOnToRow.forEach(node => {
-      const offset = node.position.y - toRowY
-      moveNode(node.id, { x: node.position.x, y: fromRowY + offset })
-    })
 
-    // 3. hierarchyRowsの新しい並びを計算
-    const newRows = [...hierarchyRows]
-    const [movedRow] = newRows.splice(draggedRowIndex, 1)
-    newRows.splice(dragOverRowIndex, 0, movedRow)
+    // 4. 通り列・カスタム列の値も一緒に動かす（行番号で持っているため）
+    moveCustomColumnValueRow(draggedRowIndex, dragOverRowIndex)
 
-    // 4. 同一room内のorder値を再付番
+    // 5. hierarchyRowsの新しい並び
+    const newRows = newOrder.map(i => hierarchyRows[i])
+
+    // 6. 同一room内のorder値を再付番
     let order = 0
     for (const row of newRows) {
       const detail = detailCategories.get(row.detailId)
@@ -2100,7 +2131,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
     setDraggedRowIndex(null)
     setDragOverRowIndex(null)
-  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, saveHistory])
+  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, moveCustomColumnValueRow, saveHistory, crossRoomHint, setCursorHint])
 
   // 指定行以降のノードを1行分下にシフト
   const shiftNodesDown = useCallback((fromRowIndex: number) => {
@@ -2121,6 +2152,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     if (insertAtRowIndex < hierarchyRows.length) {
       shiftNodesDown(insertAtRowIndex)
     }
+    // 通り列・カスタム列の値も1行ぶん繰り下げる（行番号で持っているため）
+    insertCustomColumnValueRow(insertAtRowIndex)
 
     if (afterRowIndex < 0) {
       // 最初の行の前に挿入 - 全ノードを下にシフト、空白行（全ヘッダー空）を追加
@@ -2133,26 +2166,21 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       const roomId = addRoom(zoneId, '')
       addDetailCategory(roomId, '')
     } else if (afterRowIndex < hierarchyRows.length) {
-      // 既存行の後に挿入
+      // 既存行の後に挿入。上の行と同じ階に、中身が空の1行を足す。
+      // 細目名を上の行からコピーすると、同名の連続行として上のセルに結合され
+      // 行が増えたように見えないため、空にする（utils/rowInsert 参照）
       const row = hierarchyRows[afterRowIndex]
-      const roomDetails = Array.from(detailCategories.values())
-        .filter(d => d.roomId === row.roomId)
-        .sort((a, b) => a.order - b.order)
+      const plan = planRowInsert({
+        rows: hierarchyRows,
+        afterRowIndex,
+        detailsInRoom: Array.from(detailCategories.values()).filter(d => d.roomId === row.roomId),
+        afterDetailId: row.detailId,
+      })
 
-      const currentDetail = detailCategories.get(row.detailId)
-      const currentIndex = roomDetails.findIndex(d => d.id === row.detailId)
-
-      let newOrder: number
-      if (currentIndex < roomDetails.length - 1) {
-        // 次の要素との間に挿入
-        newOrder = (currentDetail!.order + roomDetails[currentIndex + 1].order) / 2
-      } else {
-        // 最後の要素の後に挿入
-        newOrder = currentDetail!.order + 1
+      if (plan.kind === 'into-room') {
+        const newId = addDetailCategory(plan.roomId, plan.detailName)
+        updateDetailCategory(newId, { order: plan.order })
       }
-
-      const newId = addDetailCategory(row.roomId, row.detailName)
-      updateDetailCategory(newId, { order: newOrder })
     } else {
       // 空行エリアに挿入
       const zonesArray = Array.from(zones.values()).sort((a, b) => a.order - b.order)
@@ -2163,7 +2191,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     }
 
     setHoverRowGap(null)
-  }, [zones, rooms, detailCategories, hierarchyRows, addZone, updateZone, addRoom, addDetailCategory, updateDetailCategory, shiftNodesDown])
+  }, [zones, rooms, detailCategories, hierarchyRows, addZone, updateZone, addRoom, addDetailCategory, updateDetailCategory, shiftNodesDown, insertCustomColumnValueRow])
 
   // メニューを閉じるためのクリックハンドラー
   useEffect(() => {
@@ -2302,9 +2330,11 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       className="bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow-md hover:bg-blue-600 transition-colors"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleInsertRowAt(gapIndex - 1)
+                        // ページ送りしているぶんを足して本当の行番号に直す。
+                        // これが無いと2ページ目以降で別の行の下に入る
+                        handleInsertRowAt(insertAfterRowIndexForGap(gapIndex, pageStartRow))
                       }}
-                      title="行を挿入"
+                      title="上の行と同じ階に、空の行を1つ割り込ませる"
                     >
                       +
                     </button>
@@ -2721,8 +2751,12 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                             text={text}
                             fontSize={fs * canvasScale}
                             fill={color}
-                            align={place ? (place.anchor === 'middle' ? 'center' : 'left') : 'center'}
-                            x={place ? (place.anchor === 'middle' ? (place.offsetX - place.width / 2) * canvasScale : place.offsetX) : 0}
+                            align={place ? (place.anchor === 'middle' ? 'center' : place.anchor === 'end' ? 'right' : 'left') : 'center'}
+                            x={place
+                              ? place.anchor === 'start'
+                                ? place.offsetX
+                                : (place.offsetX - place.width / (place.anchor === 'end' ? 1 : 2)) * canvasScale
+                              : 0}
                             width={place ? place.width * canvasScale : DAY_WIDTH * canvasScale}
                             wrap="none"
                             y={textY}
@@ -2793,6 +2827,22 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                     listening={false}
                   />
                 ))}
+
+                {/* 月の変わり目の区切り線（設定でON） */}
+                {projectSettings.monthSeparatorLines && dates.map((date, i) => {
+                  const prev = dates[i - 1]
+                  if (!prev) return null
+                  if (prev.getMonth() === date.getMonth() && prev.getFullYear() === date.getFullYear()) return null
+                  return (
+                    <Line
+                      key={`month-sep-${i}`}
+                      points={[i * DAY_WIDTH, 0, i * DAY_WIDTH, totalRows * ROW_HEIGHT]}
+                      stroke="#6B7280"
+                      strokeWidth={1}
+                      listening={false}
+                    />
+                  )
+                })}
 
                 {/* 横線（行） */}
                 {Array.from({ length: totalRows + 1 }).map((_, i) => (
@@ -2925,6 +2975,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       defaultTextAlign={projectSettings.defaultActivityDisplay.textAlign ?? 'center'}
                       defaultLeaderLineStyle={projectSettings.defaultActivityDisplay.leaderLineStyle ?? 'line'}
                       activityLabelFontSize={projectSettings.activityLabelFontSize ?? 9}
+                      highlightCriticalPath={projectSettings.highlightCriticalPath !== false}
                       onLabelDragEnd={(offset) => updateActivity(activity.id, { labelOffset: offset })}
                     />
                   )
@@ -3060,7 +3111,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       key={node.id}
                       node={adjustedNode}
                       isSelected={selectedNodeId === node.id || selectedNodeIds.includes(node.id)}
-                      isOnCriticalPath={isNodeOnCriticalPath(node.id)}
+                      isOnCriticalPath={projectSettings.highlightCriticalPath !== false && isNodeOnCriticalPath(node.id)}
                       semiCircleDirection={semiCircleDir}
                       onClick={() => handleNodeClick(node.id)}
                       onContextMenu={(e) => {
@@ -3427,21 +3478,20 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           {/* キャンバススクロールバー（外側の relative div 基準で Stage 領域に重ねる） */}
           <CanvasScrollbars left={headerPanelWidth} top={NAV_HEIGHT} />
 
-          {/* 情報オーバーレイ */}
+          {/* 情報オーバーレイ
+              工程表の上に常時重なって邪魔になるため、案内が要るモードのときだけ出す。
+              既定の選択モードでは出さない。拡大率はツールバーに出ているので載せない。 */}
+          {editMode !== 'select' && (
           <div className="absolute top-20 right-4 bg-white/90 rounded px-3 py-2 text-xs shadow">
             <div className="text-gray-600">
               モード:{' '}
               <span className="font-medium text-gray-800">
-                {editMode === 'select' && '選択'}
                 {editMode === 'pathSelect' && 'パス選択'}
                 {editMode === 'draw' && '描画'}
                 {editMode === 'text' && 'テキスト'}
                 {editMode === 'progress' && '進捗線'}
                 {editMode === 'banner' && 'バナー'}
               </span>
-            </div>
-            <div className="text-gray-500 mt-1">
-              拡大: {Math.round(canvasScale * 100)}%
             </div>
             {editMode === 'draw' && (
               <div className="text-blue-600 mt-1">
@@ -3468,6 +3518,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
