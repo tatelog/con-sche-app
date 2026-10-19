@@ -26,6 +26,7 @@ import { CanvasScrollbars } from './CanvasScrollbars'
 import { calcPlannedCurve, calcActualCurve } from '@/utils/progressCalc'
 import { spanLabelPlacement } from '@/utils/calendarSpanLabel'
 import { isFreeTextColumn, resolveHeaderCellValue } from '@/utils/headerColumnValue'
+import { buildRowOrderAfterMove } from '@/utils/rowValueShift'
 import type { Activity } from '@/types/adm'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
@@ -179,6 +180,9 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const addCustomMasterItem = useADMStore((state) => state.addCustomMasterItem)
   const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
   const setCustomColumnValue = useADMStore((state) => state.setCustomColumnValue)
+  const moveCustomColumnValueRow = useADMStore((state) => state.moveCustomColumnValueRow)
+  const deleteCustomColumnValueRow = useADMStore((state) => state.deleteCustomColumnValueRow)
+  const insertCustomColumnValueRow = useADMStore((state) => state.insertCustomColumnValueRow)
 
   // 行ヘッダー編集状態
   const [editingCell, setEditingCell] = useState<{
@@ -2018,17 +2022,23 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     const row = hierarchyRows[rowIndex]
     if (row) {
       // 削除する行より下のノードを上にシフト
+      // 行の判定は getNodesOnRow と同じく「行の上端以上・下端未満」。
+      // ここだけ > にしていたため、消した行のすぐ下の行の先頭にあるノードが
+      // 繰り上がらず、行ヘッダーと1行ぶんずれていた
       const deleteY = rowIndex * ROW_HEIGHT
       nodes.forEach(node => {
-        if (node.position.y > deleteY + ROW_HEIGHT) {
+        if (node.position.y >= deleteY + ROW_HEIGHT) {
           moveNode(node.id, { x: node.position.x, y: node.position.y - ROW_HEIGHT })
         }
       })
 
       deleteDetailCategory(row.detailId)
+      // 通り列・カスタム列の値は行番号で持っているので、ここで消さないと
+      // 行だけ消えて文字が残り、下の行の値が1つずつずれる
+      deleteCustomColumnValueRow(rowIndex)
     }
     closeRowActionMenu()
-  }, [rowActionMenu, hierarchyRows, nodes, moveNode, deleteDetailCategory, closeRowActionMenu])
+  }, [rowActionMenu, hierarchyRows, nodes, moveNode, deleteDetailCategory, deleteCustomColumnValueRow, closeRowActionMenu])
 
   // ドラッグ開始
   const handleDragStart = useCallback((e: React.DragEvent, rowIndex: number) => {
@@ -2068,27 +2078,29 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
     saveHistory()
 
-    // 2. ノードY座標を入れ替え
-    const nodesOnFromRow = getNodesOnRow(draggedRowIndex)
-    const nodesOnToRow = getNodesOnRow(dragOverRowIndex)
-    const fromRowY = draggedRowIndex * ROW_HEIGHT
-    const toRowY = dragOverRowIndex * ROW_HEIGHT
+    // 2. 新しい並びを先に決める（挿入方式）
+    //    以前はノードだけ from と to で入れ替えていたため、間に挟まれた行の
+    //    ノードが行と一緒に動かず、工程の線と行ヘッダーがずれていた
+    const newOrder = buildRowOrderAfterMove(hierarchyRows.length, draggedRowIndex, dragOverRowIndex)
 
-    nodesOnFromRow.forEach(node => {
-      const offset = node.position.y - fromRowY
-      moveNode(node.id, { x: node.position.x, y: toRowY + offset })
+    // 3. ノードを行の移動量ぶんだけ動かす
+    //    動かしながら拾うと二重に動くので、先に全行のノードを拾っておく
+    const nodesByOldRow = hierarchyRows.map((_, rowIndex) => getNodesOnRow(rowIndex))
+    newOrder.forEach((oldIndex, newIndex) => {
+      if (oldIndex === newIndex) return
+      const deltaY = (newIndex - oldIndex) * ROW_HEIGHT
+      nodesByOldRow[oldIndex].forEach(node => {
+        moveNode(node.id, { x: node.position.x, y: node.position.y + deltaY })
+      })
     })
-    nodesOnToRow.forEach(node => {
-      const offset = node.position.y - toRowY
-      moveNode(node.id, { x: node.position.x, y: fromRowY + offset })
-    })
 
-    // 3. hierarchyRowsの新しい並びを計算
-    const newRows = [...hierarchyRows]
-    const [movedRow] = newRows.splice(draggedRowIndex, 1)
-    newRows.splice(dragOverRowIndex, 0, movedRow)
+    // 4. 通り列・カスタム列の値も一緒に動かす（行番号で持っているため）
+    moveCustomColumnValueRow(draggedRowIndex, dragOverRowIndex)
 
-    // 4. 同一room内のorder値を再付番
+    // 5. hierarchyRowsの新しい並び
+    const newRows = newOrder.map(i => hierarchyRows[i])
+
+    // 6. 同一room内のorder値を再付番
     let order = 0
     for (const row of newRows) {
       const detail = detailCategories.get(row.detailId)
@@ -2100,7 +2112,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
     setDraggedRowIndex(null)
     setDragOverRowIndex(null)
-  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, saveHistory])
+  }, [draggedRowIndex, dragOverRowIndex, hierarchyRows, detailCategories, updateDetailCategory, getNodesOnRow, moveNode, moveCustomColumnValueRow, saveHistory])
 
   // 指定行以降のノードを1行分下にシフト
   const shiftNodesDown = useCallback((fromRowIndex: number) => {
@@ -2121,6 +2133,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     if (insertAtRowIndex < hierarchyRows.length) {
       shiftNodesDown(insertAtRowIndex)
     }
+    // 通り列・カスタム列の値も1行ぶん繰り下げる（行番号で持っているため）
+    insertCustomColumnValueRow(insertAtRowIndex)
 
     if (afterRowIndex < 0) {
       // 最初の行の前に挿入 - 全ノードを下にシフト、空白行（全ヘッダー空）を追加
@@ -2163,7 +2177,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     }
 
     setHoverRowGap(null)
-  }, [zones, rooms, detailCategories, hierarchyRows, addZone, updateZone, addRoom, addDetailCategory, updateDetailCategory, shiftNodesDown])
+  }, [zones, rooms, detailCategories, hierarchyRows, addZone, updateZone, addRoom, addDetailCategory, updateDetailCategory, shiftNodesDown, insertCustomColumnValueRow])
 
   // メニューを閉じるためのクリックハンドラー
   useEffect(() => {
