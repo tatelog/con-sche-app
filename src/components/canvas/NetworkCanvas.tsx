@@ -2336,7 +2336,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                         e.stopPropagation()
                         handleInsertRowAt(gapIndex - 1)
                       }}
-                      title="行を挿入"
+                      title="ここに行を挿入（この位置から下の行が1つ下がります）"
                     >
                       +
                     </button>
