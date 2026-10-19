@@ -3459,21 +3459,20 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           {/* キャンバススクロールバー（外側の relative div 基準で Stage 領域に重ねる） */}
           <CanvasScrollbars left={headerPanelWidth} top={NAV_HEIGHT} />
 
-          {/* 情報オーバーレイ */}
+          {/* 情報オーバーレイ
+              工程表の上に常時重なって邪魔になるため、案内が要るモードのときだけ出す。
+              既定の選択モードでは出さない。拡大率はツールバーに出ているので載せない。 */}
+          {editMode !== 'select' && (
           <div className="absolute top-20 right-4 bg-white/90 rounded px-3 py-2 text-xs shadow">
             <div className="text-gray-600">
               モード:{' '}
               <span className="font-medium text-gray-800">
-                {editMode === 'select' && '選択'}
                 {editMode === 'pathSelect' && 'パス選択'}
                 {editMode === 'draw' && '描画'}
                 {editMode === 'text' && 'テキスト'}
                 {editMode === 'progress' && '進捗線'}
                 {editMode === 'banner' && 'バナー'}
               </span>
-            </div>
-            <div className="text-gray-500 mt-1">
-              拡大: {Math.round(canvasScale * 100)}%
             </div>
             {editMode === 'draw' && (
               <div className="text-blue-600 mt-1">
@@ -3500,6 +3499,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
