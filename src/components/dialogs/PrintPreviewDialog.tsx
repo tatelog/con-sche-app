@@ -78,7 +78,7 @@ export function PrintPreviewDialog({
     : [basePaper.width, basePaper.height]
 
   // SVGベースプレビュー生成
-  const { svgPages, svgTotalPages } = useMemo(() => {
+  const { svgPages, svgTotalPages, svgWidth } = useMemo(() => {
     const hierarchyRows = getHierarchyRows()
     const nodes = Array.from(nodesMap.values())
     const activities = Array.from(activitiesMap.values())
@@ -109,7 +109,7 @@ export function PrintPreviewDialog({
     )
     const drawAreaHeightMm = paperHeight - settings.margin.top - settings.margin.bottom
       - settings.layout.headerHeight - effectiveFooterH
-    const svgHeightLimit = drawAreaHeightMm * svgWidth / contentWidthMm
+    const svgHeightLimit = drawAreaHeightMm / Math.min(25.4 / 96, contentWidthMm / svgWidth)
     const rowH = projectSettings.rowHeight || 40
     const printRowsPerPage = Math.max(1, Math.floor((svgHeightLimit - 50) / rowH))
 
@@ -236,39 +236,27 @@ export function PrintPreviewDialog({
   const infoMm = showInfo ? layout.infoBlockWidth : 0
   const infoW = infoMm * previewScale
 
-  // 「印刷」から実際に印刷する。
-  // 出力の中身はPDFと同じものを使う。別経路で描き直すと、PDFと印刷結果が
-  // 食い違うため。ブラウザのPDFビューアに渡して印刷ダイアログを開く。
   const handlePrint = async () => {
+    const viewer = window.open('about:blank', '_blank')
+    if (!viewer) {
+      alert('印刷用のタブを開けません。ポップアップを許可するか、「PDF出力」で保存して印刷してください。')
+      return
+    }
+    viewer.opener = null
     setIsPrinting(true)
     try {
       const blob = await exportToPDF({ settings, svgPages, projectSettings, images })
+      if (viewer.closed) return
       const url = URL.createObjectURL(blob)
-      const cleanup = (frame: HTMLIFrameElement) => {
-        window.setTimeout(() => {
+      viewer.location.replace(url)
+      const timer = window.setInterval(() => {
+        if (viewer.closed) {
           URL.revokeObjectURL(url)
-          frame.remove()
-        }, 60_000)
-      }
-      const frame = document.createElement('iframe')
-      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
-      frame.src = url
-      frame.onload = () => {
-        try {
-          frame.contentWindow?.focus()
-          frame.contentWindow?.print()
-        } catch {
-          // PDFを表示できないブラウザでは別タブで開き、ビューアから印刷してもらう
-          window.open(url, '_blank', 'noopener')
+          window.clearInterval(timer)
         }
-        cleanup(frame)
-      }
-      frame.onerror = () => {
-        window.open(url, '_blank', 'noopener')
-        cleanup(frame)
-      }
-      document.body.appendChild(frame)
+      }, 2000)
     } catch (err) {
+      viewer.close()
       alert(`印刷の準備に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`)
     } finally {
       setIsPrinting(false)
@@ -378,7 +366,7 @@ export function PrintPreviewDialog({
                 style={{ left: m.left, top: m.top + headerH, width: innerW, height: innerH - headerH - (hasFooterArea ? footerH : 0) }}>
                 {svgPages.length > 0 ? (
                   <div dangerouslySetInnerHTML={{ __html: svgPages[previewPage] || '' }}
-                    style={{ width: '100%', height: '100%' }}
+                    style={{ width: Math.min(innerW, (svgWidth ?? 0) * 25.4 / 96 * previewScale), height: '100%' }}
                     className="[&>svg]:!w-full [&>svg]:!h-full [&>svg]:!max-w-full [&>svg]:!max-h-full [&>svg]:block" />
                 ) : (
                   <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 select-none">描画エリア</span>

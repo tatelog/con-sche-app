@@ -67,11 +67,15 @@ async function renderSvgToPdf(
   const svgElement = svgDoc.documentElement as unknown as SVGElement
   // 左上寄せ：フッター変更時にSVG位置がずれないようにする
   svgElement.setAttribute('preserveAspectRatio', 'xMinYMin meet')
+  const [, , w, h] = (svgElement.getAttribute('viewBox') ?? '').split(/\s+/).map(Number)
+  const scale = Math.min(25.4 / 96, area.width / w, area.height / h)
+  svgElement.setAttribute('width', String(w * scale))
+  svgElement.setAttribute('height', String(h * scale))
   await svg2pdf(svgElement, doc, {
     x: area.x,
     y: area.y,
-    width: area.width,
-    height: area.height,
+    width: w * scale,
+    height: h * scale,
   })
 }
 
