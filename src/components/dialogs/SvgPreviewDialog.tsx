@@ -376,10 +376,11 @@ function generateSVG(
   parts.push(`<rect x="${rowHeaderWidth}" y="0" width="${effectiveTotalDays * DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${HEADER_BG}"/>`)
   parts.push(`<rect x="0" y="0" width="${rowHeaderWidth}" height="${HEADER_HEIGHT}" fill="#F9FAFB" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
 
+  const headerFontSize = projectSettings.headerFontSize ?? 10
   let colX = 0
   for (const col of visibleColumns) {
     parts.push(`<rect x="${colX}" y="0" width="${col.width}" height="${HEADER_HEIGHT}" fill="#F9FAFB" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
-    parts.push(`<text x="${colX + col.width / 2}" y="${HEADER_HEIGHT / 2 + 4}" text-anchor="middle" font-size="10" fill="#4B5563">${escapeXml(col.label)}</text>`)
+    parts.push(`<text x="${colX + col.width / 2}" y="${HEADER_HEIGHT / 2 + headerFontSize * 0.35}" text-anchor="middle" font-size="${headerFontSize}" fill="#4B5563">${escapeXml(col.label)}</text>`)
     colX += col.width
   }
 
@@ -503,7 +504,7 @@ function generateSVG(
       parts.push(`<rect x="${headerCellX}" y="${cy}" width="${col.width}" height="${cellHeight}" fill="white" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
       const value = resolveHeaderCellValue(col, pageRows[displayIdx], pageStartRow + displayIdx, getCustomValue)
       // まとめたセルでは縦の中央に置く
-      if (value) parts.push(`<text x="${headerCellX + 4}" y="${cy + cellHeight / 2 + 4}" font-size="9" fill="#374151">${escapeXml(value)}</text>`)
+      if (value) parts.push(`<text x="${headerCellX + 4}" y="${cy + cellHeight / 2 + headerFontSize * 0.35}" font-size="${headerFontSize}" fill="#374151">${escapeXml(value)}</text>`)
     }
     headerCellX += col.width
   }
