@@ -28,6 +28,8 @@ export function PropertiesPanel() {
   const getNode = useADMStore((state) => state.getNode)
   const moveNodeWithPropagate = useADMStore((state) => state.moveNodeWithPropagate)
   const recalculateCPM = useADMStore((state) => state.recalculateCPM)
+  // 文字サイズを空欄にしたときに見せる既定値
+  const defaultActivityFontSize = useADMStore((state) => state.projectSettings.activityLabelFontSize ?? 9)
   const projectSettings = useADMStore((state) => state.projectSettings)
   const startDate = projectSettings.startDate
   const calendar = useCalendarStore((state) => state.calendar)
@@ -754,6 +756,61 @@ export function PropertiesPanel() {
           </div>
         </div>
 
+        {/* 文字サイズ・文字色（未指定ならプロジェクト既定／線色に合わせる） */}
+        <div className="mb-3">
+          <label className="block text-xs text-gray-500 mb-1">文字</label>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              min={4}
+              max={40}
+              step={1}
+              value={selectedActivity.displaySettings.fontSize ?? defaultActivityFontSize}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                updateActivity(selectedActivity.id, {
+                  displaySettings: {
+                    ...selectedActivity.displaySettings,
+                    fontSize: Number.isFinite(v) && v > 0 ? v : undefined,
+                  },
+                })
+              }}
+              className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+              title="文字サイズ"
+            />
+            <span className="text-xs text-gray-400">px</span>
+            <input
+              type="color"
+              value={selectedActivity.displaySettings.textColor ?? selectedActivity.displaySettings.lineColor}
+              onChange={(e) =>
+                updateActivity(selectedActivity.id, {
+                  displaySettings: {
+                    ...selectedActivity.displaySettings,
+                    textColor: e.target.value,
+                  },
+                })
+              }
+              className="w-8 h-8 rounded cursor-pointer border border-gray-300 ml-auto"
+              title="文字色"
+            />
+            <button
+              onClick={() =>
+                updateActivity(selectedActivity.id, {
+                  displaySettings: {
+                    ...selectedActivity.displaySettings,
+                    textColor: undefined,
+                    fontSize: undefined,
+                  },
+                })
+              }
+              className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded"
+              title="文字サイズを既定に戻し、文字色を線色に合わせる"
+            >
+              既定
+            </button>
+          </div>
+        </div>
+
         {/* 引き出し線スタイル（既定なし、下線付きデフォルト） */}
         <div className="mb-3">
           <label className="block text-xs text-gray-500 mb-1">引き出し線スタイル</label>
@@ -761,6 +818,7 @@ export function PropertiesPanel() {
             {([
               { value: 'line' as const, label: '直線' },
               { value: 'underline' as const, label: '下線付き' },
+              { value: 'none' as const, label: 'なし' },
             ]).map((opt) => (
               <button
                 key={opt.value}

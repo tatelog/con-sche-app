@@ -393,7 +393,9 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                     <div className="flex rounded border border-gray-300 overflow-hidden">
                       {([
                         ['start', '左寄せ'],
-                        ['cell', '中央'],
+                        ['cell', 'セル中央'],
+                        ['span', '中央'],
+                        ['spanEnd', '右寄せ'],
                       ] as const).map(([value, label]) => (
                         <button
                           key={value}
@@ -405,6 +407,16 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                       ))}
                     </div>
                   </div>
+                  {/* 月の区切り線。どのラベルがどの月のものか分かるようにする */}
+                  <label className="flex items-center gap-2 text-xs text-gray-600 mt-2">
+                    <input
+                      type="checkbox"
+                      checked={projectSettings.monthSeparatorLines ?? false}
+                      onChange={(e) => updateProjectSettings({ monthSeparatorLines: e.target.checked })}
+                      className="rounded"
+                    />
+                    月の変わり目に区切り線を引く
+                  </label>
                 </div>
                 {/* プレビュー */}
                 <div className="shrink-0">
@@ -659,6 +671,22 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* クリティカルパスの色分け */}
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={projectSettings.highlightCriticalPath !== false}
+                  onChange={(e) => updateProjectSettings({ highlightCriticalPath: e.target.checked })}
+                  className="rounded"
+                />
+                クリティカルパスを赤で示す
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                OFF: 画面もPDFも赤にしません。打設日など特定の作業を赤で強調したいときに外します
+              </p>
             </div>
 
             {/* 棟セレクター表示 */}

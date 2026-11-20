@@ -59,6 +59,7 @@ export function PrintPreviewDialog({
   const projectDuration = useADMStore((state) => state.projectDuration)
   const showSCurve = useUIStore((state) => state.showSCurve)
   const [isExporting, setIsExporting] = useState(false)
+  const [isPrinting, setIsPrinting] = useState(false)
   const [previewPage, setPreviewPage] = useState(0)
   const [previewZoom, setPreviewZoom] = useState(1.5)
 
@@ -230,6 +231,45 @@ export function PrintPreviewDialog({
   const showInfo = settings.titleBlock.showInfoBlock ?? true
   const infoMm = showInfo ? layout.infoBlockWidth : 0
   const infoW = infoMm * previewScale
+
+  // 「印刷」から実際に印刷する。
+  // 出力の中身はPDFと同じものを使う。別経路で描き直すと、PDFと印刷結果が
+  // 食い違うため。ブラウザのPDFビューアに渡して印刷ダイアログを開く。
+  const handlePrint = async () => {
+    setIsPrinting(true)
+    try {
+      const blob = await exportToPDF({ settings, svgPages, projectSettings, images })
+      const url = URL.createObjectURL(blob)
+      const cleanup = (frame: HTMLIFrameElement) => {
+        window.setTimeout(() => {
+          URL.revokeObjectURL(url)
+          frame.remove()
+        }, 60_000)
+      }
+      const frame = document.createElement('iframe')
+      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
+      frame.src = url
+      frame.onload = () => {
+        try {
+          frame.contentWindow?.focus()
+          frame.contentWindow?.print()
+        } catch {
+          // PDFを表示できないブラウザでは別タブで開き、ビューアから印刷してもらう
+          window.open(url, '_blank', 'noopener')
+        }
+        cleanup(frame)
+      }
+      frame.onerror = () => {
+        window.open(url, '_blank', 'noopener')
+        cleanup(frame)
+      }
+      document.body.appendChild(frame)
+    } catch (err) {
+      alert(`印刷の準備に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`)
+    } finally {
+      setIsPrinting(false)
+    }
+  }
 
   const handleExportPDF = async () => {
     setIsExporting(true)
@@ -560,7 +600,11 @@ export function PrintPreviewDialog({
         <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 shrink-0">
           <button onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-gray-50">キャンセル</button>
-          <button onClick={handleExportPDF} disabled={isExporting}
+          <button onClick={handlePrint} disabled={isExporting || isPrinting}
+            className={`px-4 py-2 rounded-md border ${isExporting || isPrinting ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
+            {isPrinting ? '印刷の準備中...' : '印刷'}
+          </button>
+          <button onClick={handleExportPDF} disabled={isExporting || isPrinting}
             className={`px-4 py-2 text-white rounded-md ${isExporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
             {isExporting ? 'PDF出力中...' : 'PDF出力'}
           </button>

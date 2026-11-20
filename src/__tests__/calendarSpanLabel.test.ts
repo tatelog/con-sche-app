@@ -112,3 +112,35 @@ describe('spanLabelPlacement', () => {
     expect(p.width).toBeGreaterThan(DAY_WIDTH)
   })
 })
+
+// 2026-10-19 同じ利用者から追加の要望:
+// 「『左寄せ』『中央揃い』『右寄せ』ですが記載しているイメージになります。
+//   この場合だと枠線も欲しくなる可能性がございます。
+//   工程ソフト『工程's』の仕様がそうなっておりました」
+//
+// 期間のまとまりに対する右寄せが無かったので足す。
+describe('spanLabelPlacement — 期間の末尾に右寄せ', () => {
+  const DW = 20
+
+  it('期間全体の右端にそろえる', () => {
+    const dates = days('2026-10-01', 40) // 10月は31日ぶん
+    const place = spanLabelPlacement(dates, 0, 'month', 'spanEnd', DW)
+    expect(place.anchor).toBe('end')
+    expect(place.width).toBe(31 * DW)
+    expect(place.offsetX).toBe(31 * DW)
+  })
+
+  it('表示の端で期間が切れていたら、見えている範囲の右端にそろえる', () => {
+    const dates = days('2026-10-28', 7) // 10月は4日ぶん
+    const place = spanLabelPlacement(dates, 0, 'month', 'spanEnd', DW)
+    expect(place.offsetX).toBe(4 * DW)
+    expect(place.width).toBe(4 * DW)
+  })
+
+  it('中央そろえ（期間全体）は従来どおり真ん中', () => {
+    const dates = days('2026-10-01', 40)
+    const place = spanLabelPlacement(dates, 0, 'month', 'span', DW)
+    expect(place.anchor).toBe('middle')
+    expect(place.offsetX).toBe((31 * DW) / 2)
+  })
+})

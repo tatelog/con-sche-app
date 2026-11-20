@@ -12,6 +12,7 @@ import {
   deleteADMProject as deleteADMProjectFromDB,
 } from '@/db/database'
 import type { ADMProject } from '@/db/database'
+import { moveRowValues, deleteRowValues, insertRowValues } from '@/utils/rowValueShift'
 import type {
   EventNode,
   Activity,
@@ -225,6 +226,10 @@ interface ADMState {
   updateImage: (id: string, updates: Partial<ScheduleImage>) => void
   removeImage: (id: string) => void
   getCustomColumnValue: (columnId: string, rowIndex: number) => string
+  // 行の並びが変わったとき、通り列・カスタム列の値も一緒に動かす
+  moveCustomColumnValueRow: (fromRowIndex: number, toRowIndex: number) => void
+  deleteCustomColumnValueRow: (rowIndex: number) => void
+  insertCustomColumnValueRow: (atRowIndex: number) => void
 
   // アクション - 棟
   addBuilding: (name: string) => string
@@ -622,6 +627,26 @@ export const useADMStore = create<ADMState>((set, get) => ({
 
   getCustomColumnValue: (columnId, rowIndex) => {
     return get().customColumnValues.get(`${columnId}:${rowIndex}`) || ''
+  },
+
+  // 通り列・カスタム列の値は「列ID:行番号」で持っているため、行を動かす操作から
+  // ここを呼ばないと値だけ元の行番号に取り残される（utils/rowValueShift 参照）
+  moveCustomColumnValueRow: (fromRowIndex, toRowIndex) => {
+    set((state) => ({
+      customColumnValues: moveRowValues(state.customColumnValues, fromRowIndex, toRowIndex),
+    }))
+  },
+
+  deleteCustomColumnValueRow: (rowIndex) => {
+    set((state) => ({
+      customColumnValues: deleteRowValues(state.customColumnValues, rowIndex),
+    }))
+  },
+
+  insertCustomColumnValueRow: (atRowIndex) => {
+    set((state) => ({
+      customColumnValues: insertRowValues(state.customColumnValues, atRowIndex),
+    }))
   },
 
   // ======================================

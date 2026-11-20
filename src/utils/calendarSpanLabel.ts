@@ -11,15 +11,17 @@
 
 export type SpanUnit = 'year' | 'fiscalYear' | 'month'
 /**
- * start = 期間の先頭の列に左寄せ（従来）
- * cell  = 期間の先頭の列の中で中央
- * span  = 期間のまとまり全体の中央（10月なら15日あたり）
+ * start   = 期間の先頭の列に左寄せ（従来）
+ * cell    = 期間の先頭の列の中で中央
+ * span    = 期間のまとまり全体の中央（10月なら15日あたり）
+ * spanEnd = 期間のまとまり全体の右端に右寄せ
  *
  * ラベルが出る列は「表示範囲の先頭」と「月や年が変わる列」の2種類。
- * 利用者の求めているのはそのセルの中での左右の寄せ方なので、設定には
- * start と cell だけを出している。span は計算だけ用意してある。
+ * はじめは start と cell だけを設定に出していたが、工程ソフト「工程's」と
+ * 同じく期間に対して左・中央・右を選びたいという要望があり、span と
+ * spanEnd も設定から選べるようにした。
  */
-export type SpanAlign = 'start' | 'cell' | 'span'
+export type SpanAlign = 'start' | 'cell' | 'span' | 'spanEnd'
 
 /** 左寄せのときの描画幅。文字が切れないよう従来どおり広めに取る */
 const START_ALIGN_WIDTH_IN_DAYS = 8
@@ -62,7 +64,7 @@ export interface SpanLabelPlacement {
   /** ラベルに割り当てる幅 */
   width: number
   /** 文字をどこ基準で置くか */
-  anchor: 'start' | 'middle'
+  anchor: 'start' | 'middle' | 'end'
 }
 
 export function spanLabelPlacement(
@@ -83,5 +85,8 @@ export function spanLabelPlacement(
     return { offsetX: dayWidth / 2, width: dayWidth, anchor: 'middle' }
   }
   const spanWidth = spanLengthAt(dates, index, unit) * dayWidth
+  if (align === 'spanEnd') {
+    return { offsetX: spanWidth, width: spanWidth, anchor: 'end' }
+  }
   return { offsetX: spanWidth / 2, width: spanWidth, anchor: 'middle' }
 }

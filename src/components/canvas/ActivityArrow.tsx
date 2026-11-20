@@ -8,6 +8,8 @@
 import { useRef, useState, useEffect } from 'react'
 import { Group, Text, Line, Path, RegularPolygon, Rect } from 'react-konva'
 import type Konva from 'konva'
+import { resolveActivityAppearance } from '@/utils/activityAppearance'
+import type { LeaderLineStyle } from '@/utils/activityAppearance'
 import type { Activity, EventNode } from '@/types/adm'
 import { NODE_RADIUS } from './EventNodeShape'
 
@@ -32,12 +34,13 @@ interface ActivityArrowProps {
   originalToX?: number // クリップ前X
   originalToY?: number // クリップ前Y
   defaultTextAlign?: 'left' | 'center' | 'right'
-  defaultLeaderLineStyle?: 'line' | 'underline'
+  defaultLeaderLineStyle?: LeaderLineStyle
   onLabelDragEnd?: (offset: { x: number; y: number }) => void
   activityLabelFontSize?: number
+  /** クリティカルパスを赤で示すか（プロジェクト設定。既定は示す） */
+  highlightCriticalPath?: boolean
 }
 
-const CRITICAL_COLOR = '#DC2626' // red-600
 const SELECTED_COLOR = '#2563EB' // blue-600
 const CHAIN_SELECTED_COLOR = '#F97316' // orange-500
 const ARROW_HEAD_SIZE = 6
@@ -401,7 +404,21 @@ export function ActivityArrow({
   defaultLeaderLineStyle,
   onLabelDragEnd,
   activityLabelFontSize = 9,
+  highlightCriticalPath = true,
 }: ActivityArrowProps) {
+  // 線色・文字色・文字サイズ・引き出し線の決め方は、PDF側と揃えるため
+  // utils/activityAppearance にまとめてある
+  const appearance = resolveActivityAppearance({
+    lineColor: activity.displaySettings.lineColor,
+    textColor: activity.displaySettings.textColor,
+    fontSize: activity.displaySettings.fontSize,
+    leaderLineStyle: activity.displaySettings.leaderLineStyle,
+    isCritical: activity.isCritical,
+    highlightCritical: highlightCriticalPath,
+    defaultFontSize: activityLabelFontSize,
+    defaultLeaderLineStyle,
+  })
+
   // ゼロ長ダミー作業は描画しない（始点と終点が同じ位置）
   if (activity.isDummy) {
     const dx = toNode.position.x - fromNode.position.x
@@ -430,10 +447,9 @@ export function ActivityArrow({
       leftX, cy,                            // 左先端
     ]
 
-    let bannerColor = activity.displaySettings.lineColor
+    let bannerColor = appearance.lineColor
     if (isSelected) bannerColor = SELECTED_COLOR
     else if (isChainSelected) bannerColor = CHAIN_SELECTED_COLOR
-    else if (activity.isCritical) bannerColor = CRITICAL_COLOR
 
     // テキスト内容
     const textParts: string[] = []
@@ -471,13 +487,11 @@ export function ActivityArrow({
   }
 
   // 色の決定
-  let strokeColor = activity.displaySettings.lineColor
+  let strokeColor = appearance.lineColor
   if (isSelected) {
     strokeColor = SELECTED_COLOR
   } else if (isChainSelected) {
     strokeColor = CHAIN_SELECTED_COLOR
-  } else if (activity.isCritical) {
-    strokeColor = CRITICAL_COLOR
   }
 
   const strokeWidth = isSelected
@@ -651,11 +665,11 @@ export function ActivityArrow({
 
   // テキスト配置に応じたX位置（エッジの左端/中央/右端）
   const resolvedAlign = activity.displaySettings.textAlign ?? defaultTextAlign ?? 'center'
-  const resolvedLeaderStyle = activity.displaySettings.leaderLineStyle ?? defaultLeaderLineStyle ?? 'line'
+  const resolvedLeaderStyle = appearance.leaderLineStyle
 
   // テキスト高さ・実測幅の取得（引き出し線・下線用）
   const textRef = useRef<Konva.Text>(null)
-  const [textHeight, setTextHeight] = useState(activityLabelFontSize) // fontSize default
+  const [textHeight, setTextHeight] = useState(appearance.fontSize) // fontSize default
   const [measuredTextWidth, setMeasuredTextWidth] = useState(0)
 
   useEffect(() => {
@@ -911,8 +925,8 @@ export function ActivityArrow({
         )
       })()}
 
-      {/* 引き出し線（ユーザーオフセットが0以外のとき） */}
-      {!activity.isDummy && (offsetX !== 0 || offsetY !== 0) && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
+      {/* 引き出し線（ユーザーオフセットが0以外のとき）。「なし」を選んだら引かない */}
+      {!activity.isDummy && resolvedLeaderStyle !== 'none' && (offsetX !== 0 || offsetY !== 0) && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
         <Line
           points={[pathMid.x, pathMid.y, leaderTextX, labelY + textHeight]}
           stroke="#9CA3AF"
@@ -921,8 +935,8 @@ export function ActivityArrow({
         />
       )}
 
-      {/* 自動引き出し線（垂直セグメント上のとき）- 水平スタブ */}
-      {!activity.isDummy && autoLeaderLine && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
+      {/* 自動引き出し線（垂直セグメント上のとき）- 水平スタブ。「なし」を選んだら引かない */}
+      {!activity.isDummy && resolvedLeaderStyle !== 'none' && autoLeaderLine && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
         <Line
           points={[midInfo.x, midInfo.y, midInfo.x + LEADER_GAP, midInfo.y]}
           stroke="#9CA3AF"
@@ -957,8 +971,8 @@ export function ActivityArrow({
                   ? activity.name
                   : `${activity.duration}日`
           }
-          fontSize={activityLabelFontSize}
-          fill={activity.isCritical ? CRITICAL_COLOR : '#374151'}
+          fontSize={appearance.fontSize}
+          fill={appearance.textColor}
           align={effectiveAlign}
           width={effectiveTextWidth}
           wrap={false ? "word" : "none"}
