@@ -13,6 +13,7 @@ import { useADMStore } from '@/stores/admStore'
 import { useCalendarStore } from '@/stores/calendarStore'
 import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
+import { computeViewStartDate } from '@/utils/dateUtils'
 import { calculatePrintRange } from '@/utils/printRange'
 import { generateAllPageSVGs } from './SvgPreviewDialog'
 import { ScheduleImagePanel } from './ScheduleImagePanel'
@@ -63,12 +64,19 @@ export function PrintPreviewDialog({
   const [previewPage, setPreviewPage] = useState(0)
   const [previewZoom, setPreviewZoom] = useState(1.5)
 
-  const [rangeMode, setRangeMode] = useState<'all' | 'custom'>('all')
+  const [rangeMode, setRangeMode] = useState<'view' | 'all' | 'custom'>('view')
   const [rangeStart, setRangeStart] = useState(projectSettings.startDate)
   const [rangeEnd, setRangeEnd] = useState(projectSettings.endDate)
+  useEffect(() => { if (isOpen) setRangeMode('view') }, [isOpen])
+  const first = computeViewStartDate(projectSettings)
+  const last = new Date(first)
+  const days = projectSettings.displayMode === 'monthly'
+    ? new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate() : projectSettings.displayDays
+  last.setDate(first.getDate() + days - 1)
+  const localDate = (d: Date) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-')
   const printRange = calculatePrintRange(projectSettings.startDate,
-    rangeMode === 'all' ? projectSettings.startDate : rangeStart,
-    rangeMode === 'all' ? projectSettings.endDate : rangeEnd)
+    rangeMode === 'all' ? projectSettings.startDate : rangeMode === 'view' ? localDate(first) : rangeStart,
+    rangeMode === 'all' ? projectSettings.endDate : rangeMode === 'view' ? localDate(last) : rangeEnd)
 
   // 用紙サイズ
   const paperKey = projectSettings.paperSize === 'custom' ? 'A3' : projectSettings.paperSize as 'A4' | 'A3' | 'A2' | 'A1'
@@ -466,8 +474,8 @@ export function PrintPreviewDialog({
               </FieldGroup>
 
               <FieldGroup label="出力期間">
-                <select className="w-full px-2 py-1.5 border rounded text-sm" aria-label="出力期間" value={rangeMode} onChange={(e) => setRangeMode(e.target.value === 'custom' ? 'custom' : 'all')}>
-                  <option value="all">工期全体</option><option value="custom">期間を指定</option>
+                <select className="w-full px-2 py-1.5 border rounded text-sm" aria-label="出力期間" value={rangeMode} onChange={(e) => setRangeMode(e.target.value === 'custom' ? 'custom' : e.target.value === 'all' ? 'all' : 'view')}>
+                  <option value="view">画面の表示期間</option><option value="all">工期全体</option><option value="custom">期間を指定</option>
                 </select>
                 {rangeMode === 'custom' && <div>
                   <input className="w-full px-2 py-1.5 border rounded text-sm mt-2" aria-label="出力開始日" type="date" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
