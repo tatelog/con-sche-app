@@ -180,6 +180,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   const getCustomMasterItems = useADMStore((state) => state.getCustomMasterItems)
   const addCustomMasterItem = useADMStore((state) => state.addCustomMasterItem)
   const getCustomColumnValue = useADMStore((state) => state.getCustomColumnValue)
+  const customColumnValues = useADMStore((state) => state.customColumnValues)
   const setCustomColumnValue = useADMStore((state) => state.setCustomColumnValue)
   const moveCustomColumnValueRow = useADMStore((state) => state.moveCustomColumnValueRow)
   const deleteCustomColumnValueRow = useADMStore((state) => state.deleteCustomColumnValueRow)
@@ -1556,7 +1557,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
     }
 
     return info
-  }, [visibleColumns, hierarchyRows])
+  }, [visibleColumns, hierarchyRows, customColumnValues])
 
   // 各列の左端位置を計算
   const columnLeftPositions = useMemo(() => {
