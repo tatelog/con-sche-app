@@ -14,6 +14,7 @@ import { useCalendarStore } from '@/stores/calendarStore'
 import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
 import { computeViewStartDate } from '@/utils/dateUtils'
+import { calculatePrintRange } from '@/utils/printRange'
 import { generateAllPageSVGs } from './SvgPreviewDialog'
 import { ScheduleImagePanel } from './ScheduleImagePanel'
 import { FOOTER_PADDING_MM } from '@/utils/scheduleImage'
@@ -63,6 +64,20 @@ export function PrintPreviewDialog({
   const [previewPage, setPreviewPage] = useState(0)
   const [previewZoom, setPreviewZoom] = useState(1.5)
 
+  const [rangeMode, setRangeMode] = useState<'view' | 'all' | 'custom'>('view')
+  const [rangeStart, setRangeStart] = useState(projectSettings.startDate)
+  const [rangeEnd, setRangeEnd] = useState(projectSettings.endDate)
+  useEffect(() => { if (isOpen) setRangeMode('view') }, [isOpen])
+  const first = computeViewStartDate(projectSettings)
+  const last = new Date(first)
+  const days = projectSettings.displayMode === 'monthly'
+    ? new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate() : projectSettings.displayDays
+  last.setDate(first.getDate() + days - 1)
+  const localDate = (d: Date) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-')
+  const printRange = calculatePrintRange(projectSettings.startDate,
+    rangeMode === 'all' ? projectSettings.startDate : rangeMode === 'view' ? localDate(first) : rangeStart,
+    rangeMode === 'all' ? projectSettings.endDate : rangeMode === 'view' ? localDate(last) : rangeEnd)
+
   // 用紙サイズ
   const paperKey = projectSettings.paperSize === 'custom' ? 'A3' : projectSettings.paperSize as 'A4' | 'A3' | 'A2' | 'A1'
   const basePaper = PAPER_SIZES[paperKey]
@@ -71,22 +86,17 @@ export function PrintPreviewDialog({
     : [basePaper.width, basePaper.height]
 
   // SVGベースプレビュー生成
-  const { svgPages, svgTotalPages } = useMemo(() => {
+  const { svgPages, svgTotalPages, svgWidth } = useMemo(() => {
     const hierarchyRows = getHierarchyRows()
     const nodes = Array.from(nodesMap.values())
     const activities = Array.from(activitiesMap.values())
     const visibleColumns = projectSettings.headerColumns
       .filter(col => col.visible).sort((a, b) => a.order - b.order)
 
-    const viewStartDate = computeViewStartDate(projectSettings)
-    const viewStartDayOffset = Math.round(
-      (viewStartDate.getTime() - new Date(projectSettings.startDate).getTime()) / (1000 * 60 * 60 * 24)
-    )
-
-    let effectiveTotalDays = projectSettings.displayDays
-    if (projectSettings.displayMode === 'monthly') {
-      effectiveTotalDays = new Date(viewStartDate.getFullYear(), viewStartDate.getMonth() + 1, 0).getDate()
-    }
+    if (!printRange) return { svgPages: [], svgTotalPages: 0 }
+    const viewStartDate = new Date(`${printRange.start}T00:00:00`)
+    const viewStartDayOffset = printRange.offset
+    const effectiveTotalDays = printRange.days
     const dates: Date[] = []
     for (let i = 0; i < effectiveTotalDays; i++) {
       const d = new Date(viewStartDate)
@@ -107,7 +117,7 @@ export function PrintPreviewDialog({
     )
     const drawAreaHeightMm = paperHeight - settings.margin.top - settings.margin.bottom
       - settings.layout.headerHeight - effectiveFooterH
-    const svgHeightLimit = drawAreaHeightMm * svgWidth / contentWidthMm
+    const svgHeightLimit = drawAreaHeightMm / Math.min(25.4 / 96, contentWidthMm / svgWidth)
     const rowH = projectSettings.rowHeight || 40
     const printRowsPerPage = Math.max(1, Math.floor((svgHeightLimit - 50) / rowH))
 
@@ -119,7 +129,9 @@ export function PrintPreviewDialog({
     )
     const svgHeight = 50 + printRowsPerPage * rowH // HEADER_HEIGHT + rows
     return { svgPages: pages, svgTotalPages: pages.length, svgWidth, svgHeight }
-  }, [projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, images.length, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
+  }, [rangeMode, rangeStart, rangeEnd, projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, images.length, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
+
+  useEffect(() => { setPreviewPage(0) }, [rangeMode, rangeStart, rangeEnd])
 
   // 工期をprojectSettingsから同期
   useEffect(() => {
@@ -232,39 +244,27 @@ export function PrintPreviewDialog({
   const infoMm = showInfo ? layout.infoBlockWidth : 0
   const infoW = infoMm * previewScale
 
-  // 「印刷」から実際に印刷する。
-  // 出力の中身はPDFと同じものを使う。別経路で描き直すと、PDFと印刷結果が
-  // 食い違うため。ブラウザのPDFビューアに渡して印刷ダイアログを開く。
   const handlePrint = async () => {
+    const viewer = window.open('about:blank', '_blank')
+    if (!viewer) {
+      alert('印刷用のタブを開けません。ポップアップを許可するか、「PDF出力」で保存して印刷してください。')
+      return
+    }
+    viewer.opener = null
     setIsPrinting(true)
     try {
       const blob = await exportToPDF({ settings, svgPages, projectSettings, images })
+      if (viewer.closed) return
       const url = URL.createObjectURL(blob)
-      const cleanup = (frame: HTMLIFrameElement) => {
-        window.setTimeout(() => {
+      viewer.location.replace(url)
+      const timer = window.setInterval(() => {
+        if (viewer.closed) {
           URL.revokeObjectURL(url)
-          frame.remove()
-        }, 60_000)
-      }
-      const frame = document.createElement('iframe')
-      frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
-      frame.src = url
-      frame.onload = () => {
-        try {
-          frame.contentWindow?.focus()
-          frame.contentWindow?.print()
-        } catch {
-          // PDFを表示できないブラウザでは別タブで開き、ビューアから印刷してもらう
-          window.open(url, '_blank', 'noopener')
+          window.clearInterval(timer)
         }
-        cleanup(frame)
-      }
-      frame.onerror = () => {
-        window.open(url, '_blank', 'noopener')
-        cleanup(frame)
-      }
-      document.body.appendChild(frame)
+      }, 2000)
     } catch (err) {
+      viewer.close()
       alert(`印刷の準備に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`)
     } finally {
       setIsPrinting(false)
@@ -374,7 +374,7 @@ export function PrintPreviewDialog({
                 style={{ left: m.left, top: m.top + headerH, width: innerW, height: innerH - headerH - (hasFooterArea ? footerH : 0) }}>
                 {svgPages.length > 0 ? (
                   <div dangerouslySetInnerHTML={{ __html: svgPages[previewPage] || '' }}
-                    style={{ width: '100%', height: '100%' }}
+                    style={{ width: Math.min(innerW, (svgWidth ?? 0) * 25.4 / 96 * previewScale), height: '100%' }}
                     className="[&>svg]:!w-full [&>svg]:!h-full [&>svg]:!max-w-full [&>svg]:!max-h-full [&>svg]:block" />
                 ) : (
                   <span className="absolute inset-0 flex items-center justify-center text-[10px] text-gray-400 select-none">描画エリア</span>
@@ -473,6 +473,22 @@ export function PrintPreviewDialog({
                   placeholder="プロパティ設定で入力" />
               </FieldGroup>
 
+              <FieldGroup label="出力期間">
+                <select className="w-full px-2 py-1.5 border rounded text-sm" aria-label="出力期間" value={rangeMode} onChange={(e) => setRangeMode(e.target.value === 'custom' ? 'custom' : e.target.value === 'all' ? 'all' : 'view')}>
+                  <option value="view">画面の表示期間</option><option value="all">工期全体</option><option value="custom">期間を指定</option>
+                </select>
+                {rangeMode === 'custom' && <div>
+                  <input className="w-full px-2 py-1.5 border rounded text-sm mt-2" aria-label="出力開始日" type="date" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+                  <input className="w-full px-2 py-1.5 border rounded text-sm mt-2" aria-label="出力終了日" type="date" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+                  {printRange === null && <p role="alert">開始日と終了日を正しい順序で指定してください。</p>}
+                </div>}
+              </FieldGroup>
+              <FieldGroup label="フッター文字サイズ (pt)">
+                <input className="w-full px-2 py-1.5 border rounded text-sm" aria-label="フッター文字サイズ" type="number" min={4} max={24} value={tb.footerFontSize ?? 6}
+                  onChange={(e) => updateTitleBlock({ footerFontSize: Math.max(4, Math.min(24, Number(e.target.value) || 6)) })} />
+                {tb.showFooterText && (tb.footerText || '').split('\n').length * (tb.footerFontSize ?? 6) * 0.5 >= layout.footerHeight - 5 &&
+                  <p role="alert">フッターの高さに収まらない行は出力されません。文字を小さくするか、欄を高くしてください。</p>}
+              </FieldGroup>
               {/* 工期（参照） */}
               <div className="grid grid-cols-2 gap-2">
                 <FieldGroup label="工期開始">
@@ -600,11 +616,11 @@ export function PrintPreviewDialog({
         <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 shrink-0">
           <button onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-gray-50">キャンセル</button>
-          <button onClick={handlePrint} disabled={isExporting || isPrinting}
+          <button onClick={handlePrint} disabled={isExporting || isPrinting || !printRange}
             className={`px-4 py-2 rounded-md border ${isExporting || isPrinting ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
             {isPrinting ? '印刷の準備中...' : '印刷'}
           </button>
-          <button onClick={handleExportPDF} disabled={isExporting || isPrinting}
+          <button onClick={handleExportPDF} disabled={isExporting || isPrinting || !printRange}
             className={`px-4 py-2 text-white rounded-md ${isExporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
             {isExporting ? 'PDF出力中...' : 'PDF出力'}
           </button>
