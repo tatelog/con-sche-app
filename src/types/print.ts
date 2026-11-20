@@ -17,6 +17,7 @@ export interface TitleBlock {
   showInfoBlock: boolean    // 情報欄表示トグル
   infoChecks: InfoChecks    // 情報欄に表示する項目
   showFooterText: boolean   // フッターテキスト表示
+  footerFontSize?: number
   footerText: string        // フッターテキスト（改行可能）
   showSealBlock: boolean    // 押印欄表示トグル
   // 旧フィールド（後方互換）

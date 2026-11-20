@@ -280,10 +280,10 @@ function drawFooter(
 
   // フッターテキスト（有効時）
   if (titleBlock.showFooterText && titleBlock.footerText) {
-    doc.setFontSize(6)
+    doc.setFontSize(titleBlock.footerFontSize ?? 6)
     const lines = titleBlock.footerText.split('\n')
-    const lineHeight = 3
-    const startY = rect.y + 3
+    const lineHeight = (titleBlock.footerFontSize ?? 6) * 0.5
+    const startY = rect.y + lineHeight
     lines.forEach((line, i) => {
       if (startY + i * lineHeight < rect.y + rect.height - 5) {
         doc.text(line, rect.x + 3, startY + i * lineHeight)

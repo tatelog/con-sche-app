@@ -1,3 +1,4 @@
+import { computeIdealPathPoints } from '@/utils/activityPath'
 /**
  * ADM形式の作業（Activity）コンポーネント
  * 水平・垂直のみで描画し、曲がり角にRを付ける
@@ -36,6 +37,8 @@ interface ActivityArrowProps {
   defaultTextAlign?: 'left' | 'center' | 'right'
   defaultLeaderLineStyle?: LeaderLineStyle
   onLabelDragEnd?: (offset: { x: number; y: number }) => void
+  nodeRadius?: number
+  showActivityDuration?: boolean
   activityLabelFontSize?: number
   /** クリティカルパスを赤で示すか（プロジェクト設定。既定は示す） */
   highlightCriticalPath?: boolean
@@ -295,44 +298,6 @@ function generateRoundedCornerSegments(
  * ルーティング設定からパスの理想的な折れ点列を計算（ラベル位置用）
  * NODE_RADIUSやクリップは考慮しない（ノード中心ベース）
  */
-function computeIdealPathPoints(
-  fx: number, fy: number, tx: number, ty: number,
-  bendCount: number, routingMode: string,
-): number[] {
-  const dx = tx - fx
-  const dy = ty - fy
-
-  let isHorizontalFirst: boolean
-  switch (routingMode) {
-    case 'horizontal': isHorizontalFirst = true; break
-    case 'vertical': isHorizontalFirst = false; break
-    default: isHorizontalFirst = Math.abs(dx) >= Math.abs(dy); break
-  }
-
-  if (bendCount === 0) {
-    return [fx, fy, tx, ty]
-  } else if (bendCount === 1) {
-    // dy=0 または dx=0 の場合は折れが不要なので直線にフォールバック
-    if (dy === 0 || dx === 0) return [fx, fy, tx, ty]
-    if (isHorizontalFirst) {
-      return [fx, fy, tx, fy, tx, ty]
-    } else {
-      return [fx, fy, fx, ty, tx, ty]
-    }
-  } else {
-    // bendCount >= 2
-    if (isHorizontalFirst) {
-      if (dy === 0) return [fx, fy, tx, ty]
-      const midX = fx + dx / 2
-      return [fx, fy, midX, fy, midX, ty, tx, ty]
-    } else {
-      if (dx === 0) return [fx, fy, tx, ty]
-      const midY = fy + dy / 2
-      return [fx, fy, fx, midY, tx, midY, tx, ty]
-    }
-  }
-}
-
 /**
  * パスの中間点を弧長ベースで計算し、セグメントの方向情報も返す
  */
@@ -403,6 +368,8 @@ export function ActivityArrow({
   defaultTextAlign,
   defaultLeaderLineStyle,
   onLabelDragEnd,
+  nodeRadius = NODE_RADIUS,
+  showActivityDuration = true,
   activityLabelFontSize = 9,
   highlightCriticalPath = true,
 }: ActivityArrowProps) {
@@ -454,7 +421,7 @@ export function ActivityArrow({
     // テキスト内容
     const textParts: string[] = []
     if (activity.displaySettings.showName && activity.name) textParts.push(activity.name)
-    if (activity.displaySettings.showDuration) textParts.push(`${activity.duration}日`)
+    if ((showActivityDuration && activity.displaySettings.showDuration)) textParts.push(`${activity.duration}日`)
     const labelText = textParts.join(' ')
 
     return (
@@ -558,30 +525,30 @@ export function ActivityArrow({
   // 直線モード（bendCount=0）
   if (bendCount === 0) {
     const angle = Math.atan2(dy, dx)
-    startX = isFromClipped ? fromX : fromX + Math.cos(angle) * NODE_RADIUS
-    startY = isFromClipped ? fromY : fromY + Math.sin(angle) * NODE_RADIUS
-    endX = isToClipped ? toX : toX - Math.cos(angle) * NODE_RADIUS
-    endY = isToClipped ? toY : toY - Math.sin(angle) * NODE_RADIUS
+    startX = isFromClipped ? fromX : fromX + Math.cos(angle) * nodeRadius
+    startY = isFromClipped ? fromY : fromY + Math.sin(angle) * nodeRadius
+    endX = isToClipped ? toX : toX - Math.cos(angle) * nodeRadius
+    endY = isToClipped ? toY : toY - Math.sin(angle) * nodeRadius
     points = [startX, startY, endX, endY]
     arrowAngle = (angle * 180 / Math.PI) + 90
   } else if (bendCount === 1) {
     // dy=0 or dx=0 → 折れ不要、直線にフォールバック
     if (dy === 0 || dx === 0) {
       const angle = Math.atan2(dy, dx)
-      startX = isFromClipped ? fromX : fromX + Math.cos(angle) * NODE_RADIUS
-      startY = isFromClipped ? fromY : fromY + Math.sin(angle) * NODE_RADIUS
-      endX = isToClipped ? toX : toX - Math.cos(angle) * NODE_RADIUS
-      endY = isToClipped ? toY : toY - Math.sin(angle) * NODE_RADIUS
+      startX = isFromClipped ? fromX : fromX + Math.cos(angle) * nodeRadius
+      startY = isFromClipped ? fromY : fromY + Math.sin(angle) * nodeRadius
+      endX = isToClipped ? toX : toX - Math.cos(angle) * nodeRadius
+      endY = isToClipped ? toY : toY - Math.sin(angle) * nodeRadius
       points = [startX, startY, endX, endY]
       arrowAngle = (angle * 180 / Math.PI) + 90
     } else if (isHorizontalFirst) {
       // 水平→垂直（L字型）
       const goRight = dx > 0
       const goDown = dy > 0
-      startX = isFromClipped ? fromX : fromX + (goRight ? NODE_RADIUS : -NODE_RADIUS)
+      startX = isFromClipped ? fromX : fromX + (goRight ? nodeRadius : -nodeRadius)
       startY = fromY
       endX = toX
-      endY = isToClipped ? toY : toY + (goDown ? -NODE_RADIUS : NODE_RADIUS)
+      endY = isToClipped ? toY : toY + (goDown ? -nodeRadius : nodeRadius)
       arrowAngle = goDown ? 180 : 0
       points = [startX, startY, endX, startY, endX, endY]
     } else {
@@ -589,8 +556,8 @@ export function ActivityArrow({
       const goRight = dx > 0
       const goDown = dy > 0
       startX = fromX
-      startY = isFromClipped ? fromY : fromY + (goDown ? NODE_RADIUS : -NODE_RADIUS)
-      endX = isToClipped ? toX : toX + (goRight ? -NODE_RADIUS : NODE_RADIUS)
+      startY = isFromClipped ? fromY : fromY + (goDown ? nodeRadius : -nodeRadius)
+      endX = isToClipped ? toX : toX + (goRight ? -nodeRadius : nodeRadius)
       endY = toY
       arrowAngle = goRight ? 90 : -90
       points = [startX, startY, startX, endY, endX, endY]
@@ -598,9 +565,9 @@ export function ActivityArrow({
   } else if (isHorizontalFirst) {
     // 2回曲がり - 水平方向優先
     const goRight = dx > 0
-    startX = isFromClipped ? fromX : fromX + (goRight ? NODE_RADIUS : -NODE_RADIUS)
+    startX = isFromClipped ? fromX : fromX + (goRight ? nodeRadius : -nodeRadius)
     startY = fromY
-    endX = isToClipped ? toX : toX + (goRight ? -NODE_RADIUS : NODE_RADIUS)
+    endX = isToClipped ? toX : toX + (goRight ? -nodeRadius : nodeRadius)
     endY = toY
     arrowAngle = goRight ? 90 : -90
 
@@ -614,9 +581,9 @@ export function ActivityArrow({
     // 2回曲がり - 垂直方向優先
     const goDown = dy > 0
     startX = fromX
-    startY = isFromClipped ? fromY : fromY + (goDown ? NODE_RADIUS : -NODE_RADIUS)
+    startY = isFromClipped ? fromY : fromY + (goDown ? nodeRadius : -nodeRadius)
     endX = toX
-    endY = isToClipped ? toY : toY + (goDown ? -NODE_RADIUS : NODE_RADIUS)
+    endY = isToClipped ? toY : toY + (goDown ? -nodeRadius : nodeRadius)
     arrowAngle = goDown ? 180 : 0
 
     if (dx === 0) {
@@ -651,7 +618,7 @@ export function ActivityArrow({
   const autoLeaderLine = midInfo.segmentDirection === 'vertical' && userOffsetX === 0 && userOffsetY === 0
 
   // 歩掛根拠テキストが表示される場合、さらに上にオフセット
-  const hasBasisText = !activity.isDummy && activity.durationMode === 'calculated' && activity.displaySettings.showDuration
+  const hasBasisText = !activity.isDummy && activity.durationMode === 'calculated' && (showActivityDuration && activity.displaySettings.showDuration)
 
   let anchorX: number
   let anchorY: number
@@ -677,7 +644,7 @@ export function ActivityArrow({
       setTextHeight(textRef.current.height())
       setMeasuredTextWidth(textRef.current.getTextWidth())
     }
-  }, [activity.name, activity.duration, false, activity.displaySettings.showName, activity.displaySettings.showDuration])
+  }, [activity.name, activity.duration, false, activity.displaySettings.showName, (showActivityDuration && activity.displaySettings.showDuration)])
 
   // autoLeaderLine時はテキスト幅を制限
   const effectiveTextWidth = autoLeaderLine
@@ -926,7 +893,7 @@ export function ActivityArrow({
       })()}
 
       {/* 引き出し線（ユーザーオフセットが0以外のとき）。「なし」を選んだら引かない */}
-      {!activity.isDummy && resolvedLeaderStyle !== 'none' && (offsetX !== 0 || offsetY !== 0) && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
+      {!activity.isDummy && resolvedLeaderStyle !== 'none' && (offsetX !== 0 || offsetY !== 0) && (activity.displaySettings.showName || (showActivityDuration && activity.displaySettings.showDuration)) && (
         <Line
           points={[pathMid.x, pathMid.y, leaderTextX, labelY + textHeight]}
           stroke="#9CA3AF"
@@ -936,7 +903,7 @@ export function ActivityArrow({
       )}
 
       {/* 自動引き出し線（垂直セグメント上のとき）- 水平スタブ。「なし」を選んだら引かない */}
-      {!activity.isDummy && resolvedLeaderStyle !== 'none' && autoLeaderLine && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
+      {!activity.isDummy && resolvedLeaderStyle !== 'none' && autoLeaderLine && (activity.displaySettings.showName || (showActivityDuration && activity.displaySettings.showDuration)) && (
         <Line
           points={[midInfo.x, midInfo.y, midInfo.x + LEADER_GAP, midInfo.y]}
           stroke="#9CA3AF"
@@ -946,7 +913,7 @@ export function ActivityArrow({
       )}
 
       {/* 下線（underlineスタイル時） */}
-      {!activity.isDummy && (offsetX !== 0 || offsetY !== 0) && resolvedLeaderStyle === 'underline' && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
+      {!activity.isDummy && (offsetX !== 0 || offsetY !== 0) && resolvedLeaderStyle === 'underline' && (activity.displaySettings.showName || (showActivityDuration && activity.displaySettings.showDuration)) && (
         <Line
           points={[underlineX1, labelY + textHeight, underlineX2, labelY + textHeight]}
           stroke="#9CA3AF"
@@ -956,16 +923,16 @@ export function ActivityArrow({
       )}
 
       {/* ラベル */}
-      {!activity.isDummy && (activity.displaySettings.showName || activity.displaySettings.showDuration) && (
+      {!activity.isDummy && (activity.displaySettings.showName || (showActivityDuration && activity.displaySettings.showDuration)) && (
         <Text
           x={labelX}
           y={labelY}
           text={
-            activity.durationMode === 'calculated' && activity.displaySettings.showDuration
+            activity.durationMode === 'calculated' && (showActivityDuration && activity.displaySettings.showDuration)
               ? activity.displaySettings.showName
                 ? activity.name
                 : ''
-              : activity.displaySettings.showName && activity.displaySettings.showDuration
+              : activity.displaySettings.showName && (showActivityDuration && activity.displaySettings.showDuration)
                 ? `${activity.name}(${activity.duration})`
                 : activity.displaySettings.showName
                   ? activity.name
@@ -998,7 +965,7 @@ export function ActivityArrow({
       )}
 
       {/* 歩掛計算の根拠表示 */}
-      {!activity.isDummy && activity.durationMode === 'calculated' && activity.displaySettings.showDuration && (
+      {!activity.isDummy && activity.durationMode === 'calculated' && (showActivityDuration && activity.displaySettings.showDuration) && (
         <Text
           x={labelX}
           y={labelY + textHeight + 2}

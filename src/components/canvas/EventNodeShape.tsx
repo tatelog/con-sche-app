@@ -11,12 +11,13 @@ import type { EventNode } from '@/types/adm'
 export type SemiCircleDirection = 'top' | 'bottom' | 'left' | 'right' | null
 
 interface EventNodeShapeProps {
+  radius?: number
   node: EventNode
   isSelected: boolean
   isOnCriticalPath: boolean
   showDetails?: boolean // ET/LT詳細表示
   semiCircleDirection?: SemiCircleDirection // 半円表示の方向（エッジが通過する場合）
-  onClick?: () => void
+  onClick?: (modifiers?: { shiftKey: boolean }) => void
   onContextMenu?: (e: { evt: MouseEvent }) => void
   onDragMove?: (position: { x: number; y: number }) => void
   onDragEnd?: (position: { x: number; y: number }) => void
@@ -32,6 +33,7 @@ const FILL_COLOR = '#FFFFFF'
 
 export function EventNodeShape({
   node,
+  radius = NODE_RADIUS,
   isSelected,
   isOnCriticalPath,
   showDetails = false,
@@ -75,10 +77,10 @@ export function EventNodeShape({
         e.cancelBubble = true
         // 左クリックのみ処理（右クリックはonContextMenuで処理）
         if (e.evt.button === 0) {
-          onClick?.()
+          onClick?.({ shiftKey: e.evt.shiftKey })
         }
       }}
-      onTap={onClick}
+      onTap={() => onClick?.()}
       onContextMenu={onContextMenu}
       onDragMove={(e) => {
         const pos = e.target.position()
@@ -97,7 +99,7 @@ export function EventNodeShape({
         // 半円表示
         <Arc
           innerRadius={0}
-          outerRadius={NODE_RADIUS}
+          outerRadius={radius}
           angle={180}
           rotation={getArcRotation()}
           fill={FILL_COLOR}
@@ -107,7 +109,7 @@ export function EventNodeShape({
       ) : (
         // 通常の円
         <Circle
-          radius={NODE_RADIUS}
+          radius={radius}
           fill={FILL_COLOR}
           stroke={strokeColor}
           strokeWidth={strokeWidth}
@@ -118,12 +120,12 @@ export function EventNodeShape({
       {(isSelected || showDetails) && (
         <Text
           text={`${node.earliestTime}/${node.latestTime}`}
-          fontSize={8}
+          fontSize={8 * radius / 6}
           fill="#6B7280"
           align="center"
           width={40}
           offsetX={20}
-          y={NODE_RADIUS + 2}
+          y={radius + 2}
         />
       )}
 
@@ -131,12 +133,12 @@ export function EventNodeShape({
       {node.label && (
         <Text
           text={node.label}
-          fontSize={9}
+          fontSize={9 * radius / 6}
           fill="#374151"
           align="center"
           width={60}
           offsetX={30}
-          y={-NODE_RADIUS - 12}
+          y={-radius - 12}
         />
       )}
     </Group>

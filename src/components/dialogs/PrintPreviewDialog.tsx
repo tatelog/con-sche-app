@@ -13,7 +13,7 @@ import { useADMStore } from '@/stores/admStore'
 import { useCalendarStore } from '@/stores/calendarStore'
 import { useTextBoxStore } from '@/stores/textboxStore'
 import { useUIStore } from '@/stores/uiStore'
-import { computeViewStartDate } from '@/utils/dateUtils'
+import { calculatePrintRange } from '@/utils/printRange'
 import { generateAllPageSVGs } from './SvgPreviewDialog'
 import { ScheduleImagePanel } from './ScheduleImagePanel'
 import { FOOTER_PADDING_MM } from '@/utils/scheduleImage'
@@ -63,6 +63,13 @@ export function PrintPreviewDialog({
   const [previewPage, setPreviewPage] = useState(0)
   const [previewZoom, setPreviewZoom] = useState(1.5)
 
+  const [rangeMode, setRangeMode] = useState<'all' | 'custom'>('all')
+  const [rangeStart, setRangeStart] = useState(projectSettings.startDate)
+  const [rangeEnd, setRangeEnd] = useState(projectSettings.endDate)
+  const printRange = calculatePrintRange(projectSettings.startDate,
+    rangeMode === 'all' ? projectSettings.startDate : rangeStart,
+    rangeMode === 'all' ? projectSettings.endDate : rangeEnd)
+
   // 用紙サイズ
   const paperKey = projectSettings.paperSize === 'custom' ? 'A3' : projectSettings.paperSize as 'A4' | 'A3' | 'A2' | 'A1'
   const basePaper = PAPER_SIZES[paperKey]
@@ -78,15 +85,10 @@ export function PrintPreviewDialog({
     const visibleColumns = projectSettings.headerColumns
       .filter(col => col.visible).sort((a, b) => a.order - b.order)
 
-    const viewStartDate = computeViewStartDate(projectSettings)
-    const viewStartDayOffset = Math.round(
-      (viewStartDate.getTime() - new Date(projectSettings.startDate).getTime()) / (1000 * 60 * 60 * 24)
-    )
-
-    let effectiveTotalDays = projectSettings.displayDays
-    if (projectSettings.displayMode === 'monthly') {
-      effectiveTotalDays = new Date(viewStartDate.getFullYear(), viewStartDate.getMonth() + 1, 0).getDate()
-    }
+    if (!printRange) return { svgPages: [], svgTotalPages: 0 }
+    const viewStartDate = new Date(`${printRange.start}T00:00:00`)
+    const viewStartDayOffset = printRange.offset
+    const effectiveTotalDays = printRange.days
     const dates: Date[] = []
     for (let i = 0; i < effectiveTotalDays; i++) {
       const d = new Date(viewStartDate)
@@ -119,7 +121,9 @@ export function PrintPreviewDialog({
     )
     const svgHeight = 50 + printRowsPerPage * rowH // HEADER_HEIGHT + rows
     return { svgPages: pages, svgTotalPages: pages.length, svgWidth, svgHeight }
-  }, [projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, images.length, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
+  }, [rangeMode, rangeStart, rangeEnd, projectSettings, nodesMap, activitiesMap, zones, rooms, detailCategories, getCustomColumnValue, customColumnValues, admCalendar, paperWidth, paperHeight, settings.margin, settings.layout, settings.titleBlock.showFooterText, images.length, textboxesMap, progressLines, activeProgressLineId, showSCurve, projectDuration, settings.showLegend])
+
+  useEffect(() => { setPreviewPage(0) }, [rangeMode, rangeStart, rangeEnd])
 
   // 工期をprojectSettingsから同期
   useEffect(() => {
@@ -473,6 +477,22 @@ export function PrintPreviewDialog({
                   placeholder="プロパティ設定で入力" />
               </FieldGroup>
 
+              <FieldGroup label="出力期間">
+                <select className="w-full px-2 py-1.5 border rounded text-sm" aria-label="出力期間" value={rangeMode} onChange={(e) => setRangeMode(e.target.value === 'custom' ? 'custom' : 'all')}>
+                  <option value="all">工期全体</option><option value="custom">期間を指定</option>
+                </select>
+                {rangeMode === 'custom' && <div>
+                  <input className="w-full px-2 py-1.5 border rounded text-sm mt-2" aria-label="出力開始日" type="date" value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} />
+                  <input className="w-full px-2 py-1.5 border rounded text-sm mt-2" aria-label="出力終了日" type="date" value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} />
+                  {printRange === null && <p role="alert">開始日と終了日を正しい順序で指定してください。</p>}
+                </div>}
+              </FieldGroup>
+              <FieldGroup label="フッター文字サイズ (pt)">
+                <input className="w-full px-2 py-1.5 border rounded text-sm" aria-label="フッター文字サイズ" type="number" min={4} max={24} value={tb.footerFontSize ?? 6}
+                  onChange={(e) => updateTitleBlock({ footerFontSize: Math.max(4, Math.min(24, Number(e.target.value) || 6)) })} />
+                {tb.showFooterText && (tb.footerText || '').split('\n').length * (tb.footerFontSize ?? 6) * 0.5 >= layout.footerHeight - 5 &&
+                  <p role="alert">フッターの高さに収まらない行は出力されません。文字を小さくするか、欄を高くしてください。</p>}
+              </FieldGroup>
               {/* 工期（参照） */}
               <div className="grid grid-cols-2 gap-2">
                 <FieldGroup label="工期開始">
@@ -600,11 +620,11 @@ export function PrintPreviewDialog({
         <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 shrink-0">
           <button onClick={onClose}
             className="px-4 py-2 text-gray-700 bg-white border rounded-md hover:bg-gray-50">キャンセル</button>
-          <button onClick={handlePrint} disabled={isExporting || isPrinting}
+          <button onClick={handlePrint} disabled={isExporting || isPrinting || !printRange}
             className={`px-4 py-2 rounded-md border ${isExporting || isPrinting ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>
             {isPrinting ? '印刷の準備中...' : '印刷'}
           </button>
-          <button onClick={handleExportPDF} disabled={isExporting || isPrinting}
+          <button onClick={handleExportPDF} disabled={isExporting || isPrinting || !printRange}
             className={`px-4 py-2 text-white rounded-md ${isExporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
             {isExporting ? 'PDF出力中...' : 'PDF出力'}
           </button>
