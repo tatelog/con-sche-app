@@ -255,3 +255,10 @@ describe('作図エリアのクリップ', () => {
     expect(svg).toMatch(new RegExp(`<g id="layer-activities"[^>]*clip-path="url\\(#${clip![1]}\\)"`))
   })
 })
+
+it('部屋名と列見出しに編集画面の文字サイズを引き継ぐ', () => {
+  const detail: HeaderColumn = { ...zoneCol, type: 'detail', label: '部屋名' }
+  const svg = render([row({})], [detail], noCustom, [], [], { headerFontSize: 16 })
+  expect(svg).toMatch(/<text[^>]*font-size="16"[^>]*>部屋名<\/text>/)
+  expect(svg).toMatch(/<text[^>]*font-size="16"[^>]*fill="#374151"[^>]*>会議室<\/text>/)
+})
