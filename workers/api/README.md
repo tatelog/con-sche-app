@@ -132,3 +132,9 @@ npx wrangler dev   # http://localhost:8787
 - Stripe秘密鍵等のシークレットはD1に置かない（有償化時は Workers Secrets を使用）
 - 個人情報の読み出し用エンドポイントは作らない（`/api/v1/usage` は自キーの集計値のみ）
 - 有償化時は `customers.stripe_customer_id` に Stripe顧客IDを紐づけ、`api_keys.plan` をWebhookで更新する
+
+## お知らせにPDFを載せる
+
+閲覧者が開ける場所にPDFを保存し、お知らせ本文の独立した行に
+`[資料名（PDF）](https://example.com/manual.pdf)` と記載します。
+ベルのお知らせで資料名を押すと別タブで開きます。共有URLも使用できます。

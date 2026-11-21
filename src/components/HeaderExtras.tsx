@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Star, Bell, Mail, Share, SquarePlus, MonitorDown, Bookmark, HelpCircle, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  announcementLink,
   fetchAnnouncements,
   hasUnread,
   loadLastReadAt,
@@ -200,7 +201,22 @@ function AnnouncementsBell({ iconSize }: { iconSize: number }) {
                     {new Date(a.created_at).toLocaleDateString('ja-JP')}
                   </div>
                   <div className="text-xs font-bold text-slate-800 mb-1">{a.title}</div>
-                  <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{a.body}</div>
+                  <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                    {a.body.split(/\r?\n/).map((line, index) => {
+                      const link = announcementLink(line);
+                      return (
+                        <span key={index}>
+                          {index > 0 && '\n'}
+                          {link ? (
+                            <a href={link.href} target="_blank" rel="noopener noreferrer"
+                              className="text-blue-700 underline break-words">
+                              {link.label}
+                            </a>
+                          ) : line}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </li>
               ))}
             </ul>

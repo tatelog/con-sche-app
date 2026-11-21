@@ -47,3 +47,16 @@ export async function fetchAnnouncements(): Promise<Announcement[]> {
   const body = (await res.json()) as { announcements?: Announcement[] };
   return body.announcements ?? [];
 }
+
+/** お知らせ本文の独立したリンク行。本文はHTMLとして扱わない。 */
+export function announcementLink(line: string): { label: string; href: string } | null {
+  const match = /^\[([^\]\r\n]+)\]\((https:\/\/[^\s<>]+)\)$/i.exec(line.trim());
+  if (!match) return null;
+  try {
+    const url = new URL(match[2]);
+    if (url.username || url.password) return null;
+    return { label: match[1], href: url.href };
+  } catch {
+    return null;
+  }
+}

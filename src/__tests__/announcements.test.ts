@@ -6,7 +6,7 @@
  * - 最新お知らせが既読時刻以前なら未読なし
  */
 import { describe, it, expect } from 'vitest';
-import { hasUnread } from '@/utils/announcements';
+import { announcementLink, hasUnread } from '@/utils/announcements';
 
 describe('hasUnread(最新お知らせ日時, 最終既読日時)', () => {
   it('お知らせが1件も無い場合は false', () => {
@@ -30,4 +30,15 @@ describe('hasUnread(最新お知らせ日時, 最終既読日時)', () => {
   it('壊れた日時文字列（localStorage改ざん等）では安全側に倒して false', () => {
     expect(hasUnread('not-a-date', null)).toBe(false);
   });
+});
+
+describe('お知らせの資料リンク', () => {
+  it('PDFや共有リンクをラベル付きで開ける', () => {
+    expect(announcementLink('[手順書（PDF）](https://example.com/manual.pdf)')).toEqual({
+      label: '手順書（PDF）', href: 'https://example.com/manual.pdf',
+    });
+  });
+  it.each(['通常の本文', '[資料](javascript:alert(1))', '[資料](https://)', '[資料](https://user@example.com/)'])(
+    '通常の本文や無効なリンクは文字として表示する', line => expect(announcementLink(line)).toBeNull(),
+  );
 });
