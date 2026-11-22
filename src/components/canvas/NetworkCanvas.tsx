@@ -1,3 +1,5 @@
+import { copySchedule, segmentIntersectsBox, type ScheduleClipboard } from '@/utils/scheduleSelection'
+import { computeIdealPathPoints } from '@/utils/activityPath'
 /**
  * ADM形式のネットワーク工程表キャンバス
  * 日本の建設現場向け：
@@ -280,6 +282,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   }, [allHierarchyRows, showBuildingSelector, selectedBuildingId])
 
   // 行の高さ（projectSettingsから取得）
+  const nodeRadius = projectSettings.nodeRadius ?? NODE_RADIUS
   const ROW_HEIGHT = projectSettings.rowHeight || DEFAULT_ROW_HEIGHT
 
   // エッジの曲がり角R
@@ -525,11 +528,63 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
 
 
+  const clipboardRef = useRef<ScheduleClipboard | null>(null)
+  const pasteTarget = useRef({ x: 0, y: ROW_HEIGHT / 2 })
+  const selectionRef = useRef<{ start: { x: number; y: number }; end: { x: number; y: number }; additive: boolean } | null>(null)
+  const [selectionBox, setSelectionBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
+  const suppressClick = useRef(false)
+  const pointerDataPosition = () => {
+    const pointer = stageRef.current?.getPointerPosition()
+    if (!pointer || pointer.y < HEADER_HEIGHT) return null
+    return { x: pointer.x / canvasScale + canvasPosition.x + viewStartDayOffset * DAY_WIDTH,
+      y: (pointer.y - HEADER_HEIGHT) / canvasScale + canvasPosition.y + pageStartRow * ROW_HEIGHT }
+  }
+  const startSelection = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (editMode !== 'select' || e.evt.button !== 0) return
+    const pos = pointerDataPosition()
+    if (!pos) return
+    pasteTarget.current = { x: Math.round(pos.x / DAY_WIDTH) * DAY_WIDTH, y: Math.floor(pos.y / ROW_HEIGHT) * ROW_HEIGHT + ROW_HEIGHT / 2 }
+    selectionRef.current = { start: pos, end: pos, additive: e.evt.shiftKey }
+  }
+  const updateSelection = () => {
+    const pos = pointerDataPosition()
+    const selection = selectionRef.current
+    if (!selection || !pos) return
+    selection.end = pos
+    setSelectionBox({ x: (Math.min(pos.x, selection.start.x) - viewStartDayOffset * DAY_WIDTH - canvasPosition.x) * canvasScale,
+      y: HEADER_HEIGHT + (Math.min(pos.y, selection.start.y) - pageStartRow * ROW_HEIGHT - canvasPosition.y) * canvasScale,
+      width: Math.abs(pos.x - selection.start.x) * canvasScale, height: Math.abs(pos.y - selection.start.y) * canvasScale })
+  }
+  const finishSelection = () => {
+    const selection = selectionRef.current
+    selectionRef.current = null
+    setSelectionBox(null)
+    if (!selection || Math.hypot(selection.end.x - selection.start.x, selection.end.y - selection.start.y) < 3) return
+    const state = useADMStore.getState()
+    const nodeIds = [...state.nodes.values()].filter(n => segmentIntersectsBox(n.position, n.position, selection.start, selection.end)).map(n => n.id)
+    const activityIds = [...state.activities.values()].filter(a => {
+      const from = state.nodes.get(a.fromNodeId), to = state.nodes.get(a.toNodeId)
+      if (!from || !to) return false
+      const points = a.waypoints?.length ? [from.position, ...a.waypoints, to.position].flatMap(p => [p.x, p.y])
+        : computeIdealPathPoints(from.position.x, from.position.y, to.position.x, to.position.y, a.bendCount ?? 1, a.routingMode ?? 'auto')
+      for (let i = 0; i + 3 < points.length; i += 2) {
+        if (segmentIntersectsBox({ x: points[i], y: points[i + 1] }, { x: points[i + 2], y: points[i + 3] }, selection.start, selection.end)) return true
+      }
+      return false
+    }).map(a => a.id)
+    useADMStore.setState({ selectedNodeId: null, selectedActivityId: null,
+      selectedNodeIds: [...new Set([...nodeIds, ...(selection.additive ? [...state.selectedNodeIds, ...(state.selectedNodeId ? [state.selectedNodeId] : [])] : [])])],
+      selectedActivityIds: [...new Set([...activityIds, ...(selection.additive ? [...state.selectedActivityIds, ...(state.selectedActivityId ? [state.selectedActivityId] : [])] : [])])] })
+    suppressClick.current = true
+  }
+
   // キーボードショートカット
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 入力フォーカスがある場合は一部のキーを無視
-      const isInputFocused = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA'
+      const active = document.activeElement
+      const isInputFocused = active instanceof HTMLElement && (['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName) || active.isContentEditable)
+      if (isInputFocused) return
 
       // テキストモード中のスペースキー: 書字方向トグル
       if (editMode === 'text' && e.key === ' ' && !isInputFocused) {
@@ -563,6 +618,18 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         return
       }
 
+      if (!isInputFocused && (e.ctrlKey || e.metaKey) && ['c', 'v'].includes(e.key.toLowerCase())) {
+        e.preventDefault()
+        const state = useADMStore.getState()
+        if (e.key.toLowerCase() === 'c') {
+          clipboardRef.current = copySchedule(state.nodes, state.activities,
+            [...state.selectedNodeIds, ...(state.selectedNodeId ? [state.selectedNodeId] : [])],
+            [...state.selectedActivityIds, ...(state.selectedActivityId ? [state.selectedActivityId] : [])])
+        } else if (clipboardRef.current) {
+          state.pasteSelection(clipboardRef.current, pasteTarget.current)
+        }
+        return
+      }
       // Undo: Ctrl+Z
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
@@ -608,6 +675,15 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
         return
       }
 
+      if (!isInputFocused && !e.ctrlKey && !e.metaKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+        const state = useADMStore.getState()
+        if (state.selectedActivityIds.length || state.selectedNodeIds.length) {
+          e.preventDefault()
+          state.moveSelection({ x: e.key === 'ArrowLeft' ? -DAY_WIDTH : e.key === 'ArrowRight' ? DAY_WIDTH : 0,
+            y: e.key === 'ArrowUp' ? -ROW_HEIGHT : e.key === 'ArrowDown' ? ROW_HEIGHT : 0 })
+          return
+        }
+      }
       // ナビゲーション: Ctrl+←/→ で日付移動、PageUp/PageDown でページ切り替え
       if (!isInputFocused) {
         if (e.ctrlKey && e.key === 'ArrowLeft') {
@@ -649,6 +725,15 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
         e.preventDefault()
 
+        const state = useADMStore.getState()
+        if (state.selectedNodeIds.length || state.selectedActivityIds.length) {
+          beginBatch()
+          state.selectedActivityIds.forEach(id => deleteActivity(id))
+          state.selectedNodeIds.forEach(id => deleteNode(id))
+          clearSelection()
+          endBatch()
+          return
+        }
         if (selectedTextBoxId) {
           deleteTextBox(selectedTextBoxId)
         } else if (selectedActivityId) {
@@ -930,6 +1015,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
   // キャンバスクリック（ノード追加など）
   const handleCanvasClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (suppressClick.current) { suppressClick.current = false; return }
       // 右クリックは無視（右クリックはonContextMenuで処理）
       if (e.evt.button !== 0) return
 
@@ -957,7 +1043,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           // 描画/バナーモード: クリックでノード追加、前のノードがあれば作業も追加
           {
             // 近くに既存ノードがあればそれを使う（スナップ座標で一致判定）
-            const SNAP_THRESHOLD = NODE_RADIUS * 2
+            const SNAP_THRESHOLD = nodeRadius * 2
             let existingNodeId: string | null = null
             for (const node of nodes) {
               const dx = node.position.x - snappedX
@@ -1049,7 +1135,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
           break
       }
     },
-    [editMode, canvasScale, canvasPosition, viewStartDayOffset, addNode, clearSelection, setActivityStartNode, activityStartNodeId, addActivity, selectActivity, beginBatch, endBatch, isBatchOpen, addTextBox, selectTextBox, textModeVertical, progressLines, activeProgressLineId, setProgressBaseDate, setProgressPoint, projectSettings.startDate]
+    [nodeRadius, ROW_HEIGHT, pageStartRow, editMode, canvasScale, canvasPosition, viewStartDayOffset, addNode, clearSelection, setActivityStartNode, activityStartNodeId, addActivity, selectActivity, beginBatch, endBatch, isBatchOpen, addTextBox, selectTextBox, textModeVertical, progressLines, activeProgressLineId, setProgressBaseDate, setProgressPoint, projectSettings.startDate]
   )
 
   // パス選択モード: MouseDown on Activity → フロート移動ドラッグ開始
@@ -1122,7 +1208,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
   // ノードクリック
   const handleNodeClick = useCallback(
-    (nodeId: string) => {
+    (nodeId: string, modifiers?: { shiftKey: boolean }) => {
+      if (editMode === 'select' && modifiers?.shiftKey) { useADMStore.getState().toggleNodeSelection(nodeId); return }
       // 進捗線モードではノード/パス上のクリックもステージクリックとして処理（透過）
       if (editMode === 'progress') return
       switch (editMode) {
@@ -1161,7 +1248,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
   // 作業クリック
   const handleActivityClick = useCallback(
-    (activityId: string, _modifiers?: { ctrlKey: boolean; shiftKey: boolean }) => {
+    (activityId: string, modifiers?: { ctrlKey: boolean; shiftKey: boolean }) => {
+      if (editMode === 'select' && modifiers?.shiftKey) { useADMStore.getState().toggleActivitySelection(activityId); return }
       // パス選択モードではonMouseDownで処理済み / 進捗線モードでは無効
       if (editMode === 'pathSelect' || editMode === 'progress') return
 
@@ -1209,8 +1297,15 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
   const handleNodeDragEnd = useCallback(
     (nodeId: string, position: { x: number; y: number }) => {
+      const state = useADMStore.getState()
+      if (state.selectedNodeIds.includes(nodeId) && state.selectedNodeIds.length > 1) {
+        const original = state.nodes.get(nodeId)
+        if (original) state.moveSelection({ x: Math.round((position.x - original.position.x) / DAY_WIDTH) * DAY_WIDTH,
+          y: Math.round((position.y - original.position.y) / ROW_HEIGHT) * ROW_HEIGHT })
+        return
+      }
       // 近くに別のノードがあるか確認（マージ判定）
-      const MERGE_THRESHOLD = NODE_RADIUS * 2 // マージする距離の閾値
+      const MERGE_THRESHOLD = nodeRadius * 2 // マージする距離の閾値
 
       for (const node of nodes) {
         if (node.id === nodeId) continue
@@ -1274,7 +1369,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       moveNode(nodeId, { x: snappedX, y: snappedY })
       recalculateCPM()
     },
-    [moveNode, mergeNodes, recalculateCPM, nodes, activities, getNode, startDate, calendar]
+    [moveNode, mergeNodes, recalculateCPM, nodes, activities, getNode, startDate, calendar, nodeRadius, ROW_HEIGHT]
   )
 
   // クリティカルパス上のノードを判定
@@ -1319,7 +1414,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
       }
 
       const lineThreshold = 3
-      const nodeInnerRadius = NODE_RADIUS - 2
+      const nodeInnerRadius = nodeRadius - 2
 
       for (const activity of activities) {
         if (activity.fromNodeId === nodeId || activity.toNodeId === nodeId) continue
@@ -1402,7 +1497,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
       return null
     },
-    [activities, getNode]
+    [activities, getNode, nodeRadius]
   )
 
   const isWeekend = isWeekendUtil
@@ -2628,8 +2723,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
             height={height - NAV_HEIGHT}
             onWheel={handleWheel}
             onContextMenu={handleCanvasRightClick}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleStageMouseUp}
+            onMouseMove={(e) => { updateSelection(); handleCanvasMouseMove(e) }}
+            onMouseUp={(e) => { finishSelection(); handleStageMouseUp(e) }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -2787,6 +2882,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                   width={effectiveTotalDays * DAY_WIDTH}
                   height={totalRows * ROW_HEIGHT}
                   fill="transparent"
+                  onMouseDown={startSelection}
                   onClick={handleCanvasClick}
                   onContextMenu={handleCanvasRightClick}
                 />
@@ -2953,6 +3049,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
                   return (
                     <ActivityArrow
+                      nodeRadius={nodeRadius}
+                      showActivityDuration={projectSettings.showActivityDuration !== false}
                       key={activity.id}
                       activity={activity}
                       fromNode={adjustedFromNode}
@@ -3109,12 +3207,13 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
 
                   return (
                     <EventNodeShape
+                      radius={nodeRadius}
                       key={node.id}
                       node={adjustedNode}
                       isSelected={selectedNodeId === node.id || selectedNodeIds.includes(node.id)}
                       isOnCriticalPath={projectSettings.highlightCriticalPath !== false && isNodeOnCriticalPath(node.id)}
                       semiCircleDirection={semiCircleDir}
-                      onClick={() => handleNodeClick(node.id)}
+                      onClick={(modifiers) => handleNodeClick(node.id, modifiers)}
                       onContextMenu={(e) => {
                         e.evt.preventDefault()
                         if ((editMode === 'draw' || editMode === 'banner') && activityStartNodeId) {
@@ -3309,6 +3408,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                       <>
                         {/* ゴーストノード */}
                         <EventNodeShape
+                      radius={nodeRadius}
                           node={{
                             id: '__ghost__',
                             number: 0,
@@ -3369,6 +3469,8 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
                           return (
                             <Group>
                               <ActivityArrow
+                      nodeRadius={nodeRadius}
+                      showActivityDuration={projectSettings.showActivityDuration !== false}
                                 activity={ghostActivity}
                                 fromNode={adjustedStartNode}
                                 toNode={ghostToNode}
@@ -3474,6 +3576,7 @@ export function NetworkCanvas({ width, height }: NetworkCanvasProps) {
               </Group>
             </Layer>
 
+            <Layer listening={false}>{selectionBox && <Rect {...selectionBox} stroke="#2563eb" fill="rgba(37,99,235,0.12)" strokeWidth={1} />}</Layer>
           </Stage>
 
           {/* キャンバススクロールバー（外側の relative div 基準で Stage 領域に重ねる） */}

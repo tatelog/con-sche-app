@@ -67,11 +67,15 @@ async function renderSvgToPdf(
   const svgElement = svgDoc.documentElement as unknown as SVGElement
   // 左上寄せ：フッター変更時にSVG位置がずれないようにする
   svgElement.setAttribute('preserveAspectRatio', 'xMinYMin meet')
+  const [, , w, h] = (svgElement.getAttribute('viewBox') ?? '').split(/\s+/).map(Number)
+  const scale = Math.min(25.4 / 96, area.width / w, area.height / h)
+  svgElement.setAttribute('width', String(w * scale))
+  svgElement.setAttribute('height', String(h * scale))
   await svg2pdf(svgElement, doc, {
     x: area.x,
     y: area.y,
-    width: area.width,
-    height: area.height,
+    width: w * scale,
+    height: h * scale,
   })
 }
 
@@ -280,10 +284,10 @@ function drawFooter(
 
   // フッターテキスト（有効時）
   if (titleBlock.showFooterText && titleBlock.footerText) {
-    doc.setFontSize(6)
+    doc.setFontSize(titleBlock.footerFontSize ?? 6)
     const lines = titleBlock.footerText.split('\n')
-    const lineHeight = 3
-    const startY = rect.y + 3
+    const lineHeight = (titleBlock.footerFontSize ?? 6) * 0.5
+    const startY = rect.y + lineHeight
     lines.forEach((line, i) => {
       if (startY + i * lineHeight < rect.y + rect.height - 5) {
         doc.text(line, rect.x + 3, startY + i * lineHeight)

@@ -647,6 +647,16 @@ export function ProjectSettingsDialog({ isOpen, onClose }: ProjectSettingsDialog
               </div>
             </div>
 
+            <label className="block mb-4 text-sm">ノードの半径 (px)
+              <input aria-label="ノードの半径" type="range" min={3} max={16} value={projectSettings.nodeRadius ?? 6}
+                onChange={(e) => updateProjectSettings({ nodeRadius: Number(e.target.value) })} />
+              {projectSettings.nodeRadius ?? 6}
+            </label>
+            <label className="flex gap-2 mb-4 text-sm">
+              <input type="checkbox" checked={projectSettings.showActivityDuration !== false}
+                onChange={(e) => updateProjectSettings({ showActivityDuration: e.target.checked })} />
+              日数を表示する（工程表全体）
+            </label>
             {/* フォントサイズ */}
             <div className="mb-4">
               <label className="block text-sm text-gray-600 mb-2">フォントサイズ (px)</label>

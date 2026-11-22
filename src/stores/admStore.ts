@@ -1,3 +1,4 @@
+import { pasteSchedule, type ScheduleClipboard } from '@/utils/scheduleSelection'
 /**
  * ADM (Arrow Diagram Method) 用の Zustand ストア
  * 日本の建設現場向け階層構造（工区・部屋・細目）対応
@@ -272,6 +273,8 @@ interface ADMState {
   recalculateCPM: () => void
 
   // 選択
+  moveSelection: (delta: Position) => void
+  pasteSelection: (clipboard: ScheduleClipboard, target: Position) => void
   selectNode: (nodeId: string | null) => void
   selectActivity: (activityId: string | null) => void
   clearSelection: () => void
@@ -1407,6 +1410,39 @@ export const useADMStore = create<ADMState>((set, get) => ({
   // 選択
   // ======================================
 
+  moveSelection: (delta) => {
+    const state = get()
+    const ids = new Set(state.selectedNodeIds)
+    for (const id of state.selectedActivityIds) {
+      const activity = state.activities.get(id)
+      if (activity) { ids.add(activity.fromNodeId); ids.add(activity.toNodeId) }
+    }
+    if (!ids.size) return
+    const selected = [...ids].flatMap(id => { const n = state.nodes.get(id); return n ? [n] : [] })
+    if (selected.some(n => n.position.y + delta.y < 0)) return
+    state.saveHistory()
+    const nodes = new Map(state.nodes)
+    for (const n of selected) nodes.set(n.id, { ...n, position: { x: n.position.x + delta.x, y: n.position.y + delta.y } })
+    const activities = new Map(state.activities)
+    for (const a of activities.values()) {
+      if (ids.has(a.fromNodeId) && ids.has(a.toNodeId)) activities.set(a.id, { ...a, rowIndex: undefined, detailCategoryId: undefined,
+        waypoints: a.waypoints?.map(p => ({ x: p.x + delta.x, y: p.y + delta.y })) })
+    }
+    set({ nodes, activities })
+    get().recalculateCPM()
+  },
+  pasteSelection: (clipboard, target) => {
+    const state = get()
+    const pasted = pasteSchedule(clipboard, target, state.nextNodeNumber, uuidv4)
+    if (!pasted.nodes.length) return
+    state.saveHistory()
+    set({ nodes: new Map([...state.nodes, ...pasted.nodes.map(n => [n.id, n] as const)]),
+      activities: new Map([...state.activities, ...pasted.activities.map(a => [a.id, a] as const)]),
+      nextNodeNumber: state.nextNodeNumber + pasted.nodes.length,
+      selectedNodeId: null, selectedActivityId: null,
+      selectedNodeIds: pasted.nodes.map(n => n.id), selectedActivityIds: pasted.activities.map(a => a.id) })
+    get().recalculateCPM()
+  },
   selectNode: (nodeId) => {
     set({ selectedNodeId: nodeId, selectedActivityId: null, selectedNodeIds: [], selectedActivityIds: [] })
   },
@@ -1451,7 +1487,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
 
   toggleNodeSelection: (id) => {
     const state = get()
-    const currentIds = [...state.selectedNodeIds]
+    const currentIds = [...new Set([...state.selectedNodeIds, ...(state.selectedNodeId ? [state.selectedNodeId] : [])])]
     const index = currentIds.indexOf(id)
     if (index >= 0) {
       currentIds.splice(index, 1)
@@ -1462,12 +1498,13 @@ export const useADMStore = create<ADMState>((set, get) => ({
       selectedNodeId: null,
       selectedActivityId: null,
       selectedNodeIds: currentIds,
+      selectedActivityIds: [...new Set([...state.selectedActivityIds, ...(state.selectedActivityId ? [state.selectedActivityId] : [])])],
     })
   },
 
   toggleActivitySelection: (id) => {
     const state = get()
-    const currentIds = [...state.selectedActivityIds]
+    const currentIds = [...new Set([...state.selectedActivityIds, ...(state.selectedActivityId ? [state.selectedActivityId] : [])])]
     const index = currentIds.indexOf(id)
     if (index >= 0) {
       currentIds.splice(index, 1)
@@ -1478,6 +1515,7 @@ export const useADMStore = create<ADMState>((set, get) => ({
       selectedNodeId: null,
       selectedActivityId: null,
       selectedActivityIds: currentIds,
+      selectedNodeIds: [...new Set([...state.selectedNodeIds, ...(state.selectedNodeId ? [state.selectedNodeId] : [])])],
     })
   },
 

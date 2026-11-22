@@ -342,6 +342,8 @@ export interface ProjectSettings {
 
   // クリティカルパスを赤で示すか。切ると、赤を自分の強調（打設日など）に使える
   highlightCriticalPath?: boolean
+  nodeRadius?: number
+  showActivityDuration?: boolean
 
   // フォントサイズ設定
   activityLabelFontSize?: number // 作業パス上のラベル（作業名・日数）

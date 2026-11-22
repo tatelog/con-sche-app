@@ -31,7 +31,7 @@ import {
 const HEADER_HEIGHT = 50
 const DEFAULT_ROW_HEIGHT = 40
 const DAY_WIDTH = 30
-const NODE_RADIUS = 6
+import { NODE_RADIUS } from '../canvas/EventNodeShape'
 const ARROW_HEAD_SIZE = 6
 const LEADER_GAP = 12
 
@@ -376,10 +376,11 @@ function generateSVG(
   parts.push(`<rect x="${rowHeaderWidth}" y="0" width="${effectiveTotalDays * DAY_WIDTH}" height="${HEADER_HEIGHT}" fill="${HEADER_BG}"/>`)
   parts.push(`<rect x="0" y="0" width="${rowHeaderWidth}" height="${HEADER_HEIGHT}" fill="#F9FAFB" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
 
+  const headerFontSize = projectSettings.headerFontSize ?? 10
   let colX = 0
   for (const col of visibleColumns) {
     parts.push(`<rect x="${colX}" y="0" width="${col.width}" height="${HEADER_HEIGHT}" fill="#F9FAFB" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
-    parts.push(`<text x="${colX + col.width / 2}" y="${HEADER_HEIGHT / 2 + 4}" text-anchor="middle" font-size="10" fill="#4B5563">${escapeXml(col.label)}</text>`)
+    parts.push(`<text x="${colX + col.width / 2}" y="${HEADER_HEIGHT / 2 + headerFontSize * 0.35}" text-anchor="middle" font-size="${headerFontSize}" fill="#4B5563">${escapeXml(col.label)}</text>`)
     colX += col.width
   }
 
@@ -503,7 +504,7 @@ function generateSVG(
       parts.push(`<rect x="${headerCellX}" y="${cy}" width="${col.width}" height="${cellHeight}" fill="white" stroke="${GRID_COLOR}" stroke-width="0.5"/>`)
       const value = resolveHeaderCellValue(col, pageRows[displayIdx], pageStartRow + displayIdx, getCustomValue)
       // まとめたセルでは縦の中央に置く
-      if (value) parts.push(`<text x="${headerCellX + 4}" y="${cy + cellHeight / 2 + 4}" font-size="9" fill="#374151">${escapeXml(value)}</text>`)
+      if (value) parts.push(`<text x="${headerCellX + 4}" y="${cy + cellHeight / 2 + headerFontSize * 0.35}" font-size="${headerFontSize}" fill="#374151">${escapeXml(value)}</text>`)
     }
     headerCellX += col.width
   }
@@ -544,6 +545,7 @@ function generateSVG(
   const pageBottomY = pageEndRow * ROW_HEIGHT
 
   // クリティカルパスを色で示すか（切ると、赤を自分の強調に使える）
+  const nodeRadius = projectSettings.nodeRadius ?? NODE_RADIUS
   const highlightCritical = projectSettings.highlightCriticalPath !== false
 
   activities.forEach((activity) => {
@@ -607,7 +609,7 @@ function generateSVG(
       // テキスト
       const textParts: string[] = []
       if (activity.displaySettings.showName && activity.name) textParts.push(activity.name)
-      if (activity.displaySettings.showDuration) textParts.push(`${activity.duration}日`)
+      if ((projectSettings.showActivityDuration !== false && activity.displaySettings.showDuration)) textParts.push(`${activity.duration}日`)
       if (textParts.length > 0) {
         const labelText = textParts.join(' ')
         parts.push(`<text x="${leftX + bannerWidth / 2}" y="${cy + 4}" text-anchor="middle" font-size="10" fill="white">${labelText}</text>`)
@@ -641,31 +643,31 @@ function generateSVG(
 
     if (bendCount === 0) {
       const angle = Math.atan2(dy, dx)
-      startX = fromX + Math.cos(angle) * NODE_RADIUS
-      startY = fromY + Math.sin(angle) * NODE_RADIUS
-      endX = toX - Math.cos(angle) * NODE_RADIUS
-      endY = toY - Math.sin(angle) * NODE_RADIUS
+      startX = fromX + Math.cos(angle) * nodeRadius
+      startY = fromY + Math.sin(angle) * nodeRadius
+      endX = toX - Math.cos(angle) * nodeRadius
+      endY = toY - Math.sin(angle) * nodeRadius
       points = [startX, startY, endX, endY]
       arrowAngle = (angle * 180 / Math.PI) + 90
     } else if (bendCount === 1) {
       if (dy === 0 || dx === 0) {
         const angle = Math.atan2(dy, dx)
-        startX = fromX + Math.cos(angle) * NODE_RADIUS
-        startY = fromY + Math.sin(angle) * NODE_RADIUS
-        endX = toX - Math.cos(angle) * NODE_RADIUS
-        endY = toY - Math.sin(angle) * NODE_RADIUS
+        startX = fromX + Math.cos(angle) * nodeRadius
+        startY = fromY + Math.sin(angle) * nodeRadius
+        endX = toX - Math.cos(angle) * nodeRadius
+        endY = toY - Math.sin(angle) * nodeRadius
         points = [startX, startY, endX, endY]
         arrowAngle = (angle * 180 / Math.PI) + 90
       } else if (isHorizontalFirst) {
         const goRight = dx > 0, goDown = dy > 0
-        startX = fromX + (goRight ? NODE_RADIUS : -NODE_RADIUS); startY = fromY
-        endX = toX; endY = toY + (goDown ? -NODE_RADIUS : NODE_RADIUS)
+        startX = fromX + (goRight ? nodeRadius : -nodeRadius); startY = fromY
+        endX = toX; endY = toY + (goDown ? -nodeRadius : nodeRadius)
         arrowAngle = goDown ? 180 : 0
         points = [startX, startY, endX, startY, endX, endY]
       } else {
         const goRight = dx > 0, goDown = dy > 0
-        startX = fromX; startY = fromY + (goDown ? NODE_RADIUS : -NODE_RADIUS)
-        endX = toX + (goRight ? -NODE_RADIUS : NODE_RADIUS); endY = toY
+        startX = fromX; startY = fromY + (goDown ? nodeRadius : -nodeRadius)
+        endX = toX + (goRight ? -nodeRadius : nodeRadius); endY = toY
         arrowAngle = goRight ? 90 : -90
         points = [startX, startY, startX, endY, endX, endY]
       }
@@ -673,8 +675,8 @@ function generateSVG(
       // bendCount >= 2
       if (isHorizontalFirst) {
         const goRight = dx > 0
-        startX = fromX + (goRight ? NODE_RADIUS : -NODE_RADIUS); startY = fromY
-        endX = toX + (goRight ? -NODE_RADIUS : NODE_RADIUS); endY = toY
+        startX = fromX + (goRight ? nodeRadius : -nodeRadius); startY = fromY
+        endX = toX + (goRight ? -nodeRadius : nodeRadius); endY = toY
         arrowAngle = goRight ? 90 : -90
         if (dy === 0) {
           points = [startX, startY, endX, endY]
@@ -684,8 +686,8 @@ function generateSVG(
         }
       } else {
         const goDown = dy > 0
-        startX = fromX; startY = fromY + (goDown ? NODE_RADIUS : -NODE_RADIUS)
-        endX = toX; endY = toY + (goDown ? -NODE_RADIUS : NODE_RADIUS)
+        startX = fromX; startY = fromY + (goDown ? nodeRadius : -nodeRadius)
+        endX = toX; endY = toY + (goDown ? -nodeRadius : nodeRadius)
         arrowAngle = goDown ? 180 : 0
         if (dx === 0) {
           points = [startX, startY, endX, endY]
@@ -754,13 +756,13 @@ function generateSVG(
     parts.push(`<polygon points="${triPoints.map(p => `${p[0]},${p[1]}`).join(' ')}" fill="${strokeColor}"/>`)
 
     // ── ラベル ──
-    if (!activity.isDummy && (activity.displaySettings.showName || activity.displaySettings.showDuration)) {
+    if (!activity.isDummy && (activity.displaySettings.showName || (projectSettings.showActivityDuration !== false && activity.displaySettings.showDuration))) {
       const idealPath = computeIdealPathPoints(fromX, fromY, toX, toY, bendCount, routingMode)
       const midInfo = getPathMidpointWithSegmentInfo(idealPath)
       const userOffX = activity.labelOffset?.x ?? 0
       const userOffY = activity.labelOffset?.y ?? 0
       const autoLeader = midInfo.segmentDirection === 'vertical' && userOffX === 0 && userOffY === 0
-      const hasBasis = activity.durationMode === 'calculated' && activity.displaySettings.showDuration
+      const hasBasis = activity.durationMode === 'calculated' && (projectSettings.showActivityDuration !== false && activity.displaySettings.showDuration)
 
       const resolvedAlign = activity.displaySettings.textAlign ?? projectSettings.defaultActivityDisplay.textAlign ?? 'center'
       const dynamicTextWidth = Math.max(100, Math.abs(toX - fromX))
@@ -818,9 +820,9 @@ function generateSVG(
 
       // テキスト内容
       let text = ''
-      if (activity.durationMode === 'calculated' && activity.displaySettings.showDuration) {
+      if (activity.durationMode === 'calculated' && (projectSettings.showActivityDuration !== false && activity.displaySettings.showDuration)) {
         text = activity.displaySettings.showName ? activity.name : ''
-      } else if (activity.displaySettings.showName && activity.displaySettings.showDuration) {
+      } else if (activity.displaySettings.showName && (projectSettings.showActivityDuration !== false && activity.displaySettings.showDuration)) {
         text = `${activity.name}(${activity.duration})`
       } else if (activity.displaySettings.showName) {
         text = activity.name
@@ -869,20 +871,20 @@ function generateSVG(
     const nodeSW = isCritical ? 2 : 1.5
 
     // 半円判定（カレンダー初日は右向き半円を強制）
-    let semiDir = getNodeSemiCircleDirection(node.id, nodes, activities, nodesMap)
+    let semiDir = getNodeSemiCircleDirection(node.id, nodes, activities, nodesMap, nodeRadius)
     if (adjustedX === 0) semiDir = 'right'
 
     if (semiDir) {
       // 半円をSVG arcで描画
-      const arcPath = buildSemiCirclePath(cx, cy, NODE_RADIUS, semiDir)
+      const arcPath = buildSemiCirclePath(cx, cy, nodeRadius, semiDir)
       parts.push(`<path d="${arcPath}" fill="white" stroke="${nodeStroke}" stroke-width="${nodeSW}"/>`)
     } else {
-      parts.push(`<circle cx="${cx}" cy="${cy}" r="${NODE_RADIUS}" fill="white" stroke="${nodeStroke}" stroke-width="${nodeSW}"/>`)
+      parts.push(`<circle cx="${cx}" cy="${cy}" r="${nodeRadius}" fill="white" stroke="${nodeStroke}" stroke-width="${nodeSW}"/>`)
     }
 
     // ラベル
     if (node.label) {
-      parts.push(`<text x="${cx}" y="${cy - NODE_RADIUS - 4}" text-anchor="middle" font-size="9" fill="#374151">${escapeXml(node.label)}</text>`)
+      parts.push(`<text x="${cx}" y="${cy - nodeRadius - 4}" text-anchor="middle" font-size="${9 * nodeRadius / 6}" fill="#374151">${escapeXml(node.label)}</text>`)
     }
   })
   parts.push('</g>') // layer-nodes
@@ -1095,13 +1097,14 @@ function getNodeSemiCircleDirection(
   _nodes: EventNode[],
   activities: Activity[],
   nodesMap: Map<string, EventNode>,
+  nodeRadius: number,
 ): 'top' | 'bottom' | 'left' | 'right' | null {
   const node = nodesMap.get(nodeId)
   if (!node) return null
   const nodeX = node.position.x
   const nodeY = node.position.y
   const lineThreshold = 3
-  const nodeInnerRadius = NODE_RADIUS - 2
+  const nodeInnerRadius = nodeRadius - 2
 
   for (const activity of activities) {
     if (activity.fromNodeId === nodeId || activity.toNodeId === nodeId) continue
